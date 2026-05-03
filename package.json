@@ -1,0 +1,23 @@
+{
+  "name": "letusmeet",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/vrwarp/LetUsMeet#readme",
+  "bugs": {
+    "url": "https://github.com/vrwarp/LetUsMeet/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vrwarp/LetUsMeet.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.16.0"
+  }
+}
