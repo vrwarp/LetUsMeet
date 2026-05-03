@@ -1,13 +1,13 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/firebase";
-import type { CreatePollRequest, CreatePollResponse, SubmitVoteRequest } from "../types/index";
+import type { CreatePollRequest, CreatePollResponse, SubmitVoteRequest, GetPollResponse } from "../types/index";
 
 export const createPollApi = httpsCallable<CreatePollRequest, CreatePollResponse>(
   functions,
   "createPoll"
 );
 
-export const getPollApi = httpsCallable<{ pollId: string }, any>(
+export const getPollApi = httpsCallable<{ pollId: string }, GetPollResponse>(
   functions,
   "getPoll"
 );

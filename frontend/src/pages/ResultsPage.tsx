@@ -15,7 +15,7 @@ export default function ResultsPage() {
   const [votes, setVotes] = useState<VoteResult[]>([]);
   const [voteCounts, setVoteCounts] = useState<Record<string, { YES: number, IF_NEED_BE: number, NO: number }>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
 
   useEffect(() => {
     if (pollId) {
@@ -32,15 +32,24 @@ export default function ResultsPage() {
       setIsLoading(false);
     } catch (err: any) {
       console.error("Failed to fetch results", err);
-      setError(err.message || "Could not load results.");
+      setPollError(err.message || "Could not load results.");
       setIsLoading(false);
     }
   };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="animate-spin text-indigo-600" size={40} />
+      </div>
+    );
+  }
+
+  if (pollError) {
+    return (
+      <div className="max-w-md mx-auto py-20 text-center flex flex-col gap-4">
+        <div className="text-red-500 font-bold text-lg">Error loading poll</div>
+        <p className="text-neutral-500">{pollError}</p>
+        <Link to="/" className="text-indigo-600 font-bold">Return Home</Link>
       </div>
     );
   }

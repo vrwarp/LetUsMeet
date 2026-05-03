@@ -38,7 +38,10 @@ export const submitVote = functions.https.onCall<SubmitVoteRequest>(async (reque
 
   // 5. Write vote document (using UID as doc ID to enforce one-vote-per-user)
   const voteRef = pollRef.collection("votes").doc(request.auth.uid);
+  const existingVote = await voteRef.get();
+  
   const now = new Date().toISOString();
+  const createdAt = existingVote.exists ? existingVote.data()?.createdAt : now;
   
   const voteData: Vote & { participantUid: string } = {
     voteId: request.auth.uid,
@@ -46,7 +49,7 @@ export const submitVote = functions.https.onCall<SubmitVoteRequest>(async (reque
     participantName,
     participantEmail: participantEmail || undefined,
     selections,
-    createdAt: pollDoc.exists ? (await voteRef.get()).data()?.createdAt || now : now,
+    createdAt,
     updatedAt: now,
   };
 

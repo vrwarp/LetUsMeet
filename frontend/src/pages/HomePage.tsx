@@ -25,9 +25,12 @@ export default function HomePage() {
           >
             Create your first poll
           </Link>
-          <button className="px-8 py-4 bg-white text-neutral-700 border border-neutral-200 rounded-xl font-bold text-lg hover:bg-neutral-50 transition-all">
+          <Link
+            to="/create"
+            className="px-8 py-4 bg-white text-neutral-700 border border-neutral-200 rounded-xl font-bold text-lg hover:bg-neutral-50 transition-all flex items-center justify-center"
+          >
             See how it works
-          </button>
+          </Link>
         </div>
       </section>
 

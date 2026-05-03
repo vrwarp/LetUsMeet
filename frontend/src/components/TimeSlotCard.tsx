@@ -1,5 +1,6 @@
 import { Check, X, Minus } from "lucide-react";
 import type { VoteValue } from "../types/index";
+import { cycleVote } from "@/lib/voteUtils";
 
 interface Props {
   startTime: string;
@@ -18,10 +19,7 @@ export default function TimeSlotCard({ startTime, endTime, value, onChange, disa
 
   const handleClick = () => {
     if (disabled) return;
-    
-    if (value === "NO") onChange("YES");
-    else if (value === "YES") onChange("IF_NEED_BE");
-    else onChange("NO");
+    onChange(cycleVote(value));
   };
 
   const getStyles = () => {

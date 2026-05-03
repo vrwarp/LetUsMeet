@@ -19,6 +19,8 @@ export default function VotePollPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [showCopied, setShowCopied] = useState(false);
+
   useEffect(() => {
     if (pollId) {
       fetchPoll();
@@ -30,7 +32,6 @@ export default function VotePollPage() {
       const result = await getPollApi({ pollId: pollId! });
       setPoll(result.data.poll);
       
-      // Initialize selections to NO if not already set
       const initial: Record<string, VoteValue> = {};
       result.data.poll.timeSlots.forEach((s: any) => initial[s.id] = "NO");
       setSelections(initial);
@@ -70,6 +71,12 @@ export default function VotePollPage() {
     }
   };
 
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShowCopied(true);
+    setTimeout(() => setShowCopied(false), 2000);
+  };
+
   if (isLoading || authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -80,6 +87,26 @@ export default function VotePollPage() {
 
   if (!poll) {
     return <div className="text-center py-20 text-neutral-500">Poll not found.</div>;
+  }
+
+  if (poll.status === "FINALIZED") {
+    return (
+      <div className="max-w-md mx-auto py-20 flex flex-col items-center text-center gap-6">
+        <div className="w-20 h-20 bg-neutral-100 text-neutral-400 rounded-full flex items-center justify-center">
+          <CheckCircle size={40} />
+        </div>
+        <h2 className="text-3xl font-extrabold text-neutral-900">Poll Finalized</h2>
+        <p className="text-neutral-600">
+          This poll has been finalized by the organizer and is no longer accepting votes.
+        </p>
+        <Link
+          to={`/poll/${pollId}/results`}
+          className="mt-4 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+        >
+          View Final Results
+        </Link>
+      </div>
+    );
   }
 
   if (isSuccess) {
@@ -121,14 +148,11 @@ export default function VotePollPage() {
           </div>
         </div>
         <button 
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href);
-            alert("Link copied!");
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-neutral-600 font-bold hover:bg-neutral-50 transition-all shadow-sm self-start md:self-auto"
+          onClick={handleShare}
+          className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl font-bold transition-all shadow-sm self-start md:self-auto ${showCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'}`}
         >
           <Share2 size={18} />
-          Share Poll
+          {showCopied ? "Copied!" : "Share Poll"}
         </button>
       </div>
 

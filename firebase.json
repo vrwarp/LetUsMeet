@@ -25,7 +25,7 @@
   ],
   "apphosting": {
     "backendId": "firebase-05-02",
-    "rootDir": "/",
+    "rootDir": "frontend/",
     "ignore": [
       "node_modules",
       ".git",

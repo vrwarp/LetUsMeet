@@ -53,3 +53,9 @@ export interface SubmitVoteRequest {
   participantEmail?: string;
   selections: Record<string, VoteValue>;
 }
+
+export interface GetPollResponse {
+  poll: Poll;
+  votes: Vote[];
+  voteCounts: Record<string, { YES: number, NO: number, IF_NEED_BE: number }>;
+}

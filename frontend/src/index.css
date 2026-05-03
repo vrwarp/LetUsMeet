@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
 @layer base {
   body {
     @apply bg-neutral-50 text-neutral-900;
