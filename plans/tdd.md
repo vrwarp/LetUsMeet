@@ -10,7 +10,7 @@ The application will follow a serverless architecture leveraging the Firebase ec
     *   A responsive Web App / Progressive Web App (PWA) built using a modern JavaScript framework (e.g., React or Next.js, as supported by App Hosting).
     *   Responsible for rendering the Bento Grid UI, managing client-side routing, interacting with Firebase Authentication, and calling the backend API.
 *   **Backend API (Cloud Functions for Firebase):**
-    *   Written in Node.js.
+    *   Written in Node.js using TypeScript for improved type safety and maintainability.
     *   Provides business logic for poll creation, voting aggregation, and Google Calendar integration.
     *   Secures sensitive operations (e.g., interacting with external APIs).
 *   **Database (Cloud Firestore):**
@@ -55,7 +55,7 @@ Structured as a subcollection `/polls/{pollId}/votes` to ensure strong locality 
 *   `createdAt` (Timestamp)
 *   `updatedAt` (Timestamp)
 
-## 4. API Design (Cloud Functions & Node.js)
+## 4. API Design (Cloud Functions & TypeScript)
 
 Cloud Functions (callable functions or HTTP endpoints) will expose the core logic.
 
@@ -92,7 +92,40 @@ Firebase Security Rules will enforce the authorization model:
 *   **Fuzzy Scheduling Clarity:** The UI components rendering time slots will include conditional logic to render explicit time bounds (e.g., `8:00 AM - 12:00 PM`) when a `FUZZY` "Morning" slot is presented.
 
 ## 7. Development Phases Alignment
-*   **Phase 1 (Core Engine):** Firestore setup, Anonymous Auth, exact scheduling UI, voting logic.
-*   **Phase 2 (UX Polish):** Fuzzy scheduling logic, Bento Grid implementation, responsive design.
-*   **Phase 3 (Google Ecosystem):** Google OAuth via Firebase, Cloud Functions for Calendar API, organizer dashboard.
-*   **Phase 4 (PWA):** Service worker configuration, App Hosting optimization for sub-3-second load times.
+
+This project will be developed iteratively in four major phases.
+
+### Phase 1: The Core Engine (MVP)
+*   **Goal:** Establish the foundational infrastructure and basic polling capabilities to enable immediate usage without user accounts.
+*   **Tasks:**
+    *   Set up the Firebase project (App Hosting, Cloud Firestore, Authentication, Functions).
+    *   Implement Firestore security rules and define data structures for Polls and Votes.
+    *   Create the web frontend with exact scheduling options and a basic participant view.
+    *   Implement the core trinary voting mechanic using anonymous sessions.
+    *   Develop the unique URL generation system for sharing polls.
+    *   Deploy the MVP for initial testing.
+
+### Phase 2: Fuzzy Scheduling & UX Polish
+*   **Goal:** Improve flexibility and the overall visual experience.
+*   **Tasks:**
+    *   Update backend and frontend data models to support "Fuzzy Scheduling" (Text + Date formatting).
+    *   Completely overhaul the user interface, migrating to the "Bento Grid" layout using modern CSS Grid and Flexbox techniques.
+    *   Ensure the application is fully responsive on all devices and ad-free.
+    *   Refine visual states for voting (e.g., colorblind-friendly indicators).
+
+### Phase 3: The Google Ecosystem Integration
+*   **Goal:** Empower organizers with advanced features, including Google Calendar integration.
+*   **Tasks:**
+    *   Enable Google OAuth in Firebase Auth for organizer account creation.
+    *   Build out the organizer dashboard to track created polls.
+    *   Develop Cloud Functions in TypeScript to securely interact with the Google Calendar API (`/calendar/v3/events`).
+    *   Implement the visual overlay for poll creation, fetching an organizer's busy times to prevent conflicts.
+    *   Automate standard `.ics` invites and Google Calendar generation upon poll finalization.
+
+### Phase 4: Progressive Web App (PWA) Optimization
+*   **Goal:** Maximize app performance, reliability, and edge-case management.
+*   **Tasks:**
+    *   Configure service workers to cache essential assets (the App Shell).
+    *   Implement offline support so participants can view the grid and queue votes even on poor connections.
+    *   Optimize Firebase App Hosting deployment for sub-3-second load times.
+    *   Add features for organizers to duplicate past polls and set default availability profiles.
