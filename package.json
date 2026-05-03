@@ -1,6 +1,11 @@
 {
   "name": "letusmeet",
   "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "functions"
+  ],
   "description": "",
   "homepage": "https://github.com/vrwarp/LetUsMeet#readme",
   "bugs": {
@@ -12,12 +17,14 @@
   },
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run build --prefix functions && firebase emulators:start --only auth,firestore,functions\"",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "npm run test:unit --prefix frontend && npm run build --prefix functions && npm run test --prefix functions",
+    "test:e2e": "npm run test:e2e --prefix frontend"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
     "firebase-tools": "^15.16.0"
   }
 }
