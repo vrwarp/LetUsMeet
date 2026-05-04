@@ -3,7 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { submitVoteSchema } from "./validators.js";
 import { SubmitVoteRequest, Vote } from "./types.js";
 
-export const submitVote = functions.https.onCall<SubmitVoteRequest>({ cors: true }, async (request) => {
+export const submitVote = functions.https.onCall<SubmitVoteRequest>(async (request) => {
   // 1. Validate auth
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");

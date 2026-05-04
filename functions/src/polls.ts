@@ -3,8 +3,9 @@ import { getFirestore } from "firebase-admin/firestore";
 import { createPollSchema } from "./validators.js";
 import { CreatePollRequest, Poll, TimeSlot } from "./types.js";
 
-export const createPoll = functions.https.onCall<CreatePollRequest>({ cors: true }, async (request) => {
-  console.log("createPoll triggered", request.data);
+export const createPoll = functions.https.onCall<CreatePollRequest>(async (request) => {
+  console.log("createPoll triggered", { data: request.data, auth: request.auth?.uid });
+  try {
   // 1. Validate auth
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
@@ -39,10 +40,13 @@ export const createPoll = functions.https.onCall<CreatePollRequest>({ cors: true
 
   await pollRef.set(poll);
 
-  return { pollId: pollRef.id };
+  } catch (error: any) {
+    console.error("Error in createPoll:", error);
+    throw new functions.https.HttpsError("internal", error.message || "Failed to create poll");
+  }
 });
 
-export const getPoll = functions.https.onCall<{ pollId: string }>({ cors: true }, async (request) => {
+export const getPoll = functions.https.onCall<{ pollId: string }>(async (request) => {
   const { pollId } = request.data;
   if (!pollId) {
     throw new functions.https.HttpsError("invalid-argument", "pollId is required.");
@@ -79,4 +83,8 @@ export const getPoll = functions.https.onCall<{ pollId: string }>({ cors: true }
     votes,
     voteCounts,
   };
+});
+
+export const ping = functions.https.onCall(async () => {
+  return { pong: true };
 });
