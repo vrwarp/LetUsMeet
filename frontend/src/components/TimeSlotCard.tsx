@@ -47,6 +47,7 @@ export default function TimeSlotCard({ startTime, endTime, value, onChange, disa
       type="button"
       onClick={handleClick}
       disabled={disabled}
+      data-testid="slot-card"
       className={`relative flex flex-col items-center gap-1 p-4 rounded-2xl border-2 transition-all cursor-pointer select-none h-32 justify-center shadow-md active:scale-95 ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${value === 'NO' ? 'text-neutral-400' : 'text-white/80'}`}>

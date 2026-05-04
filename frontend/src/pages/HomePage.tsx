@@ -21,6 +21,7 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full sm:w-auto">
           <Link
             to="/create"
+            data-testid="create-poll-btn"
             className="px-8 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-200"
           >
             Create your first poll

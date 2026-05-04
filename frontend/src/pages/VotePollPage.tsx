@@ -101,6 +101,7 @@ export default function VotePollPage() {
         </p>
         <Link
           to={`/poll/${pollId}/results`}
+          data-testid="view-results-btn"
           className="mt-4 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
         >
           View Final Results
@@ -121,6 +122,7 @@ export default function VotePollPage() {
         </p>
         <Link
           to={`/poll/${pollId}/results`}
+          data-testid="view-results-btn"
           className="mt-4 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
         >
           View Live Results
@@ -133,7 +135,7 @@ export default function VotePollPage() {
     <div className="max-w-4xl mx-auto py-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-neutral-200">
         <div className="flex flex-col gap-3">
-          <h1 className="text-4xl font-extrabold text-neutral-900 leading-tight">{poll.title}</h1>
+          <h1 className="text-4xl font-extrabold text-neutral-900 leading-tight" data-testid="poll-title">{poll.title}</h1>
           <div className="flex flex-wrap gap-4 text-neutral-500 font-medium">
             {poll.location && (
               <div className="flex items-center gap-1.5">
@@ -188,6 +190,7 @@ export default function VotePollPage() {
               <input
                 required
                 type="text"
+                data-testid="participant-name-input"
                 placeholder="First and last name"
                 className="px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 value={participantName}
@@ -210,6 +213,7 @@ export default function VotePollPage() {
 
           <button
             type="submit"
+            data-testid="vote-submit-btn"
             disabled={isSubmitting || !participantName}
             className="mt-8 w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2"
           >

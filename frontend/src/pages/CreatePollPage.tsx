@@ -95,6 +95,7 @@ export default function CreatePollPage() {
             <input
               required
               type="text"
+              data-testid="poll-title-input"
               placeholder="e.g., Team Sync, Dinner with friends"
               className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-lg"
               value={title}
@@ -109,6 +110,7 @@ export default function CreatePollPage() {
             </label>
             <input
               type="text"
+              data-testid="poll-location-input"
               placeholder="e.g., Zoom, Starbucks, Office"
               className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               value={location}
@@ -167,6 +169,7 @@ export default function CreatePollPage() {
             <button
               type="button"
               onClick={addSlot}
+              data-testid="add-slot-btn"
               className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-medium mt-2"
             >
               <Plus size={18} />
@@ -183,6 +186,7 @@ export default function CreatePollPage() {
 
         <button
           type="submit"
+          data-testid="create-submit-btn"
           disabled={isSubmitting || !title}
           className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >

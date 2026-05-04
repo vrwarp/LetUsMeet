@@ -83,7 +83,7 @@ export default function ResultsPage() {
         <p className="text-neutral-500">Real-time view of everyone's availability.</p>
       </div>
 
-      <div className="overflow-x-auto rounded-3xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-neutral-200 bg-white shadow-sm" data-testid="consensus-grid">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-neutral-50/50">
@@ -142,7 +142,7 @@ export default function ResultsPage() {
             {votes.map((vote, idx) => (
               <tr key={idx}>
                 <td className="p-6 border-b border-neutral-100 sticky left-0 bg-white z-10 shadow-[2px_0_10px_-4px_rgba(0,0,0,0.1)]">
-                  <span className="font-bold text-neutral-800">{vote.participantName}</span>
+                  <span className="font-bold text-neutral-800" data-testid="participant-name">{vote.participantName}</span>
                 </td>
                 {poll.timeSlots.map((slot) => {
                   const val = vote.selections[slot.id] || "NO";
