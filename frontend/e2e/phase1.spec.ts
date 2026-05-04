@@ -5,6 +5,8 @@ test.describe('Phase 1 Critical User Journeys', () => {
   // or we could split them and pass the ID, but a single e2e journey test is often simpler.
   
   test('Create a poll, vote on it, and view results', async ({ page }) => {
+    page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
+    
     // --- 1. Home Page ---
     await page.goto('/');
     await expect(page).toHaveTitle(/LetUsMeet/);

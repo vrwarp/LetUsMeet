@@ -18,7 +18,7 @@
   "license": "ISC",
   "author": "",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run build --prefix functions && firebase emulators:start --only auth,firestore,functions\"",
+    "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npm run build --prefix functions && firebase emulators:start --only auth,firestore,functions\"",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "npm run test:unit --prefix frontend && npm run build --prefix functions && npm run test --prefix functions",
     "test:e2e": "npm run test:e2e --prefix frontend"

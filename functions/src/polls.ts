@@ -1,9 +1,10 @@
 import * as functions from "firebase-functions/v2";
-import * as admin from "firebase-admin";
-import { createPollSchema } from "./validators";
-import { CreatePollRequest, Poll, TimeSlot } from "./types";
+import { getFirestore } from "firebase-admin/firestore";
+import { createPollSchema } from "./validators.js";
+import { CreatePollRequest, Poll, TimeSlot } from "./types.js";
 
-export const createPoll = functions.https.onCall<CreatePollRequest>(async (request) => {
+export const createPoll = functions.https.onCall<CreatePollRequest>({ cors: true }, async (request) => {
+  console.log("createPoll triggered", request.data);
   // 1. Validate auth
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
@@ -24,7 +25,7 @@ export const createPoll = functions.https.onCall<CreatePollRequest>(async (reque
   }));
 
   // 4. Create poll document
-  const pollRef = admin.firestore().collection("polls").doc();
+  const pollRef = getFirestore().collection("polls").doc();
   const poll: Poll = {
     pollId: pollRef.id,
     organizerUid: request.auth.uid,
@@ -41,13 +42,13 @@ export const createPoll = functions.https.onCall<CreatePollRequest>(async (reque
   return { pollId: pollRef.id };
 });
 
-export const getPoll = functions.https.onCall<{ pollId: string }>(async (request) => {
+export const getPoll = functions.https.onCall<{ pollId: string }>({ cors: true }, async (request) => {
   const { pollId } = request.data;
   if (!pollId) {
     throw new functions.https.HttpsError("invalid-argument", "pollId is required.");
   }
 
-  const pollDoc = await admin.firestore().collection("polls").doc(pollId).get();
+  const pollDoc = await getFirestore().collection("polls").doc(pollId).get();
   if (!pollDoc.exists) {
     throw new functions.https.HttpsError("not-found", "Poll not found.");
   }
@@ -55,7 +56,7 @@ export const getPoll = functions.https.onCall<{ pollId: string }>(async (request
   const pollData = pollDoc.data() as Poll;
 
   // Fetch votes
-  const votesSnapshot = await admin.firestore().collection("polls").doc(pollId).collection("votes").get();
+  const votesSnapshot = await getFirestore().collection("polls").doc(pollId).collection("votes").get();
   const votes = votesSnapshot.docs.map(doc => doc.data());
 
   // Aggregate vote counts

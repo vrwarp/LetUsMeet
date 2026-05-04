@@ -1,9 +1,9 @@
-import * as admin from "firebase-admin";
-import {setGlobalOptions} from "firebase-functions";
+import { initializeApp } from "firebase-admin/app";
+import { setGlobalOptions } from "firebase-functions";
 
-admin.initializeApp();
+initializeApp();
 
 setGlobalOptions({ maxInstances: 10, region: "us-central1" });
 
-export * from "./polls";
-export * from "./votes";
+export * from "./polls.js";
+export * from "./votes.js";

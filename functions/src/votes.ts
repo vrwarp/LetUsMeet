@@ -1,9 +1,9 @@
 import * as functions from "firebase-functions/v2";
-import * as admin from "firebase-admin";
-import { submitVoteSchema } from "./validators";
-import { SubmitVoteRequest, Vote } from "./types";
+import { getFirestore } from "firebase-admin/firestore";
+import { submitVoteSchema } from "./validators.js";
+import { SubmitVoteRequest, Vote } from "./types.js";
 
-export const submitVote = functions.https.onCall<SubmitVoteRequest>(async (request) => {
+export const submitVote = functions.https.onCall<SubmitVoteRequest>({ cors: true }, async (request) => {
   // 1. Validate auth
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
@@ -18,7 +18,7 @@ export const submitVote = functions.https.onCall<SubmitVoteRequest>(async (reque
   const { pollId, participantName, participantEmail, selections } = validation.data;
 
   // 3. Verify poll exists and is OPEN
-  const pollRef = admin.firestore().collection("polls").doc(pollId);
+  const pollRef = getFirestore().collection("polls").doc(pollId);
   const pollDoc = await pollRef.get();
   if (!pollDoc.exists) {
     throw new functions.https.HttpsError("not-found", "Poll not found.");
