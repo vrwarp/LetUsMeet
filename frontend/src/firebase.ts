@@ -19,6 +19,7 @@ export const db = getFirestore(app);
 export const functions = getFunctions(app, "us-central1");
 
 if (import.meta.env.DEV) {
+  console.log("🔥 Connecting to Firebase Emulators...");
   connectAuthEmulator(auth, "http://127.0.0.1:9099");
   connectFirestoreEmulator(db, "127.0.0.1", 8081);
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);

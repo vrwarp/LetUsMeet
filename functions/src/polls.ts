@@ -40,6 +40,7 @@ export const createPoll = functions.https.onCall<CreatePollRequest>(async (reque
 
   await pollRef.set(poll);
 
+  return { pollId: pollRef.id };
   } catch (error: any) {
     console.error("Error in createPoll:", error);
     throw new functions.https.HttpsError("internal", error.message || "Failed to create poll");
