@@ -47,7 +47,7 @@ export const submitVote = functions.https.onCall<SubmitVoteRequest>(async (reque
     voteId: request.auth.uid,
     participantUid: request.auth.uid,
     participantName,
-    participantEmail: participantEmail || undefined,
+    participantEmail: participantEmail || null,
     selections,
     createdAt,
     updatedAt: now,

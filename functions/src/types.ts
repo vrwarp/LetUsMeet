@@ -29,7 +29,7 @@ export interface Poll {
 export interface Vote {
   voteId: string;
   participantName: string;
-  participantEmail?: string;
+  participantEmail?: string | null;
   selections: Record<string, VoteValue>;  // timeSlotId → vote
   createdAt: string;
   updatedAt: string;
