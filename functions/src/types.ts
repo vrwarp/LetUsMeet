@@ -15,7 +15,10 @@ export type TimeSlot = ExactTimeSlot;  // Union grows in Phase 2
 // Poll document
 export interface Poll {
   pollId: string;
-  organizerUid: string;
+  organizerUid?: string | null;
+  organizerName: string;
+  organizerEmail: string;
+  adminToken: string;
   title: string;
   location: string;
   schedulingMode: SchedulingMode;
@@ -41,10 +44,13 @@ export interface CreatePollRequest {
   location: string;
   schedulingMode: SchedulingMode;
   timeSlots: Omit<ExactTimeSlot, "id">[];
+  organizerName: string;
+  organizerEmail: string;
 }
 
 export interface CreatePollResponse {
   pollId: string;
+  adminToken: string;
 }
 
 export interface SubmitVoteRequest {

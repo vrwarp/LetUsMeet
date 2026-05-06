@@ -3,7 +3,7 @@ import { functions } from "@/firebase";
 
 export async function createPollAction(data: any) {
   if ((globalThis as any).IS_VITEST) {
-    return { data: { pollId: 'mock-poll-id-123' } };
+    return { data: { pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' } };
   }
   const fn = httpsCallable(functions, "createPoll");
   return fn(data);

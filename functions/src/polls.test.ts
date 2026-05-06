@@ -38,10 +38,21 @@ describe("Polls Handlers", () => {
   });
 
   describe("createPollHandler", () => {
-    it("should throw unauthenticated error if no auth", async () => {
-      await expect(createPollHandler(makeCallableRequest({} as any))).rejects.toThrow(
-        expect.objectContaining({ code: "unauthenticated" })
-      );
+    it("should allow creating a poll without auth", async () => {
+      const data = {
+        title: "Test Poll",
+        location: "Test Location",
+        schedulingMode: "EXACT" as const,
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
+      };
+      const request = makeCallableRequest(data as any);
+      mockSet.mockResolvedValue({} as any);
+
+      const result = await createPollHandler(request);
+      expect(result.pollId).toBe("mock-poll-id");
+      expect(result.adminToken).toBeDefined();
     });
 
     it("should throw invalid-argument if data is invalid", async () => {
@@ -52,25 +63,31 @@ describe("Polls Handlers", () => {
       );
     });
 
-    it("should create a poll and return pollId", async () => {
+    it("should create a poll and return pollId and adminToken", async () => {
       const data = {
         title: "Test Poll",
         location: "Test Location",
         schedulingMode: "EXACT" as const,
         timeSlots: [
           { startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }
-        ]
+        ],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const request = makeCallableRequest(data, "user123");
       mockSet.mockResolvedValue({} as any);
 
       const result = await createPollHandler(request);
 
-      expect(result).toEqual({ pollId: "mock-poll-id" });
+      expect(result.pollId).toBe("mock-poll-id");
+      expect(result.adminToken).toBeDefined();
       expect(mockCollection).toHaveBeenCalledWith("polls");
       expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({
         title: "Test Poll",
         organizerUid: "user123",
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
+        adminToken: expect.any(String),
         status: "OPEN"
       }));
     });
@@ -83,7 +100,9 @@ describe("Polls Handlers", () => {
         timeSlots: [
           { startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" },
           { startTime: "2026-01-01T12:00:00Z", endTime: "2026-01-01T13:00:00Z" }
-        ]
+        ],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const request = makeCallableRequest(data, "user123");
       mockSet.mockResolvedValue({} as any);

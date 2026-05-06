@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon } from "lucide-react";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon, ShieldCheck } from "lucide-react";
 import { fetchPollAction, submitVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
@@ -8,8 +8,8 @@ import TimeSlotCard from "@/components/TimeSlotCard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   
   const [poll, setPoll] = useState<Poll | null>(null);
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
@@ -80,32 +80,7 @@ export default function VotePollPage() {
     }));
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-        <p className="text-neutral-500 font-medium">Authenticating...</p>
-      </div>
-    );
-  }
 
-  if (!user) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <div className="bg-amber-50 rounded-3xl p-8 border border-amber-100">
-          <UserIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-neutral-800 mb-2">Sign in Required</h2>
-          <p className="text-neutral-600 mb-6">Please sign in to vote on this poll.</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
-          >
-            Retry Authentication
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -180,6 +155,10 @@ export default function VotePollPage() {
     setTimeout(() => setShowCopied(false), 3000);
   };
 
+  const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
+  const isOwner = adminToken === poll.adminToken;
+  const adminUrl = `${window.location.origin}/poll/${pollId}?adminToken=${poll.adminToken}`;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
       <div className="mb-10">
@@ -212,9 +191,40 @@ export default function VotePollPage() {
           )}
           <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100">
             <UserIcon className="w-4 h-4 text-indigo-500" />
-            <span>Organizer</span>
+            <span>{poll.organizerName || "Organizer"}</span>
           </div>
         </div>
+
+        {isOwner && (
+          <div className="mt-8 bg-indigo-50 border border-indigo-100 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-neutral-800 text-lg">You are the Owner</h3>
+                <p className="text-neutral-500 text-sm">Save this link to manage or finalize your poll later.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <input 
+                readOnly 
+                value={adminUrl} 
+                className="bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 flex-1 md:w-64" 
+              />
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(adminUrl);
+                  setShowCopied(true);
+                  setTimeout(() => setShowCopied(false), 3000);
+                }}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 whitespace-nowrap"
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-12">

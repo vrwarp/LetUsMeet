@@ -13,7 +13,9 @@ describe("Validators", () => {
             startTime: new Date(Date.now() + 3600000).toISOString(),
             endTime: new Date(Date.now() + 7200000).toISOString(),
           }
-        ]
+        ],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(validPoll);
       expect(result.success).toBe(true);
@@ -110,6 +112,31 @@ describe("Validators", () => {
         location: "Zoom",
         schedulingMode: "FUZZY", // Not in enum
         timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+      };
+      const result = createPollSchema.safeParse(invalidPoll);
+      expect(result.success).toBe(false);
+    });
+
+    it("should fail if organizerName is missing", () => {
+      const invalidPoll = {
+        title: "Meeting",
+        location: "Zoom",
+        schedulingMode: "EXACT",
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerEmail: "jane@example.com",
+      };
+      const result = createPollSchema.safeParse(invalidPoll);
+      expect(result.success).toBe(false);
+    });
+
+    it("should fail if organizerEmail is invalid", () => {
+      const invalidPoll = {
+        title: "Meeting",
+        location: "Zoom",
+        schedulingMode: "EXACT",
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "not-an-email",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);

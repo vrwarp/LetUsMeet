@@ -10,6 +10,8 @@ export const createPollSchema = z.object({
   })).min(1).refine((slots) => {
     return slots.every(slot => new Date(slot.endTime) > new Date(slot.startTime));
   }, "End time must be after start time"),
+  organizerName: z.string().min(1).max(100),
+  organizerEmail: z.string().email(),
 });
 
 export const submitVoteSchema = z.object({

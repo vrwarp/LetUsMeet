@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import CreatePollPage from '@/pages/CreatePollPage';
-import { useAuth } from '@/hooks/useAuth';
 import * as pollApi from '@/lib/pollApi';
 
 const mockNavigate = vi.fn();
@@ -15,10 +14,6 @@ vi.mock('react-router-dom', async () => {
 describe('CreatePollPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useAuth).mockReturnValue({
-      user: { uid: 'user123', email: 'test@example.com' },
-      loading: false,
-    });
   });
 
   it('renders the form', async () => {
@@ -48,6 +43,11 @@ describe('CreatePollPage', () => {
     const startTimeInput = screen.getByTestId('slot-start-0');
     const endTimeInput = screen.getByTestId('slot-end-0');
     
+    const nameInput = screen.getByTestId('organizer-name-input');
+    const emailInput = screen.getByTestId('organizer-email-input');
+    await user.type(nameInput, 'Jane Doe');
+    await user.type(emailInput, 'jane@example.com');
+    
     fireEvent.change(startTimeInput, { target: { value: '12:00' } });
     fireEvent.change(endTimeInput, { target: { value: '13:00' } });
     
@@ -64,15 +64,6 @@ describe('CreatePollPage', () => {
     });
   });
 
-  it('shows loading spinner while auth is loading (Stream E4)', () => {
-    vi.mocked(useAuth).mockReturnValue({ user: null, loading: true });
-    render(
-      <MemoryRouter>
-        <CreatePollPage />
-      </MemoryRouter>
-    );
-    expect(screen.getByTestId('loader')).toBeInTheDocument();
-  });
 
   it('disables submit button when title is empty (Stream E6)', async () => {
     render(
@@ -85,6 +76,10 @@ describe('CreatePollPage', () => {
     
     const titleInput = await screen.findByTestId('poll-title-input');
     await userEvent.type(titleInput, 'Title');
+    const nameInput = screen.getByTestId('organizer-name-input');
+    const emailInput = screen.getByTestId('organizer-email-input');
+    await userEvent.type(nameInput, 'Jane');
+    await userEvent.type(emailInput, 'jane@example.com');
     expect(submitBtn).not.toBeDisabled();
   });
 
@@ -114,7 +109,11 @@ describe('CreatePollPage', () => {
     );
     
     const titleInput = await screen.findByTestId('poll-title-input');
+    const nameInput = screen.getByTestId('organizer-name-input');
+    const emailInput = screen.getByTestId('organizer-email-input');
     await userEvent.type(titleInput, 'Title');
+    await userEvent.type(nameInput, 'Jane');
+    await userEvent.type(emailInput, 'jane@example.com');
     
     const submitBtn = screen.getByTestId('create-submit-btn');
     fireEvent.click(submitBtn);

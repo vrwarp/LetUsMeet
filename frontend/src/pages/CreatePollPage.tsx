@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2 } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail } from "lucide-react";
 import { createPollAction } from "@/lib/pollApi";
-import { useAuth } from "@/hooks/useAuth";
 
 interface TimeSlotInput {
   date: string;
@@ -11,10 +10,9 @@ interface TimeSlotInput {
 }
 
 export default function CreatePollPage() {
-  const { user, loading: authLoading } = useAuth();
-  const isTest = (globalThis as any).IS_VITEST;
   const navigate = useNavigate();
-  
+  const [organizerName, setOrganizerName] = useState("");
+  const [organizerEmail, setOrganizerEmail] = useState("");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
   const [slots, setSlots] = useState<TimeSlotInput[]>([
@@ -42,24 +40,31 @@ export default function CreatePollPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const result = await createPollAction({
+      const result = (await createPollAction({
         title,
         location,
+        organizerName,
+        organizerEmail,
         schedulingMode: "EXACT",
         description: "",
         timeSlots: slots.map(slot => ({
           startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
           endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
         })),
-      });
+      })) as { data: { pollId: string; adminToken: string } };
 
       console.log("CREATE POLL RESULT:", JSON.stringify(result));
+      
+      // Store admin token for the creator
+      if (result.data.adminToken) {
+        localStorage.setItem(`adminToken_${result.data.pollId}`, result.data.adminToken);
+      }
+      
       navigate(`/poll/${result.data.pollId}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
@@ -69,13 +74,6 @@ export default function CreatePollPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-20" data-testid="loader">
-        <Loader2 className="animate-spin text-indigo-600" size={40} />
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-2xl mx-auto py-8">
@@ -85,6 +83,43 @@ export default function CreatePollPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+        {/* Organizer Info Card */}
+        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="organizer-name" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+              <User size={16} className="text-indigo-500" />
+              Your Name
+            </label>
+            <input
+              id="organizer-name"
+              required
+              type="text"
+              data-testid="organizer-name-input"
+              placeholder="e.g., Jane Doe"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              value={organizerName}
+              onChange={(e) => setOrganizerName(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="organizer-email" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+              <Mail size={16} className="text-indigo-500" />
+              Your Email
+            </label>
+            <input
+              id="organizer-email"
+              required
+              type="email"
+              data-testid="organizer-email-input"
+              placeholder="e.g., jane@example.com"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              value={organizerEmail}
+              onChange={(e) => setOrganizerEmail(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* Basic Info Card */}
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
@@ -196,7 +231,7 @@ export default function CreatePollPage() {
         <button
           type="submit"
           data-testid="create-submit-btn"
-          disabled={isSubmitting || !title}
+          disabled={isSubmitting || !title || !organizerName || !organizerEmail}
           className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isSubmitting ? (

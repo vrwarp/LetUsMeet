@@ -1,3 +1,4 @@
+import * as crypto from "crypto";
 import * as functions from "firebase-functions/v2";
 import { getFirestore } from "firebase-admin/firestore";
 import { createPollSchema } from "./validators.js";
@@ -6,10 +7,8 @@ import { CreatePollRequest, Poll, TimeSlot } from "./types.js";
 export const createPollHandler = async (request: functions.https.CallableRequest<CreatePollRequest>) => {
   console.log("createPoll triggered", { data: request.data, auth: request.auth?.uid });
   try {
-  // 1. Validate auth
-  if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
-  }
+  // 1. Auth is optional
+  const organizerUid = request.auth?.uid;
 
   // 2. Parse & validate body
   const validation = createPollSchema.safeParse(request.data);
@@ -17,7 +16,7 @@ export const createPollHandler = async (request: functions.https.CallableRequest
     throw new functions.https.HttpsError("invalid-argument", validation.error.message);
   }
 
-  const { title, location, schedulingMode, timeSlots: rawSlots } = validation.data;
+  const { title, location, schedulingMode, timeSlots: rawSlots, organizerName, organizerEmail } = validation.data;
 
   // 3. Generate sequential IDs for time slots
   const timeSlots: TimeSlot[] = rawSlots.map((slot, index) => ({
@@ -25,11 +24,17 @@ export const createPollHandler = async (request: functions.https.CallableRequest
     ...slot,
   }));
 
-  // 4. Create poll document
+  // 4. Generate admin token
+  const adminToken = crypto.randomUUID();
+
+  // 5. Create poll document
   const pollRef = getFirestore().collection("polls").doc();
   const poll: Poll = {
     pollId: pollRef.id,
-    organizerUid: request.auth.uid,
+    organizerUid: organizerUid || null,
+    organizerName,
+    organizerEmail,
+    adminToken,
     title,
     location: location || "",
     schedulingMode,
@@ -40,7 +45,7 @@ export const createPollHandler = async (request: functions.https.CallableRequest
 
   await pollRef.set(poll);
 
-  return { pollId: pollRef.id };
+  return { pollId: pollRef.id, adminToken };
   } catch (error: any) {
     if (error instanceof functions.https.HttpsError) {
       throw error;
