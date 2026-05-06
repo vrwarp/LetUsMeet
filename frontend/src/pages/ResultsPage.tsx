@@ -22,9 +22,10 @@ export default function ResultsPage() {
       if (!pollId) return;
       try {
         const result = await fetchPollAction({ pollId });
-        setPoll(result.data.poll);
-        setVotes(result.data.votes);
-        setVoteCounts(result.data.voteCounts);
+        const data = result.data as any;
+        setPoll(data.poll);
+        setVotes(data.votes);
+        setVoteCounts(data.voteCounts);
         setIsLoading(false);
       } catch (err: any) {
         console.error("Failed to fetch results:", err);

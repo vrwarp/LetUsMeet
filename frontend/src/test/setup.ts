@@ -1,6 +1,5 @@
 import '@testing-library/jest-dom';
-import 'whatwg-fetch';
-import { webcrypto } from 'node:crypto';
+import { webcrypto } from 'crypto';
 
 if (!globalThis.crypto) {
   Object.defineProperty(globalThis, 'crypto', {
@@ -66,7 +65,7 @@ vi.mock('firebase/app', () => ({
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => ({})),
   connectAuthEmulator: vi.fn(),
-  onAuthStateChanged: vi.fn((auth, callback) => {
+  onAuthStateChanged: vi.fn((_auth, callback) => {
     if (typeof callback === 'function') {
       callback({ uid: 'user123', email: 'test@example.com' });
     }

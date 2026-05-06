@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 
 const REGION = 'us-central1';
 const PROJECT_ID = 'letusmeet-6f4e1';
+// @ts-ignore: used when testing unmocked endpoints
 const BASE_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
 
 export const handlers = [

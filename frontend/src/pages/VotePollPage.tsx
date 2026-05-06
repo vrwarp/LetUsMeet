@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon, ShieldCheck } from "lucide-react";
 import { fetchPollAction, submitVoteAction } from "@/lib/pollApi";
-import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   
   const [poll, setPoll] = useState<Poll | null>(null);
@@ -21,15 +19,14 @@ export default function VotePollPage() {
   const [showCopied, setShowCopied] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
-
   const fetchPoll = async () => {
     try {
       const result = await fetchPollAction({ pollId: pollId! });
-      setPoll(result.data.poll);
+      const data = result.data as any;
+      setPoll(data.poll);
       
       const initial: Record<string, VoteValue> = {};
-      result.data.poll.timeSlots.forEach((slot: any) => {
+      data.poll.timeSlots.forEach((slot: any) => {
         initial[slot.id] = "NO";
       });
       setSelections(initial);
