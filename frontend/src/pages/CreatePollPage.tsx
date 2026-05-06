@@ -23,6 +23,23 @@ export default function CreatePollPage() {
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
+
+  const handlePickerClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    const el = e.currentTarget;
+    if (activeInput === el) {
+      el.blur();
+      setActiveInput(null);
+    } else {
+      (el as any).showPicker?.();
+      setActiveInput(el);
+    }
+  };
+
+  // Reset active input on blur to ensure next click opens it
+  const handleBlur = () => {
+    setActiveInput(null);
+  };
 
   const addSlot = () => {
     const lastSlot = slots[slots.length - 1];
@@ -251,7 +268,8 @@ export default function CreatePollPage() {
                     required
                     aria-label="Date"
                     data-testid={`slot-date-${index}`}
-                    onClick={(e) => (e.currentTarget as any).showPicker?.()}
+                    onClick={handlePickerClick}
+                    onBlur={handleBlur}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                     value={slot.date}
                     onChange={(e) => updateSlot(index, "date", e.target.value)}
@@ -269,7 +287,8 @@ export default function CreatePollPage() {
                         required
                         aria-label="Start time"
                         data-testid={`slot-start-${index}`}
-                        onClick={(e) => (e.currentTarget as any).showPicker?.()}
+                        onClick={handlePickerClick}
+                        onBlur={handleBlur}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                         value={slot.startTime}
                         onChange={(e) => updateSlot(index, "startTime", e.target.value)}
@@ -286,7 +305,8 @@ export default function CreatePollPage() {
                         required
                         aria-label="End time"
                         data-testid={`slot-end-${index}`}
-                        onClick={(e) => (e.currentTarget as any).showPicker?.()}
+                        onClick={handlePickerClick}
+                        onBlur={handleBlur}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                         value={slot.endTime}
                         onChange={(e) => updateSlot(index, "endTime", e.target.value)}
@@ -332,7 +352,8 @@ export default function CreatePollPage() {
                           type="time"
                           aria-label="Approximate time"
                           data-testid={`slot-time-${index}`}
-                          onClick={(e) => (e.currentTarget as any).showPicker?.()}
+                          onClick={handlePickerClick}
+                          onBlur={handleBlur}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                           value={slot.time || ""}
                           onChange={(e) => updateSlot(index, "time", e.target.value)}
