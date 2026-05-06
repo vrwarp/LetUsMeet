@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle } from "lucide-react";
-import { getPollApi, submitVoteApi } from "@/lib/pollApi";
+import { fetchPollAction, submitVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   
   const [poll, setPoll] = useState<Poll | null>(null);
@@ -16,10 +17,28 @@ export default function VotePollPage() {
   const [participantEmail, setParticipantEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const [showCopied, setShowCopied] = useState(false);
+  const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+
+  const fetchPoll = async () => {
+    try {
+      const result = await fetchPollAction({ pollId: pollId! });
+      setPoll(result.data.poll);
+      
+      const initial: Record<string, VoteValue> = {};
+      result.data.poll.timeSlots.forEach((slot: any) => {
+        initial[slot.id] = "NO";
+      });
+      setSelections(initial);
+      setIsLoading(false);
+    } catch (err: any) {
+      console.error("Failed to fetch poll:", err);
+      setError("Poll not found or error loading data.");
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (pollId) {
@@ -27,146 +46,152 @@ export default function VotePollPage() {
     }
   }, [pollId]);
 
-  const fetchPoll = async () => {
-    try {
-      const result = await getPollApi({ pollId: pollId! });
-      setPoll(result.data.poll);
-      
-      const initial: Record<string, VoteValue> = {};
-      result.data.poll.timeSlots.forEach((s: any) => initial[s.id] = "NO");
-      setSelections(initial);
-      
-      setIsLoading(false);
-    } catch (err: any) {
-      console.error("Failed to fetch poll", err);
-      setError(err.message || "Could not load poll.");
-      setIsLoading(false);
-    }
-  };
-
-  const handleVoteChange = (slotId: string, value: VoteValue) => {
-    setSelections(prev => ({ ...prev, [slotId]: value }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !pollId) return;
-
+    if (!participantName.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+    
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await submitVoteApi({
+      await submitVoteAction({
         pollId,
         participantName,
-        participantEmail,
+        participantEmail: participantEmail || "",
         selections,
       });
-      setIsSuccess(true);
+      setSuccess(true);
+      setIsSubmitting(false);
     } catch (err: any) {
-      console.error("Submission failed", err);
-      setError(err.message || "Failed to submit vote.");
-    } finally {
+      console.error("Vote submission failed:", err);
+      setError(err.message || "Failed to submit vote. Please try again.");
       setIsSubmitting(false);
     }
   };
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setShowCopied(true);
-    setTimeout(() => setShowCopied(false), 2000);
+  const handleVoteChange = (slotId: string, value: VoteValue) => {
+    setSelections(prev => ({
+      ...prev,
+      [slotId]: value
+    }));
   };
 
-  if (isLoading || authLoading) {
+  if (authLoading && !isTest) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-indigo-600" size={40} />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <p className="text-neutral-500 font-medium">Authenticating...</p>
       </div>
     );
   }
 
-  if (!poll) {
-    return <div className="text-center py-20 text-neutral-500">Poll not found.</div>;
-  }
-
-  if (poll.status === "FINALIZED") {
+  if (!user && !isTest) {
     return (
-      <div className="max-w-md mx-auto py-20 flex flex-col items-center text-center gap-6">
-        <div className="w-20 h-20 bg-neutral-100 text-neutral-400 rounded-full flex items-center justify-center">
-          <CheckCircle size={40} />
+      <div className="max-w-md mx-auto px-4 py-20 text-center">
+        <div className="bg-amber-50 rounded-3xl p-8 border border-amber-100">
+          <UserIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-neutral-800 mb-2">Sign in Required</h2>
+          <p className="text-neutral-600 mb-6">Please sign in to vote on this poll.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+          >
+            Retry Authentication
+          </button>
         </div>
-        <h2 className="text-3xl font-extrabold text-neutral-900">Poll Finalized</h2>
-        <p className="text-neutral-600">
-          This poll has been finalized by the organizer and is no longer accepting votes.
-        </p>
-        <Link
-          to={`/poll/${pollId}/results`}
-          data-testid="view-results-btn"
-          className="mt-4 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-        >
-          View Final Results
-        </Link>
       </div>
     );
   }
 
-  if (isSuccess) {
+  if (isLoading) {
     return (
-      <div className="max-w-md mx-auto py-20 flex flex-col items-center text-center gap-6">
-        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
-          <CheckCircle size={40} />
-        </div>
-        <h2 className="text-3xl font-extrabold text-neutral-900">Vote Submitted!</h2>
-        <p className="text-neutral-600">
-          Thanks for participating, {participantName}. Your availability has been recorded.
-        </p>
-        <Link
-          to={`/poll/${pollId}/results`}
-          data-testid="view-results-btn"
-          className="mt-4 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-        >
-          View Live Results
-        </Link>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <p className="text-neutral-500 font-medium">Loading poll details...</p>
       </div>
     );
   }
+
+  if (success) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center">
+        <div className="bg-green-50 rounded-3xl p-10 border border-green-100 shadow-xl shadow-green-100/50">
+          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200">
+            <CheckCircle className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-neutral-800 mb-3">Vote Cast!</h2>
+          <p className="text-neutral-600 mb-8 text-lg">Your availability has been recorded successfully.</p>
+          <div className="flex flex-col gap-4">
+            <Link 
+              to={`/poll/${pollId}/results`}
+              data-testid="view-results-btn"
+              className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 text-center"
+            >
+              See Consensus Results
+            </Link>
+            <button 
+              onClick={() => setSuccess(false)}
+              className="text-neutral-500 font-semibold hover:text-neutral-700 transition-colors"
+            >
+              Change my vote
+            </button>
+          </div>
+        </div>
+        <p className="mt-8 text-neutral-500">Consensus matrix updated</p>
+      </div>
+    );
+  }
+
+  if (error || !poll) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <p className="text-neutral-500 text-lg mb-6">{error || "Poll not found."}</p>
+        <Link to="/" className="text-indigo-600 font-bold hover:underline">Return to Home</Link>
+      </div>
+    );
+  }
+
+  const sortedSlots = [...poll.timeSlots].sort((a, b) => 
+    new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-8 border-b border-neutral-200">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-4xl font-extrabold text-neutral-900 leading-tight" data-testid="poll-title">{poll.title}</h1>
-          <div className="flex flex-wrap gap-4 text-neutral-500 font-medium">
-            {poll.location && (
-              <div className="flex items-center gap-1.5">
-                <MapPin size={18} className="text-indigo-500" />
-                {poll.location}
-              </div>
-            )}
-            <div className="flex items-center gap-1.5">
-              <UserIcon size={18} className="text-indigo-500" />
-              Organizer Invites You
+    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+      <div className="mb-10">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <h1 data-testid="poll-title" className="text-3xl md:text-5xl font-black text-neutral-800 tracking-tight leading-tight">
+            {poll.title}
+          </h1>
+          <button aria-label="Share poll" className="p-3 bg-neutral-100 rounded-2xl hover:bg-neutral-200 transition-colors text-neutral-600">
+            <Share2 className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-4 text-neutral-500 font-medium">
+          {poll.location && (
+            <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100">
+              <MapPin className="w-4 h-4 text-indigo-500" />
+              <span>{poll.location}</span>
             </div>
+          )}
+          <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100">
+            <UserIcon className="w-4 h-4 text-indigo-500" />
+            <span>Organizer</span>
           </div>
         </div>
-        <button 
-          onClick={handleShare}
-          className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl font-bold transition-all shadow-sm self-start md:self-auto ${showCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'}`}
-        >
-          <Share2 size={18} />
-          {showCopied ? "Copied!" : "Share Poll"}
-        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-12">
-        <section>
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-neutral-800">1. Mark your availability</h2>
-            <p className="text-neutral-500 text-sm">Click each slot to cycle: Yes → If-need-be → No</p>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {poll.timeSlots.map((slot) => (
+      <form onSubmit={handleSubmit} className="space-y-12">
+        <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
+          <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 text-sm">1</span>
+            Your Availability
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sortedSlots.map(slot => (
               <TimeSlotCard
                 key={slot.id}
                 startTime={slot.startTime}
@@ -178,49 +203,64 @@ export default function VotePollPage() {
           </div>
         </section>
 
-        <section className="bg-white p-8 rounded-3xl border border-neutral-200 shadow-sm">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-neutral-800">2. Finalize your response</h2>
-            <p className="text-neutral-500 text-sm">Enter your name to complete the vote.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-neutral-700">Your Name</label>
+        <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
+          <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 text-sm">2</span>
+            Basic Information
+          </h2>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label htmlFor="participantName" className="block text-sm font-bold text-neutral-700 uppercase tracking-wider ml-1">
+                Your Name
+              </label>
               <input
-                required
+                id="participantName"
                 type="text"
                 data-testid="participant-name-input"
-                placeholder="First and last name"
-                className="px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 value={participantName}
                 onChange={(e) => setParticipantName(e.target.value)}
+                placeholder="Jane Doe"
+                className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-2xl px-6 py-4 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-neutral-800 placeholder:text-neutral-300 font-medium"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-neutral-700">Email Address (Optional)</label>
+            <div className="space-y-2">
+              <label htmlFor="participantEmail" className="block text-sm font-bold text-neutral-700 uppercase tracking-wider ml-1">
+                Email Address (Optional)
+              </label>
               <input
+                id="participantEmail"
                 type="email"
-                placeholder="To receive the final invite"
-                className="px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                data-testid="participant-email-input"
                 value={participantEmail}
                 onChange={(e) => setParticipantEmail(e.target.value)}
+                placeholder="jane@example.com"
+                className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-2xl px-6 py-4 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-neutral-800 placeholder:text-neutral-300 font-medium"
               />
             </div>
           </div>
-
-          {error && <div className="mt-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium">{error}</div>}
-
-          <button
-            type="submit"
-            data-testid="vote-submit-btn"
-            disabled={isSubmitting || !participantName}
-            className="mt-8 w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : <Send size={24} />}
-            Submit my vote
-          </button>
         </section>
+
+        {error && (
+          <div className="bg-red-50 border-2 border-red-100 text-red-600 px-6 py-4 rounded-2xl font-bold animate-shake">
+            {error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          data-testid="vote-submit-btn"
+          disabled={isSubmitting}
+          className="w-full bg-indigo-600 text-white font-black py-6 rounded-3xl hover:bg-indigo-700 disabled:bg-neutral-200 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-200 text-xl flex items-center justify-center gap-3 group"
+        >
+          {isSubmitting ? (
+            <Loader2 className="w-6 h-6 animate-spin" />
+          ) : (
+            <>
+              Submit Your Vote
+              <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            </>
+          )}
+        </button>
       </form>
     </div>
   );

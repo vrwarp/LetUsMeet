@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Trophy, Users, Info } from "lucide-react";
-import { getPollApi } from "@/lib/pollApi";
+import { fetchPollAction } from "@/lib/pollApi";
 import type { Poll, VoteValue } from "../types/index";
 
 interface VoteResult {
@@ -13,164 +13,179 @@ export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [votes, setVotes] = useState<VoteResult[]>([]);
-  const [voteCounts, setVoteCounts] = useState<Record<string, { YES: number, IF_NEED_BE: number, NO: number }>>({});
+  const [voteCounts, setVoteCounts] = useState<Record<string, Record<VoteValue, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pollId) {
-      fetchResults();
+    async function fetchResults() {
+      if (!pollId) return;
+      try {
+        const result = await fetchPollAction({ pollId });
+        setPoll(result.data.poll);
+        setVotes(result.data.votes);
+        setVoteCounts(result.data.voteCounts);
+        setIsLoading(false);
+      } catch (err: any) {
+        console.error("Failed to fetch results:", err);
+        setPollError(err?.message || err?.toString() || "Could not load results.");
+        setIsLoading(false);
+      }
     }
+
+    fetchResults();
   }, [pollId]);
 
-  const fetchResults = async () => {
-    try {
-      const result = await getPollApi({ pollId: pollId! });
-      setPoll(result.data.poll);
-      setVotes(result.data.votes);
-      setVoteCounts(result.data.voteCounts);
-      setIsLoading(false);
-    } catch (err: any) {
-      console.error("Failed to fetch results", err);
-      setPollError(err.message || "Could not load results.");
-      setIsLoading(false);
-    }
-  };
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-indigo-600" size={40} />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <p className="text-neutral-500 font-medium">Calculating consensus...</p>
       </div>
     );
   }
 
-  if (pollError) {
+  if (pollError || !poll) {
     return (
-      <div className="max-w-md mx-auto py-20 text-center flex flex-col gap-4">
-        <div className="text-red-500 font-bold text-lg">Error loading poll</div>
-        <p className="text-neutral-500">{pollError}</p>
-        <Link to="/" className="text-indigo-600 font-bold">Return Home</Link>
-      </div>
-    );
-  }
-
-  if (!poll) return <div className="text-center py-20">Poll not found.</div>;
-
-  // Find the winner(s)
-  const sortedSlotIds = [...poll.timeSlots].sort((a, b) => {
-    const aCount = (voteCounts[a.id]?.YES || 0) * 2 + (voteCounts[a.id]?.IF_NEED_BE || 0);
-    const bCount = (voteCounts[b.id]?.YES || 0) * 2 + (voteCounts[b.id]?.IF_NEED_BE || 0);
-    return bCount - aCount;
-  }).map(s => s.id);
-
-  const winnerId = sortedSlotIds[0];
-
-  return (
-    <div className="max-w-5xl mx-auto py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <Link to={`/poll/${pollId}`} className="text-sm font-bold text-indigo-600 flex items-center gap-1 hover:underline">
-          <ArrowLeft size={16} />
-          Back to Voting
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-8 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Home
         </Link>
-        <div className="flex items-center gap-2 text-neutral-500 text-sm bg-neutral-100 px-3 py-1 rounded-full">
-          <Users size={14} />
-          <span>{votes.length} Participants</span>
+        <div className="text-center py-20 text-neutral-500">
+          {pollError || "Poll not found."}
         </div>
       </div>
+    );
+  }
 
-      <div className="mb-12">
-        <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Live Consensus</h1>
-        <p className="text-neutral-500">Real-time view of everyone's availability.</p>
-      </div>
+  const sortedSlots = [...poll.timeSlots].sort((a, b) => 
+    new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
 
-      <div className="overflow-x-auto rounded-3xl border border-neutral-200 bg-white shadow-sm" data-testid="consensus-grid">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-neutral-50/50">
-              <th className="p-6 text-left border-b border-neutral-200 min-w-[200px] sticky left-0 bg-neutral-50 z-10 shadow-[2px_0_10px_-4px_rgba(0,0,0,0.1)]">
-                <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Participant</span>
-              </th>
-              {poll.timeSlots.map((slot) => {
-                const start = new Date(slot.startTime);
-                return (
-                  <th key={slot.id} className={`p-6 border-b border-neutral-200 min-w-[160px] ${slot.id === winnerId ? 'bg-indigo-50/30' : ''}`}>
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="text-xs font-bold text-neutral-400 uppercase">{start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                      <span className="text-sm font-extrabold">{start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
-                      {slot.id === winnerId && votes.length > 0 && (
-                        <div className="mt-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-bold flex items-center gap-1 uppercase tracking-tighter">
-                          <Trophy size={10} fill="currentColor" />
-                          Leading
-                        </div>
-                      )}
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Aggregate Counts Row */}
-            <tr className="bg-neutral-50/30 font-medium">
-              <td className="p-6 border-b border-neutral-200 sticky left-0 bg-neutral-50 z-10 shadow-[2px_0_10px_-4px_rgba(0,0,0,0.1)]">
-                <div className="flex items-center gap-2">
-                  <Info size={16} className="text-indigo-400" />
-                  <span className="text-sm font-bold">Total Votes</span>
+  const bestSlotId = Object.entries(voteCounts).reduce((best, [id, counts]) => {
+    const currentScore = (counts.YES || 0) * 2 + (counts.IF_NEED_BE || 0);
+    const bestScore = best ? (voteCounts[best].YES || 0) * 2 + (voteCounts[best].IF_NEED_BE || 0) : -1;
+    return currentScore > bestScore ? id : best;
+  }, null as string | null);
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
+      <Link 
+        to={`/poll/${pollId}`}
+        className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-8 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to Poll
+      </Link>
+
+      <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/50 border border-indigo-50 overflow-hidden mb-12">
+        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-10 text-white">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-3">{poll.title}</h1>
+              <div className="flex flex-wrap items-center gap-4 text-indigo-100">
+                {poll.location && (
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4" />
+                    <span>{poll.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-4 h-4" />
+                  <span>{votes.length} participants</span>
                 </div>
-              </td>
-              {poll.timeSlots.map((slot) => {
-                const counts = voteCounts[slot.id] || { YES: 0, IF_NEED_BE: 0, NO: 0 };
-                return (
-                  <td key={slot.id} className={`p-6 border-b border-neutral-200 text-center ${slot.id === winnerId ? 'bg-indigo-50/30' : ''}`}>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-center gap-2">
-                        <span className="text-emerald-600 font-bold">{counts.YES}</span>
-                        <span className="text-amber-500 font-bold">{counts.IF_NEED_BE}</span>
-                        <span className="text-neutral-400 font-bold">{counts.NO}</span>
-                      </div>
-                      <div className="h-1.5 w-full max-w-[80px] mx-auto bg-neutral-200 rounded-full overflow-hidden flex">
-                        <div className="bg-emerald-500 h-full" style={{ width: `${(counts.YES / (votes.length || 1)) * 100}%` }} />
-                        <div className="bg-amber-400 h-full" style={{ width: `${(counts.IF_NEED_BE / (votes.length || 1)) * 100}%` }} />
-                      </div>
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
+              </div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-400 rounded-xl text-indigo-900">
+                  <Trophy className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider font-semibold text-indigo-100">Current Consensus</p>
+                  <p className="text-lg font-bold">
+                    {bestSlotId ? new Date(poll.timeSlots.find(s => s.id === bestSlotId)!.startTime).toLocaleDateString(undefined, {
+                      weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                    }) : 'None yet'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            {/* Individual Votes */}
-            {votes.map((vote, idx) => (
-              <tr key={idx}>
-                <td className="p-6 border-b border-neutral-100 sticky left-0 bg-white z-10 shadow-[2px_0_10px_-4px_rgba(0,0,0,0.1)]">
-                  <span className="font-bold text-neutral-800" data-testid="participant-name">{vote.participantName}</span>
-                </td>
-                {poll.timeSlots.map((slot) => {
-                  const val = vote.selections[slot.id] || "NO";
-                  return (
-                    <td key={slot.id} className={`p-6 border-b border-neutral-100 text-center ${slot.id === winnerId ? 'bg-indigo-50/10' : ''}`}>
-                      <div className={`mx-auto w-8 h-8 rounded-full flex items-center justify-center ${
-                        val === "YES" ? "bg-emerald-500 text-white" : 
-                        val === "IF_NEED_BE" ? "bg-amber-400 text-white" : 
-                        "bg-neutral-100 text-neutral-300"
-                      }`}>
-                        {val === "YES" ? "✓" : val === "IF_NEED_BE" ? "~" : "×"}
+        <div className="p-8">
+          <div className="flex items-center gap-2 mb-6">
+            <Info className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-xl font-bold text-neutral-800">Participation Matrix</h2>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-neutral-100">
+            <table data-testid="results-matrix" className="w-full border-collapse">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-neutral-100">
+                  <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10">Participants</th>
+                  {sortedSlots.map(slot => (
+                    <th key={slot.id} className="p-4 text-center min-w-[120px]">
+                      <div className="text-sm font-bold text-neutral-800">
+                        {new Date(slot.startTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
                       </div>
+                      <div className="text-xs text-neutral-500 font-medium">
+                        {new Date(slot.startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {votes.map((vote, idx) => (
+                  <tr key={idx} data-testid={`participant-row-${idx}`} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
+                    <td data-testid="participant-name" className="p-4 font-medium text-neutral-700 sticky left-0 bg-white z-10 border-r border-neutral-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
+                      {vote.participantName}
                     </td>
-                  );
-                })}
-              </tr>
-            ))}
-
-            {votes.length === 0 && (
-              <tr>
-                <td colSpan={poll.timeSlots.length + 1} className="p-12 text-center text-neutral-400 font-medium italic">
-                  No votes submitted yet. Share the link to gather responses!
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    {sortedSlots.map(slot => (
+                      <td key={slot.id} className="p-4 text-center">
+                        <div data-testid={`vote-cell-${idx}-${slot.id}`} className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${
+                          vote.selections[slot.id] === "YES" ? "bg-green-100 text-green-700" :
+                          vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-100 text-amber-700" :
+                          "bg-red-50 text-red-400"
+                        }`}>
+                          {vote.selections[slot.id] === "YES" ? "✓" : vote.selections[slot.id] === "IF_NEED_BE" ? "?" : "×"}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {votes.length === 0 && (
+                  <tr>
+                    <td colSpan={sortedSlots.length + 1} className="p-12 text-center text-neutral-500 italic">
+                      No votes have been cast yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot className="bg-neutral-50/50 border-t-2 border-neutral-100 font-bold">
+                <tr>
+                  <td className="p-4 text-neutral-600 sticky left-0 bg-neutral-50/50 z-10 border-r border-neutral-50">Total Yes</td>
+                  {sortedSlots.map(slot => (
+                    <td key={slot.id} data-testid={`total-yes-${slot.id}`} className="p-4 text-center text-green-600">
+                      {voteCounts[slot.id]?.YES || 0}
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
+const MapPin = ({ className }: { className?: string }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+);

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const createPollSchema = z.object({
   title: z.string().min(1).max(200),
-  location: z.string().max(500),
+  location: z.string().max(500).optional(),
   schedulingMode: z.enum(["EXACT"]),
   timeSlots: z.array(z.object({
     startTime: z.string().datetime(),

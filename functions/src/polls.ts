@@ -3,7 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { createPollSchema } from "./validators.js";
 import { CreatePollRequest, Poll, TimeSlot } from "./types.js";
 
-export const createPoll = functions.https.onCall<CreatePollRequest>(async (request) => {
+export const createPollHandler = async (request: functions.https.CallableRequest<CreatePollRequest>) => {
   console.log("createPoll triggered", { data: request.data, auth: request.auth?.uid });
   try {
   // 1. Validate auth
@@ -31,7 +31,7 @@ export const createPoll = functions.https.onCall<CreatePollRequest>(async (reque
     pollId: pollRef.id,
     organizerUid: request.auth.uid,
     title,
-    location,
+    location: location || "",
     schedulingMode,
     timeSlots,
     status: "OPEN",
@@ -42,13 +42,20 @@ export const createPoll = functions.https.onCall<CreatePollRequest>(async (reque
 
   return { pollId: pollRef.id };
   } catch (error: any) {
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
     console.error("Error in createPoll:", error);
     throw new functions.https.HttpsError("internal", error.message || "Failed to create poll");
   }
-});
+};
 
-export const getPoll = functions.https.onCall<{ pollId: string }>(async (request) => {
+export const createPoll = functions.https.onCall<CreatePollRequest>(createPollHandler);
+
+export const getPollHandler = async (request: functions.https.CallableRequest<{ pollId: string }>) => {
   const { pollId } = request.data;
+  console.log(`getPoll triggered for pollId: ${pollId}`);
+  
   if (!pollId) {
     throw new functions.https.HttpsError("invalid-argument", "pollId is required.");
   }
@@ -84,8 +91,12 @@ export const getPoll = functions.https.onCall<{ pollId: string }>(async (request
     votes,
     voteCounts,
   };
-});
+};
 
-export const ping = functions.https.onCall(async () => {
+export const getPoll = functions.https.onCall<{ pollId: string }>(getPollHandler);
+
+export const pingHandler = async () => {
   return { pong: true };
-});
+};
+
+export const ping = functions.https.onCall(pingHandler);

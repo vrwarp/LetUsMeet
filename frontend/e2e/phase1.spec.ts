@@ -49,14 +49,14 @@ test.describe('Phase 1 Critical User Journeys', () => {
     await page.getByTestId('vote-submit-btn').click();
 
     // Wait for success screen
-    await expect(page.locator('h2', { hasText: 'Vote Submitted!' })).toBeVisible();
+    await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
     // --- 4. View Results Page ---
     await page.getByTestId('view-results-btn').click();
     await page.waitForURL(/\/poll\/[^/]+\/results$/);
 
     // Check results table
-    await expect(page.getByTestId('consensus-grid')).toBeVisible();
+    await expect(page.getByTestId('results-matrix')).toBeVisible();
     await expect(page.getByTestId('participant-name').first()).toHaveText('E2E Tester');
   });
 });

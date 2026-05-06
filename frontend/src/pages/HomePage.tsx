@@ -36,29 +36,29 @@ export default function HomePage() {
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl">
-        <div className="bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm flex flex-col items-center gap-4">
+        <div data-testid="feature-frictionless" className="bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm flex flex-col items-center gap-4">
           <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
             <CheckCircle2 size={24} />
           </div>
-          <h3 className="font-bold text-xl">Zero Friction</h3>
+          <h2 className="font-bold text-xl">Zero Friction</h2>
           <p className="text-neutral-500 text-sm leading-relaxed">
             Participants vote in one click. No logins, no app downloads, no passwords.
           </p>
         </div>
-        <div className="bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm flex flex-col items-center gap-4">
+        <div data-testid="feature-trinary" className="bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm flex flex-col items-center gap-4">
           <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
             <Clock size={24} />
           </div>
-          <h3 className="font-bold text-xl">Trinary Voting</h3>
+          <h2 className="font-bold text-xl">Trinary Voting</h2>
           <p className="text-neutral-500 text-sm leading-relaxed">
             "Yes", "No", and "If-need-be". Break scheduling deadlocks with granular options.
           </p>
         </div>
-        <div className="bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm flex flex-col items-center gap-4">
+        <div data-testid="feature-sync" className="bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm flex flex-col items-center gap-4">
           <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
             <Calendar size={24} />
           </div>
-          <h3 className="font-bold text-xl">Google Sync</h3>
+          <h2 className="font-bold text-xl">Google Sync</h2>
           <p className="text-neutral-500 text-sm leading-relaxed">
             Organizers sync calendars to see conflicts and auto-generate events.
           </p>

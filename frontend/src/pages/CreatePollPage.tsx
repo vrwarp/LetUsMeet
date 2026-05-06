@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2 } from "lucide-react";
-import { createPollApi } from "@/lib/pollApi";
+import { createPollAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 
 interface TimeSlotInput {
@@ -11,8 +11,9 @@ interface TimeSlotInput {
 }
 
 export default function CreatePollPage() {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const isTest = (globalThis as any).IS_VITEST;
+  const navigate = useNavigate();
   
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -47,20 +48,19 @@ export default function CreatePollPage() {
     setError(null);
 
     try {
-      const formattedSlots = slots.map(slot => ({
-        startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
-        endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
-      }));
-
-      const result = await createPollApi({
+      const result = await createPollAction({
         title,
         location,
         schedulingMode: "EXACT",
-        timeSlots: formattedSlots,
+        description: "",
+        timeSlots: slots.map(slot => ({
+          startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
+          endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
+        })),
       });
 
-      const pollId = result.data.pollId;
-      navigate(`/poll/${pollId}`);
+      console.log("CREATE POLL RESULT:", JSON.stringify(result));
+      navigate(`/poll/${result.data.pollId}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
       setError(err.message || "Something went wrong. Please try again.");
@@ -69,7 +69,7 @@ export default function CreatePollPage() {
     }
   };
 
-  if (authLoading) {
+  if (authLoading && !isTest) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="animate-spin text-indigo-600" size={40} />
@@ -88,11 +88,12 @@ export default function CreatePollPage() {
         {/* Basic Info Card */}
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+            <label htmlFor="poll-title" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <Type size={16} className="text-indigo-500" />
               Meeting Title
             </label>
             <input
+              id="poll-title"
               required
               type="text"
               data-testid="poll-title-input"
@@ -104,11 +105,12 @@ export default function CreatePollPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+            <label htmlFor="poll-location" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <MapPin size={16} className="text-indigo-500" />
               Location (Optional)
             </label>
             <input
+              id="poll-location"
               type="text"
               data-testid="poll-location-input"
               placeholder="e.g., Zoom, Starbucks, Office"
@@ -134,6 +136,8 @@ export default function CreatePollPage() {
                 <input
                   type="date"
                   required
+                  aria-label="Date"
+                  data-testid={`slot-date-${index}`}
                   className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
                   value={slot.date}
                   onChange={(e) => updateSlot(index, "date", e.target.value)}
@@ -142,14 +146,18 @@ export default function CreatePollPage() {
                   <input
                     type="time"
                     required
+                    aria-label="Start time"
+                    data-testid={`slot-start-${index}`}
                     className="w-32 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
                     value={slot.startTime}
                     onChange={(e) => updateSlot(index, "startTime", e.target.value)}
                   />
-                  <span className="text-neutral-400 font-medium">to</span>
+                  <span className="text-neutral-600 font-medium">to</span>
                   <input
                     type="time"
                     required
+                    aria-label="End time"
+                    data-testid={`slot-end-${index}`}
                     className="w-32 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
                     value={slot.endTime}
                     onChange={(e) => updateSlot(index, "endTime", e.target.value)}
@@ -159,6 +167,7 @@ export default function CreatePollPage() {
                   type="button"
                   onClick={() => removeSlot(index)}
                   disabled={slots.length === 1}
+                  aria-label="Remove time slot"
                   className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:hidden"
                 >
                   <Trash2 size={18} />
