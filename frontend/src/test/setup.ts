@@ -54,6 +54,8 @@ vi.mock('@/lib/pollApi', () => {
     createPollAction: vi.fn(() => Promise.resolve({ data: { pollId: 'mock-poll-id-123' } })),
     fetchPollAction: mockFetch,
     submitVoteAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
+    fetchOrganizerCalendarAction: vi.fn(() => Promise.resolve({ data: { busy: [] } })),
+    finalizePollAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
   };
 });
 

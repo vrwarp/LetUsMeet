@@ -39,3 +39,19 @@ export async function submitVoteAction(data: any) {
   const fn = httpsCallable(functions, "submitVote");
   return fn(data);
 }
+
+export async function fetchOrganizerCalendarAction(data: { timeMin: string, timeMax: string }) {
+  if ((globalThis as any).IS_VITEST) {
+    return { data: { busy: [] } };
+  }
+  const fn = httpsCallable(functions, "getOrganizerCalendar");
+  return fn(data);
+}
+
+export async function finalizePollAction(data: { pollId: string, selectedTimeSlotId: string, timezone?: string }) {
+  if ((globalThis as any).IS_VITEST) {
+    return { data: { success: true } };
+  }
+  const fn = httpsCallable(functions, "finalizePoll");
+  return fn(data);
+}

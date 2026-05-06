@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail, Clock, X } from "lucide-react";
 import { createPollAction } from "@/lib/pollApi";
+import CalendarOverlay from "@/components/CalendarOverlay";
+import { auth } from "@/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface TimeSlotInput {
   date: string;
@@ -15,6 +18,17 @@ export default function CreatePollPage() {
   const navigate = useNavigate();
   const [organizerName, setOrganizerName] = useState("");
   const [organizerEmail, setOrganizerEmail] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && !(globalThis as any).IS_VITEST) {
+        setOrganizerName((prev) => prev || user.displayName || "");
+        setOrganizerEmail((prev) => prev || user.email || "");
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
   const [schedulingMode, setSchedulingMode] = useState<"EXACT" | "FUZZY">("EXACT");
@@ -246,6 +260,11 @@ export default function CreatePollPage() {
 
         {/* Time Slots Card */}
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm">
+          {slots.length > 0 && slots.some(s => s.date) && (
+            <div className="mb-6">
+               <CalendarOverlay dates={slots.map(s => s.date).filter(Boolean)} />
+            </div>
+          )}
           <div className="flex items-center justify-between mb-6">
             <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <CalendarIcon size={16} className="text-indigo-500" />

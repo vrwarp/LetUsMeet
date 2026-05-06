@@ -3,6 +3,20 @@ export type SchedulingMode = "EXACT" | "FUZZY";
 export type VoteValue = "YES" | "NO" | "IF_NEED_BE";
 export type PollStatus = "OPEN" | "FINALIZED";
 
+export interface GoogleTokens {
+  accessToken: string;
+  refreshToken?: string;
+  expiryDate: number;
+}
+
+export interface User {
+  uid: string;
+  email: string;
+  displayName?: string;
+  googleTokens: GoogleTokens;
+  createdAt: string;
+}
+
 // Time slot for exact scheduling
 export interface ExactTimeSlot {
   id: string;
@@ -70,4 +84,29 @@ export interface SubmitVoteRequest {
   participantName: string;
   participantEmail?: string;
   selections: Record<string, VoteValue>;
+}
+
+export interface GetOrganizerCalendarRequest {
+  timeMin: string; // ISO 8601
+  timeMax: string; // ISO 8601
+}
+
+export interface BusySlot {
+  start: string;
+  end: string;
+}
+
+export interface GetOrganizerCalendarResponse {
+  busy: BusySlot[];
+}
+
+export interface FinalizePollRequest {
+  pollId: string;
+  selectedTimeSlotId: string;
+  timezone?: string; // e.g., "America/New_York"
+}
+
+export interface FinalizePollResponse {
+  success: boolean;
+  calendarEventId?: string;
 }

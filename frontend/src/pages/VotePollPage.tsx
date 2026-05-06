@@ -25,7 +25,7 @@ export default function VotePollPage() {
 
   const fetchPoll = async () => {
     try {
-      const result = await fetchPollAction({ pollId: pollId! });
+      const result = (await fetchPollAction({ pollId: pollId! })) as any;
       setPoll(result.data.poll);
       
       const initial: Record<string, VoteValue> = {};

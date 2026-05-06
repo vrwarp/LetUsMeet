@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info } from "lucide-react";
-import { fetchPollAction } from "@/lib/pollApi";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, CheckCircle2 } from "lucide-react";
+import { fetchPollAction, finalizePollAction } from "@/lib/pollApi";
 import type { Poll, VoteValue } from "../types/index";
+import { auth } from "@/firebase";
 
 interface VoteResult {
   participantName: string;
@@ -15,13 +16,16 @@ export default function ResultsPage() {
   const [votes, setVotes] = useState<VoteResult[]>([]);
   const [voteCounts, setVoteCounts] = useState<Record<string, Record<VoteValue, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [pollError, setPollError] = useState<string | null>(null);
+
+  const isOrganizer = poll?.organizerUid === auth.currentUser?.uid;
 
   useEffect(() => {
     async function fetchResults() {
       if (!pollId) return;
       try {
-        const result = await fetchPollAction({ pollId });
+        const result = (await fetchPollAction({ pollId })) as any;
         setPoll(result.data.poll);
         setVotes(result.data.votes);
         setVoteCounts(result.data.voteCounts);
@@ -35,6 +39,23 @@ export default function ResultsPage() {
 
     fetchResults();
   }, [pollId]);
+
+  const handleFinalize = async (slotId: string) => {
+    if (!pollId) return;
+    setIsFinalizing(true);
+    try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      await finalizePollAction({ pollId, selectedTimeSlotId: slotId, timezone });
+      // Refresh poll data
+      const result = (await fetchPollAction({ pollId })) as any;
+      setPoll(result.data.poll);
+    } catch (err: any) {
+      console.error("Failed to finalize poll", err);
+      alert("Failed to finalize poll: " + (err.message || "Unknown error"));
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -115,13 +136,26 @@ export default function ResultsPage() {
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-400 rounded-xl text-indigo-900">
-                  <Trophy className="w-6 h-6" />
+                <div className={`p-2 ${poll.status === 'FINALIZED' ? 'bg-emerald-400' : 'bg-yellow-400'} rounded-xl text-indigo-900`}>
+                  {poll.status === 'FINALIZED' ? <CheckCircle2 className="w-6 h-6" /> : <Trophy className="w-6 h-6" />}
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wider font-semibold text-indigo-100">Current Consensus</p>
+                  <p className="text-xs uppercase tracking-wider font-semibold text-indigo-100">
+                    {poll.status === 'FINALIZED' ? 'Finalized Time' : 'Current Consensus'}
+                  </p>
                   <p className="text-lg font-bold">
-                    {bestSlotId ? (() => {
+                    {poll.status === 'FINALIZED' ? (() => {
+                        const slot = poll.timeSlots.find(s => s.id === poll.finalizedSlotId)!;
+                        if ("startTime" in slot) {
+                          return new Date(slot.startTime).toLocaleDateString(undefined, {
+                            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                          });
+                        } else {
+                          const dateStr = new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                          const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
+                          return `${dateStr} - ${(slot as any).label}${timeStr}`;
+                        }
+                    })() : (bestSlotId ? (() => {
                       const slot = poll.timeSlots.find(s => s.id === bestSlotId)!;
                       if ("startTime" in slot) {
                         return new Date(slot.startTime).toLocaleDateString(undefined, {
@@ -132,7 +166,7 @@ export default function ResultsPage() {
                         const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
                         return `${dateStr} - ${(slot as any).label}${timeStr}`;
                       }
-                    })() : 'None yet'}
+                    })() : 'None yet')}
                   </p>
                 </div>
               </div>
@@ -213,6 +247,23 @@ export default function ResultsPage() {
                     </td>
                   ))}
                 </tr>
+                {isOrganizer && poll.status === "OPEN" && (
+                  <tr>
+                    <td className="p-4 text-neutral-600 sticky left-0 bg-indigo-50/30 z-10 border-r border-neutral-50 font-bold">Action</td>
+                    {sortedSlots.map(slot => (
+                      <td key={slot.id} className="p-4 text-center bg-indigo-50/30">
+                        <button
+                          disabled={isFinalizing}
+                          onClick={() => handleFinalize(slot.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-sm"
+                        >
+                          {isFinalizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CalendarCheck className="w-3 h-3" />}
+                          Finalize
+                        </button>
+                      </td>
+                    ))}
+                  </tr>
+                )}
               </tfoot>
             </table>
           </div>

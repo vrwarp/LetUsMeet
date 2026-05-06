@@ -40,3 +40,14 @@ export const submitVoteSchema = z.object({
   participantEmail: z.string().email().optional().or(z.literal("")),
   selections: z.record(z.enum(["YES", "NO", "IF_NEED_BE"])),
 });
+
+export const getOrganizerCalendarSchema = z.object({
+  timeMin: z.string().datetime(),
+  timeMax: z.string().datetime(),
+});
+
+export const finalizePollSchema = z.object({
+  pollId: z.string().min(1),
+  selectedTimeSlotId: z.string().min(1),
+  timezone: z.string().optional(),
+});
