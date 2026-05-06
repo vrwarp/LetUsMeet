@@ -43,7 +43,7 @@ export default function CreatePollPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setIsSubmitting(true);
     setError(null);
 
@@ -55,25 +55,25 @@ export default function CreatePollPage() {
         organizerEmail,
         schedulingMode,
         description: "",
-        timeSlots: schedulingMode === "EXACT" 
+        timeSlots: schedulingMode === "EXACT"
           ? slots.map(slot => ({
-              startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
-              endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
-            }))
+            startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
+            endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
+          }))
           : slots.map(slot => ({
-              date: slot.date,
-              label: slot.label || "General",
-              time: slot.time || undefined,
-            })),
+            date: slot.date,
+            label: slot.label || "General",
+            time: slot.time || undefined,
+          })),
       })) as { data: { pollId: string; adminToken: string } };
 
       console.log("CREATE POLL RESULT:", JSON.stringify(result));
-      
+
       // Store admin token for the creator
       if (result.data.adminToken) {
         localStorage.setItem(`adminToken_${result.data.pollId}`, result.data.adminToken);
       }
-      
+
       navigate(`/poll/${result.data.pollId}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
@@ -178,11 +178,10 @@ export default function CreatePollPage() {
                 setSchedulingMode("EXACT");
                 // Optionally reset slots or keep date
               }}
-              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${
-                schedulingMode === "EXACT"
+              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "EXACT"
                   ? "border-indigo-500 bg-indigo-50/50"
                   : "border-neutral-100 bg-white hover:border-neutral-200"
-              }`}
+                }`}
             >
               <span className={`font-bold ${schedulingMode === "EXACT" ? "text-indigo-700" : "text-neutral-700"}`}>Exact Times</span>
               <span className="text-xs text-neutral-500">Pick specific start and end times</span>
@@ -192,11 +191,10 @@ export default function CreatePollPage() {
               onClick={() => {
                 setSchedulingMode("FUZZY");
               }}
-              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${
-                schedulingMode === "FUZZY"
+              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "FUZZY"
                   ? "border-indigo-500 bg-indigo-50/50"
                   : "border-neutral-100 bg-white hover:border-neutral-200"
-              }`}
+                }`}
             >
               <span className={`font-bold ${schedulingMode === "FUZZY" ? "text-indigo-700" : "text-neutral-700"}`}>General blocks</span>
               <span className="text-xs text-neutral-500">Morning, Afternoon, Evening</span>
@@ -216,15 +214,24 @@ export default function CreatePollPage() {
           <div className="flex flex-col gap-4">
             {slots.map((slot, index) => (
               <div key={index} className="flex flex-wrap items-center gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-100 group relative">
-                <input
-                  type="date"
-                  required
-                  aria-label="Date"
-                  data-testid={`slot-date-${index}`}
-                  className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                  value={slot.date}
-                  onChange={(e) => updateSlot(index, "date", e.target.value)}
-                />
+                <label className="relative flex-1 min-w-[160px] group/date cursor-pointer">
+                  <div className="flex items-center px-3 py-2 text-neutral-700 font-medium bg-white rounded-lg border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all">
+                    <CalendarIcon size={16} className="text-indigo-400 mr-2 flex-shrink-0" />
+                    <span className="truncate">
+                      {slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}
+                    </span>
+                  </div>
+                  <input
+                    type="date"
+                    required
+                    aria-label="Date"
+                    data-testid={`slot-date-${index}`}
+                    onClick={(e) => (e.currentTarget as any).showPicker?.()}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                    value={slot.date}
+                    onChange={(e) => updateSlot(index, "date", e.target.value)}
+                  />
+                </label>
                 {schedulingMode === "EXACT" ? (
                   <div className="flex items-center gap-2">
                     <input
