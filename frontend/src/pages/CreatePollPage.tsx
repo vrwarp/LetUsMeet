@@ -179,8 +179,8 @@ export default function CreatePollPage() {
                 // Optionally reset slots or keep date
               }}
               className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "EXACT"
-                  ? "border-indigo-500 bg-indigo-50/50"
-                  : "border-neutral-100 bg-white hover:border-neutral-200"
+                ? "border-indigo-500 bg-indigo-50/50"
+                : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
             >
               <span className={`font-bold ${schedulingMode === "EXACT" ? "text-indigo-700" : "text-neutral-700"}`}>Exact Times</span>
@@ -192,8 +192,8 @@ export default function CreatePollPage() {
                 setSchedulingMode("FUZZY");
               }}
               className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "FUZZY"
-                  ? "border-indigo-500 bg-indigo-50/50"
-                  : "border-neutral-100 bg-white hover:border-neutral-200"
+                ? "border-indigo-500 bg-indigo-50/50"
+                : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
             >
               <span className={`font-bold ${schedulingMode === "FUZZY" ? "text-indigo-700" : "text-neutral-700"}`}>General blocks</span>
@@ -255,23 +255,45 @@ export default function CreatePollPage() {
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 flex-1">
-                    <input
-                      type="text"
-                      placeholder="Label (e.g., Dinner)"
-                      data-testid={`slot-label-${index}`}
-                      className="flex-[2] px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none bg-white"
-                      value={slot.label || ""}
-                      onChange={(e) => updateSlot(index, "label", e.target.value)}
-                    />
-                    <input
-                      type="time"
-                      aria-label="Optional time"
-                      data-testid={`slot-time-${index}`}
-                      className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none bg-white"
-                      value={slot.time || ""}
-                      onChange={(e) => updateSlot(index, "time", e.target.value)}
-                    />
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="flex-[2] flex flex-col gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="Label (e.g., Dinner)"
+                        data-testid={`slot-label-${index}`}
+                        className="w-full px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none bg-white transition-all"
+                        value={slot.label || ""}
+                        onChange={(e) => updateSlot(index, "label", e.target.value)}
+                      />
+                      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                        {["Morning", "Afternoon", "Evening", "Lunch", "Dinner"].map(suggestion => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => updateSlot(index, "label", suggestion)}
+                            className="whitespace-nowrap px-2 py-0.5 rounded-md bg-neutral-200/50 text-[9px] font-bold text-neutral-500 hover:bg-indigo-100 hover:text-indigo-600 transition-colors uppercase tracking-tight"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex-1 relative group/time">
+                      <div className="absolute inset-y-0 left-2.5 flex items-center pointer-events-none">
+                        <span className="text-neutral-400 font-bold text-sm">~</span>
+                      </div>
+                      <input
+                        type="time"
+                        aria-label="Approximate time"
+                        data-testid={`slot-time-${index}`}
+                        className="w-full pl-7 pr-2 py-2 rounded-lg border-2 border-dashed border-neutral-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 focus:outline-none bg-white transition-all italic text-neutral-500"
+                        value={slot.time || ""}
+                        onChange={(e) => updateSlot(index, "time", e.target.value)}
+                      />
+                      <div className="absolute -top-2.5 right-1 bg-white px-1.5 py-0.5 rounded-full border border-neutral-200 text-[9px] font-black uppercase tracking-widest text-neutral-400 shadow-sm opacity-0 group-hover/time:opacity-100 transition-opacity">
+                        Approx
+                      </div>
+                    </div>
                   </div>
                 )}
                 <button

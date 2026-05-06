@@ -32,7 +32,7 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       const h = parseInt(hours);
       const ampm = h >= 12 ? 'PM' : 'AM';
       const formattedHours = h % 12 || 12;
-      subtext = `${formattedHours}:${minutes} ${ampm}`;
+      subtext = `~ ${formattedHours}:${minutes} ${ampm}`;
     }
   }
 
