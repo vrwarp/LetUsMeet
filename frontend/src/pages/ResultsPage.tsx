@@ -38,7 +38,7 @@ export default function ResultsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
         <p className="text-neutral-500 font-medium">Calculating consensus...</p>
       </div>
@@ -55,8 +55,9 @@ export default function ResultsPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Home
         </Link>
-        <div className="text-center py-20 text-neutral-500">
-          {pollError || "Poll not found."}
+        <div className="text-center py-20 bg-red-50 rounded-3xl border border-red-100">
+          <p className="text-red-800 font-bold text-xl mb-2">Something went wrong</p>
+          <p className="text-red-600">{pollError || "Poll not found."}</p>
         </div>
       </div>
     );

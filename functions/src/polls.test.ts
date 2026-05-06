@@ -74,6 +74,28 @@ describe("Polls Handlers", () => {
         status: "OPEN"
       }));
     });
+
+    it("should assign sequential IDs to time slots and set createdAt", async () => {
+      const data = {
+        title: "Test Poll",
+        location: "",
+        schedulingMode: "EXACT" as const,
+        timeSlots: [
+          { startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" },
+          { startTime: "2026-01-01T12:00:00Z", endTime: "2026-01-01T13:00:00Z" }
+        ]
+      };
+      const request = makeCallableRequest(data, "user123");
+      mockSet.mockResolvedValue({} as any);
+
+      await createPollHandler(request);
+
+      const savedData = mockSet.mock.calls[0][0];
+      expect(savedData.timeSlots[0].id).toBe("t1");
+      expect(savedData.timeSlots[1].id).toBe("t2");
+      expect(savedData.createdAt).toBeDefined();
+      expect(new Date(savedData.createdAt).toISOString()).toBe(savedData.createdAt);
+    });
   });
 
   describe("getPollHandler", () => {
@@ -119,6 +141,52 @@ describe("Polls Handlers", () => {
 
       expect(result.poll).toEqual(pollData);
       expect(result.voteCounts.t1).toEqual({ YES: 1, NO: 0, IF_NEED_BE: 1 });
+    });
+
+    it("should initialize voteCounts to zeros when no votes exist", async () => {
+      const pollData = {
+        pollId: "p1",
+        title: "Test",
+        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+      };
+      mockGet.mockResolvedValueOnce({ exists: true, data: () => pollData });
+      mockDoc.mockReturnValue({
+        id: "p1",
+        get: mockGet,
+        collection: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue({ docs: [] })
+        })
+      });
+
+      const result = await getPollHandler(makeCallableRequest({ pollId: "p1" }));
+      expect(result.voteCounts.t1).toEqual({ YES: 0, NO: 0, IF_NEED_BE: 0 });
+    });
+
+    it("should ignore vote selections for slot IDs not in the poll", async () => {
+      const pollData = {
+        pollId: "p1",
+        title: "Test",
+        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+      };
+      mockGet.mockResolvedValueOnce({ exists: true, data: () => pollData });
+      
+      const mockVotesSnapshot = {
+        docs: [
+          { data: () => ({ selections: { t1: "YES", invalid_slot: "YES" } }) }
+        ]
+      };
+      
+      mockDoc.mockReturnValue({
+        id: "p1",
+        get: mockGet,
+        collection: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue(mockVotesSnapshot)
+        })
+      });
+
+      const result = await getPollHandler(makeCallableRequest({ pollId: "p1" }));
+      expect(result.voteCounts.t1).toEqual({ YES: 1, NO: 0, IF_NEED_BE: 0 });
+      expect(result.voteCounts.invalid_slot).toBeUndefined();
     });
   });
 });

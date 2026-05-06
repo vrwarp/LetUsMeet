@@ -46,11 +46,21 @@ describe('TimeSlotCard', () => {
     expect(svg).toBeInTheDocument();
   });
 
-  it('displays IF_NEED_BE state styling', () => {
+  it('displays IF_NEED_BE state styling and icon', () => {
     render(<TimeSlotCard {...defaultProps} value="IF_NEED_BE" />);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-amber-400');
     expect(button).toHaveClass('border-dashed');
+    const svg = button.querySelector('svg');
+    expect(svg).toBeInTheDocument();
+  });
+
+  it('displays NO state styling and icon', () => {
+    render(<TimeSlotCard {...defaultProps} value="NO" />);
+    const button = screen.getByRole('button');
+    expect(button).toHaveClass('bg-white');
+    const svg = button.querySelector('svg');
+    expect(svg).toBeInTheDocument();
   });
 
   it('does NOT call onChange when disabled', () => {

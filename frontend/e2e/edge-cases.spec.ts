@@ -34,15 +34,14 @@ test.describe('Error & Edge Cases', () => {
     await page.waitForURL(/\/poll\/[^/]+$/);
 
     // Ensure we are on the vote page
-    await expect(page.getByTestId('vote-submit-btn')).toBeVisible();
+    const submitBtn = page.getByTestId('vote-submit-btn');
+    await expect(submitBtn).toBeVisible();
 
-    // Do NOT fill the name
-    await page.getByTestId('vote-submit-btn').click();
+    // Do NOT fill the name - button should be disabled
+    await expect(submitBtn).toBeDisabled();
 
-    // Check for validation error (e.g., native required message or custom)
-    const nameInput = page.getByTestId('participant-name-input');
-    
-    // If it uses required attribute, the browser handles it, or we show an error
-    await expect(page.getByText(/Please enter your name/i)).toBeVisible();
+    // Fill the name and it should be enabled
+    await page.getByTestId('participant-name-input').fill('Alice');
+    await expect(submitBtn).toBeEnabled();
   });
 });

@@ -104,6 +104,16 @@ describe("Validators", () => {
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
     });
+    it("should fail if schedulingMode is invalid", () => {
+      const invalidPoll = {
+        title: "Meeting",
+        location: "Zoom",
+        schedulingMode: "FUZZY", // Not in enum
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+      };
+      const result = createPollSchema.safeParse(invalidPoll);
+      expect(result.success).toBe(false);
+    });
   });
 
   describe("submitVoteSchema", () => {

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './Layout';
 
 describe('Layout', () => {
@@ -25,5 +25,19 @@ describe('Layout', () => {
     );
     
     expect(screen.getByText(/© 2026 LetUsMeet/i)).toBeInTheDocument();
+  });
+
+  it('renders child routes via Outlet', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<div>Test Child</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+    
+    expect(screen.getByText('Test Child')).toBeInTheDocument();
   });
 });

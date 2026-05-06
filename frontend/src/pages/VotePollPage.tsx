@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle } from "lucide-react";
+import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon } from "lucide-react";
 import { fetchPollAction, submitVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
@@ -18,6 +18,7 @@ export default function VotePollPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCopied, setShowCopied] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
@@ -79,16 +80,16 @@ export default function VotePollPage() {
     }));
   };
 
-  if (authLoading && !isTest) {
+  if (authLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
         <p className="text-neutral-500 font-medium">Authenticating...</p>
       </div>
     );
   }
 
-  if (!user && !isTest) {
+  if (!user) {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
         <div className="bg-amber-50 rounded-3xl p-8 border border-amber-100">
@@ -108,9 +109,24 @@ export default function VotePollPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
         <p className="text-neutral-500 font-medium">Loading poll details...</p>
+      </div>
+    );
+  }
+
+  if (poll?.status === "FINALIZED") {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center">
+        <div className="bg-amber-50 rounded-3xl p-10 border border-amber-100">
+          <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
+          <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
+          <a href={`/poll/${pollId}/results`} className="inline-block bg-indigo-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-indigo-700 transition-colors">
+            View Final Results
+          </a>
+        </div>
       </div>
     );
   }
@@ -158,6 +174,12 @@ export default function VotePollPage() {
     new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   );
 
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShowCopied(true);
+    setTimeout(() => setShowCopied(false), 3000);
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
       <div className="mb-10">
@@ -165,9 +187,20 @@ export default function VotePollPage() {
           <h1 data-testid="poll-title" className="text-3xl md:text-5xl font-black text-neutral-800 tracking-tight leading-tight">
             {poll.title}
           </h1>
-          <button aria-label="Share poll" className="p-3 bg-neutral-100 rounded-2xl hover:bg-neutral-200 transition-colors text-neutral-600">
-            <Share2 className="w-5 h-5" />
-          </button>
+          <div className="relative">
+            <button 
+              onClick={handleShare}
+              aria-label="Share poll" 
+              className="p-3 bg-neutral-100 rounded-2xl hover:bg-neutral-200 transition-colors text-neutral-600"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+            {showCopied && (
+              <div className="absolute top-full mt-2 right-0 bg-neutral-800 text-white text-xs py-2 px-3 rounded-xl shadow-xl z-20 animate-in fade-in slide-in-from-top-1">
+                Copied!
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="flex flex-wrap items-center gap-4 text-neutral-500 font-medium">
@@ -249,7 +282,7 @@ export default function VotePollPage() {
         <button
           type="submit"
           data-testid="vote-submit-btn"
-          disabled={isSubmitting}
+          disabled={!participantName.trim() || isSubmitting}
           className="w-full bg-indigo-600 text-white font-black py-6 rounded-3xl hover:bg-indigo-700 disabled:bg-neutral-200 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-200 text-xl flex items-center justify-center gap-3 group"
         >
           {isSubmitting ? (

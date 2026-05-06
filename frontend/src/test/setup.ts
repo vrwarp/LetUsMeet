@@ -18,17 +18,17 @@ afterAll(() => server.close());
 
 // Global mock for useAuth hook - cover both alias and relative paths
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
+  useAuth: vi.fn(() => ({
     user: { uid: 'user123', email: 'test@example.com' },
     loading: false,
-  }),
+  })),
 }));
 
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({
+  useAuth: vi.fn(() => ({
     user: { uid: 'user123', email: 'test@example.com' },
     loading: false,
-  }),
+  })),
 }));
 
 // Global mock for pollApi

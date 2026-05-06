@@ -69,9 +69,9 @@ export default function CreatePollPage() {
     }
   };
 
-  if (authLoading && !isTest) {
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="flex items-center justify-center py-20" data-testid="loader">
         <Loader2 className="animate-spin text-indigo-600" size={40} />
       </div>
     );
