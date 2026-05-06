@@ -16,6 +16,8 @@ test.describe('Phase 1 Critical User Journeys', () => {
     await expect(page).toHaveURL(/\/create/);
 
     // --- 2. Create Poll Page ---
+    await page.getByTestId('organizer-name-input').fill('Test Organizer');
+    await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Playwright E2E Poll');
     await page.getByTestId('poll-location-input').fill('E2E Test Location');
     

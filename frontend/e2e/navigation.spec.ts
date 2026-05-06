@@ -12,6 +12,8 @@ test.describe('Navigation Flows', () => {
     await expect(page.getByRole('heading', { name: /Create a Meeting Poll/i })).toBeVisible();
 
     // Create -> Poll (Requires form submission)
+    await page.getByTestId('organizer-name-input').fill('Test Organizer');
+    await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Nav Test Poll');
     await page.getByTestId('create-submit-btn').click();
     

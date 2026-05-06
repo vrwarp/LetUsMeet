@@ -5,8 +5,10 @@ import { createPollAction } from "@/lib/pollApi";
 
 interface TimeSlotInput {
   date: string;
-  startTime: string;
-  endTime: string;
+  startTime: string; // for EXACT
+  endTime: string;   // for EXACT
+  label?: string;    // for FUZZY
+  time?: string;     // for FUZZY
 }
 
 export default function CreatePollPage() {
@@ -15,6 +17,7 @@ export default function CreatePollPage() {
   const [organizerEmail, setOrganizerEmail] = useState("");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
+  const [schedulingMode, setSchedulingMode] = useState<"EXACT" | "FUZZY">("EXACT");
   const [slots, setSlots] = useState<TimeSlotInput[]>([
     { date: new Date().toISOString().split('T')[0], startTime: "09:00", endTime: "10:00" }
   ]);
@@ -50,12 +53,18 @@ export default function CreatePollPage() {
         location,
         organizerName,
         organizerEmail,
-        schedulingMode: "EXACT",
+        schedulingMode,
         description: "",
-        timeSlots: slots.map(slot => ({
-          startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
-          endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
-        })),
+        timeSlots: schedulingMode === "EXACT" 
+          ? slots.map(slot => ({
+              startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
+              endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
+            }))
+          : slots.map(slot => ({
+              date: slot.date,
+              label: slot.label || "General",
+              time: slot.time || undefined,
+            })),
       })) as { data: { pollId: string; adminToken: string } };
 
       console.log("CREATE POLL RESULT:", JSON.stringify(result));
@@ -156,6 +165,45 @@ export default function CreatePollPage() {
           </div>
         </div>
 
+        {/* Scheduling Mode Selection */}
+        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
+          <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+            <Type size={16} className="text-indigo-500" />
+            Scheduling Mode
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setSchedulingMode("EXACT");
+                // Optionally reset slots or keep date
+              }}
+              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${
+                schedulingMode === "EXACT"
+                  ? "border-indigo-500 bg-indigo-50/50"
+                  : "border-neutral-100 bg-white hover:border-neutral-200"
+              }`}
+            >
+              <span className={`font-bold ${schedulingMode === "EXACT" ? "text-indigo-700" : "text-neutral-700"}`}>Exact Times</span>
+              <span className="text-xs text-neutral-500">Pick specific start and end times</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSchedulingMode("FUZZY");
+              }}
+              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${
+                schedulingMode === "FUZZY"
+                  ? "border-indigo-500 bg-indigo-50/50"
+                  : "border-neutral-100 bg-white hover:border-neutral-200"
+              }`}
+            >
+              <span className={`font-bold ${schedulingMode === "FUZZY" ? "text-indigo-700" : "text-neutral-700"}`}>General blocks</span>
+              <span className="text-xs text-neutral-500">Morning, Afternoon, Evening</span>
+            </button>
+          </div>
+        </div>
+
         {/* Time Slots Card */}
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
@@ -177,27 +225,48 @@ export default function CreatePollPage() {
                   value={slot.date}
                   onChange={(e) => updateSlot(index, "date", e.target.value)}
                 />
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    required
-                    aria-label="Start time"
-                    data-testid={`slot-start-${index}`}
-                    className="w-32 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                    value={slot.startTime}
-                    onChange={(e) => updateSlot(index, "startTime", e.target.value)}
-                  />
-                  <span className="text-neutral-600 font-medium">to</span>
-                  <input
-                    type="time"
-                    required
-                    aria-label="End time"
-                    data-testid={`slot-end-${index}`}
-                    className="w-32 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                    value={slot.endTime}
-                    onChange={(e) => updateSlot(index, "endTime", e.target.value)}
-                  />
-                </div>
+                {schedulingMode === "EXACT" ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      required
+                      aria-label="Start time"
+                      data-testid={`slot-start-${index}`}
+                      className="w-32 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                      value={slot.startTime}
+                      onChange={(e) => updateSlot(index, "startTime", e.target.value)}
+                    />
+                    <span className="text-neutral-600 font-medium">to</span>
+                    <input
+                      type="time"
+                      required
+                      aria-label="End time"
+                      data-testid={`slot-end-${index}`}
+                      className="w-32 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                      value={slot.endTime}
+                      onChange={(e) => updateSlot(index, "endTime", e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 flex-1">
+                    <input
+                      type="text"
+                      placeholder="Label (e.g., Dinner)"
+                      data-testid={`slot-label-${index}`}
+                      className="flex-[2] px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none bg-white"
+                      value={slot.label || ""}
+                      onChange={(e) => updateSlot(index, "label", e.target.value)}
+                    />
+                    <input
+                      type="time"
+                      aria-label="Optional time"
+                      data-testid={`slot-time-${index}`}
+                      className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none bg-white"
+                      value={slot.time || ""}
+                      onChange={(e) => updateSlot(index, "time", e.target.value)}
+                    />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => removeSlot(index)}

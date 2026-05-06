@@ -4,6 +4,8 @@ test.describe('Vote Update Flow', () => {
   test('allows a user to change their vote', async ({ page }) => {
     // Create poll
     await page.goto('/create');
+    await page.getByTestId('organizer-name-input').fill('Test Organizer');
+    await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Update Vote Poll');
     await page.getByTestId('create-submit-btn').click();
     await page.waitForURL(/\/poll\/[^/]+$/);

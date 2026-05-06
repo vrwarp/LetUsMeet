@@ -1,5 +1,5 @@
 // Enums
-export type SchedulingMode = "EXACT";  // Phase 1 only; "FUZZY" added in Phase 2
+export type SchedulingMode = "EXACT" | "FUZZY";
 export type VoteValue = "YES" | "NO" | "IF_NEED_BE";
 export type PollStatus = "OPEN" | "FINALIZED";
 
@@ -10,7 +10,15 @@ export interface ExactTimeSlot {
   endTime: string;    // ISO 8601
 }
 
-export type TimeSlot = ExactTimeSlot;  // Union grows in Phase 2
+// Time slot for fuzzy scheduling
+export interface FuzzyTimeSlot {
+  id: string;
+  date: string; // YYYY-MM-DD
+  label: string; // Free text, e.g., "Dinner", "After work", "Morning"
+  time?: string; // Optional time string, e.g., "18:00" or "09:00"
+}
+
+export type TimeSlot = ExactTimeSlot | FuzzyTimeSlot;
 
 // Poll document
 export interface Poll {
@@ -39,11 +47,15 @@ export interface Vote {
 }
 
 // API request/response shapes
+export type CreateTimeSlotPayload =
+  | Omit<ExactTimeSlot, "id">
+  | Omit<FuzzyTimeSlot, "id">;
+
 export interface CreatePollRequest {
   title: string;
   location: string;
   schedulingMode: SchedulingMode;
-  timeSlots: Omit<ExactTimeSlot, "id">[];
+  timeSlots: CreateTimeSlotPayload[];
   organizerName: string;
   organizerEmail: string;
 }

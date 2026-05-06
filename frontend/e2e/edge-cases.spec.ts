@@ -28,6 +28,8 @@ test.describe('Error & Edge Cases', () => {
     await page.goto('/');
     // Navigate to create and create one quickly
     await page.getByTestId('create-poll-btn').click();
+    await page.getByTestId('organizer-name-input').fill('Test Organizer');
+    await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Edge Case Poll');
     await page.getByTestId('create-submit-btn').click();
     

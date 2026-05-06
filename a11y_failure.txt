@@ -1,0 +1,273 @@
+i  emulators: Starting emulators: auth, functions, firestore
+⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, database, hosting, pubsub, storage, dataconnect
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  functions: Watching "/Users/btsai/antigravity/LetUsMeet/functions" for Cloud Functions...
+⚠  functions: Your requested "node" version "24" doesn't match your global version "25". Using node@25 from host.
+Serving at port 8255
+
+✔  functions: Loaded functions definitions from source: createPoll, getPoll, ping, submitVote.
+✔  functions[us-central1-createPoll]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/createPoll).
+✔  functions[us-central1-getPoll]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/getPoll).
+✔  functions[us-central1-ping]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/ping).
+✔  functions[us-central1-submitVote]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/submitVote).
+i  Running script: cd frontend && npx playwright test e2e/a11y.spec.ts -g 'Vote Poll page' --project chromium
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/a11y.spec.ts:18:3 › Accessibility Audits › Vote Poll page should not have any automatically detectable accessibility issues
+i  functions: Beginning execution of "us-central1-createPoll"
+i  functions: Finished "us-central1-createPoll" in 7.788167ms
+i  functions: Beginning execution of "us-central1-createPoll"
+>  {"verifications":{"app":"MISSING","auth":"MISSING"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  createPoll triggered {
+>    data: {
+>      title: 'A11y Poll',
+>      location: '',
+>      organizerName: 'Test Organizer',
+>      organizerEmail: 'organizer@example.com',
+>      schedulingMode: 'EXACT',
+>      description: '',
+>      timeSlots: [ [Object] ]
+>    },
+>    auth: undefined
+>  }
+i  functions: Finished "us-central1-createPoll" in 1157.85675ms
+i  functions: Beginning execution of "us-central1-getPoll"
+i  functions: Finished "us-central1-getPoll" in 4.885292ms
+i  functions: Beginning execution of "us-central1-getPoll"
+>  {"verifications":{"app":"MISSING","auth":"MISSING"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  getPoll triggered for pollId: jszPXC9L6U5KgUcttkQF
+i  functions: Beginning execution of "us-central1-getPoll"
+i  functions: Finished "us-central1-getPoll" in 4.728291ms
+i  functions: Beginning execution of "us-central1-getPoll"
+>  {"verifications":{"app":"MISSING","auth":"MISSING"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  getPoll triggered for pollId: jszPXC9L6U5KgUcttkQF
+i  functions: Finished "us-central1-getPoll" in 274.552625ms
+i  functions: Finished "us-central1-getPoll" in 255.076916ms
+[1A[2K  1) [chromium] › e2e/a11y.spec.ts:18:3 › Accessibility Audits › Vote Poll page should not have any automatically detectable accessibility issues 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoEqual[2m([22m[32mexpected[39m[2m) // deep equality[22m
+
+    [32m- Expected  -   1[39m
+    [31m+ Received  + 186[39m
+
+    [32m- Array [][39m
+    [31m+ Array [[39m
+    [31m+   Object {[39m
+    [31m+     "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",[39m
+    [31m+     "help": "Elements must meet minimum color contrast ratio thresholds",[39m
+    [31m+     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=playwright",[39m
+    [31m+     "id": "color-contrast",[39m
+    [31m+     "impact": "serious",[39m
+    [31m+     "nodes": Array [[39m
+    [31m+       Object {[39m
+    [31m+         "all": Array [],[39m
+    [31m+         "any": Array [[39m
+    [31m+           Object {[39m
+    [31m+             "data": Object {[39m
+    [31m+               "bgColor": "#eef2ff",[39m
+    [31m+               "contrastRatio": 4.24,[39m
+    [31m+               "expectedContrastRatio": "4.5:1",[39m
+    [31m+               "fgColor": "#737373",[39m
+    [31m+               "fontSize": "10.5pt (14px)",[39m
+    [31m+               "fontWeight": "normal",[39m
+    [31m+               "messageKey": null,[39m
+    [31m+             },[39m
+    [31m+             "id": "color-contrast",[39m
+    [31m+             "impact": "serious",[39m
+    [31m+             "message": "Element has insufficient color contrast of 4.24 (foreground color: #737373, background color: #eef2ff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1",[39m
+    [31m+             "relatedNodes": Array [[39m
+    [31m+               Object {[39m
+    [31m+                 "html": "<div class=\"mt-8 bg-indigo-50 border border-indigo-100 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm\">",[39m
+    [31m+                 "target": Array [[39m
+    [31m+                   ".mt-8",[39m
+    [31m+                 ],[39m
+    [31m+               },[39m
+    [31m+             ],[39m
+    [31m+           },[39m
+    [31m+         ],[39m
+    [31m+         "failureSummary": "Fix any of the following:[39m
+    [31m+   Element has insufficient color contrast of 4.24 (foreground color: #737373, background color: #eef2ff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1",[39m
+    [31m+         "html": "<p class=\"text-neutral-500 text-sm\">Save this link to manage or finalize your poll later.</p>",[39m
+    [31m+         "impact": "serious",[39m
+    [31m+         "none": Array [],[39m
+    [31m+         "target": Array [[39m
+    [31m+           "div:nth-child(2) > p",[39m
+    [31m+         ],[39m
+    [31m+       },[39m
+    [31m+     ],[39m
+    [31m+     "tags": Array [[39m
+    [31m+       "cat.color",[39m
+    [31m+       "wcag2aa",[39m
+    [31m+       "wcag143",[39m
+    [31m+       "TTv5",[39m
+    [31m+       "TT13.c",[39m
+    [31m+       "EN-301-549",[39m
+    [31m+       "EN-9.1.4.3",[39m
+    [31m+       "ACT",[39m
+    [31m+       "RGAAv4",[39m
+    [31m+       "RGAA-3.2.1",[39m
+    [31m+     ],[39m
+    [31m+   },[39m
+    [31m+   Object {[39m
+    [31m+     "description": "Ensure the order of headings is semantically correct",[39m
+    [31m+     "help": "Heading levels should only increase by one",[39m
+    [31m+     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/heading-order?application=playwright",[39m
+    [31m+     "id": "heading-order",[39m
+    [31m+     "impact": "moderate",[39m
+    [31m+     "nodes": Array [[39m
+    [31m+       Object {[39m
+    [31m+         "all": Array [],[39m
+    [31m+         "any": Array [[39m
+    [31m+           Object {[39m
+    [31m+             "data": null,[39m
+    [31m+             "id": "heading-order",[39m
+    [31m+             "impact": "moderate",[39m
+    [31m+             "message": "Heading order invalid",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+         ],[39m
+    [31m+         "failureSummary": "Fix any of the following:[39m
+    [31m+   Heading order invalid",[39m
+    [31m+         "html": "<h3 class=\"font-bold text-neutral-800 text-lg\">You are the Owner</h3>",[39m
+    [31m+         "impact": "moderate",[39m
+    [31m+         "none": Array [],[39m
+    [31m+         "target": Array [[39m
+    [31m+           "h3",[39m
+    [31m+         ],[39m
+    [31m+       },[39m
+    [31m+     ],[39m
+    [31m+     "tags": Array [[39m
+    [31m+       "cat.semantics",[39m
+    [31m+       "best-practice",[39m
+    [31m+     ],[39m
+    [31m+   },[39m
+    [31m+   Object {[39m
+    [31m+     "description": "Ensure every form element has a label",[39m
+    [31m+     "help": "Form elements must have labels",[39m
+    [31m+     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/label?application=playwright",[39m
+    [31m+     "id": "label",[39m
+    [31m+     "impact": "critical",[39m
+    [31m+     "nodes": Array [[39m
+    [31m+       Object {[39m
+    [31m+         "all": Array [],[39m
+    [31m+         "any": Array [[39m
+    [31m+           Object {[39m
+    [31m+             "data": null,[39m
+    [31m+             "id": "implicit-label",[39m
+    [31m+             "impact": "critical",[39m
+    [31m+             "message": "Element does not have an implicit (wrapped) <label>",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+           Object {[39m
+    [31m+             "data": null,[39m
+    [31m+             "id": "explicit-label",[39m
+    [31m+             "impact": "critical",[39m
+    [31m+             "message": "Element does not have an explicit <label>",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+           Object {[39m
+    [31m+             "data": null,[39m
+    [31m+             "id": "aria-label",[39m
+    [31m+             "impact": "critical",[39m
+    [31m+             "message": "aria-label attribute does not exist or is empty",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+           Object {[39m
+    [31m+             "data": null,[39m
+    [31m+             "id": "aria-labelledby",[39m
+    [31m+             "impact": "critical",[39m
+    [31m+             "message": "aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+           Object {[39m
+    [31m+             "data": Object {[39m
+    [31m+               "messageKey": "noAttr",[39m
+    [31m+             },[39m
+    [31m+             "id": "non-empty-title",[39m
+    [31m+             "impact": "critical",[39m
+    [31m+             "message": "Element has no title attribute",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+           Object {[39m
+    [31m+             "data": Object {[39m
+    [31m+               "messageKey": "noAttr",[39m
+    [31m+             },[39m
+    [31m+             "id": "non-empty-placeholder",[39m
+    [31m+             "impact": "critical",[39m
+    [31m+             "message": "Element has no placeholder attribute",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+           Object {[39m
+    [31m+             "data": null,[39m
+    [31m+             "id": "presentational-role",[39m
+    [31m+             "impact": "critical",[39m
+    [31m+             "message": "Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",[39m
+    [31m+             "relatedNodes": Array [],[39m
+    [31m+           },[39m
+    [31m+         ],[39m
+    [31m+         "failureSummary": "Fix any of the following:[39m
+    [31m+   Element does not have an implicit (wrapped) <label>[39m
+    [31m+   Element does not have an explicit <label>[39m
+    [31m+   aria-label attribute does not exist or is empty[39m
+    [31m+   aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty[39m
+    [31m+   Element has no title attribute[39m
+    [31m+   Element has no placeholder attribute[39m
+    [31m+   Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",[39m
+    [31m+         "html": "<input readonly=\"\" class=\"bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 flex-1 md:w-64\" value=\"http://127.0.0.1:5173/poll/jszPXC9L6U5KgUcttkQF?adminToken=bcf59843-ee91-4305-b088-68bacc1c06d3\">",[39m
+    [31m+         "impact": "critical",[39m
+    [31m+         "none": Array [],[39m
+    [31m+         "target": Array [[39m
+    [31m+           ".font-mono",[39m
+    [31m+         ],[39m
+    [31m+       },[39m
+    [31m+     ],[39m
+    [31m+     "tags": Array [[39m
+    [31m+       "cat.forms",[39m
+    [31m+       "wcag2a",[39m
+    [31m+       "wcag412",[39m
+    [31m+       "section508",[39m
+    [31m+       "section508.22.n",[39m
+    [31m+       "TTv5",[39m
+    [31m+       "TT5.c",[39m
+    [31m+       "EN-301-549",[39m
+    [31m+       "EN-9.4.1.2",[39m
+    [31m+       "ACT",[39m
+    [31m+       "RGAAv4",[39m
+    [31m+       "RGAA-11.1.1",[39m
+    [31m+     ],[39m
+    [31m+   },[39m
+    [31m+ ][39m
+
+      29 |     // We might have some known issues like color contrast on certain generated elements,
+      30 |     // but the goal is to be clean.
+    > 31 |     expect(accessibilityScanResults.violations).toEqual([]);
+         |                                                 ^
+      32 |   });
+      33 |
+      34 |   test('Results page should not have any automatically detectable accessibility issues', async ({ page }) => {
+        at /Users/btsai/antigravity/LetUsMeet/frontend/e2e/a11y.spec.ts:31:49
+
+    Error Context: test-results/a11y-Accessibility-Audits--5ca51-ctable-accessibility-issues-chromium/error-context.md
+
+
+[1A[2K  1 failed
+    [chromium] › e2e/a11y.spec.ts:18:3 › Accessibility Audits › Vote Poll page should not have any automatically detectable accessibility issues 
+
+To open last HTML report run:
+
+  npx playwright show-report
+
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  functions: Stopping Functions Emulator
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "cd frontend && npx playwright test e2e/a11y.spec.ts -g 'Vote Poll page' --project chromium" exited with code 1

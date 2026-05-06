@@ -26,7 +26,9 @@ describe("Validators", () => {
         title: "",
         location: "Zoom",
         schedulingMode: "EXACT",
-        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -37,7 +39,9 @@ describe("Validators", () => {
         title: "a".repeat(201),
         location: "Zoom",
         schedulingMode: "EXACT",
-        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -48,7 +52,9 @@ describe("Validators", () => {
         title: "Meeting",
         location: "a".repeat(501),
         schedulingMode: "EXACT",
-        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -59,7 +65,9 @@ describe("Validators", () => {
         title: "Meeting",
         location: "Zoom",
         schedulingMode: "EXACT",
-        timeSlots: []
+        timeSlots: [],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -70,7 +78,9 @@ describe("Validators", () => {
         title: "Meeting",
         location: "Zoom",
         schedulingMode: "EXACT",
-        timeSlots: [{ startTime: "invalid-date", endTime: "2026-01-01T11:00:00Z" }]
+        timeSlots: [{ startTime: "invalid-date", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -86,7 +96,9 @@ describe("Validators", () => {
             startTime: new Date(Date.now() + 7200000).toISOString(),
             endTime: new Date(Date.now() + 3600000).toISOString(),
           }
-        ]
+        ],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -101,7 +113,9 @@ describe("Validators", () => {
         title: "Invalid Poll",
         location: "Nowhere",
         schedulingMode: "EXACT",
-        timeSlots: [{ startTime: now, endTime: now }]
+        timeSlots: [{ startTime: now, endTime: now }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -110,8 +124,10 @@ describe("Validators", () => {
       const invalidPoll = {
         title: "Meeting",
         location: "Zoom",
-        schedulingMode: "FUZZY", // Not in enum
-        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+        schedulingMode: "INVALID", 
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
@@ -137,6 +153,33 @@ describe("Validators", () => {
         timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
         organizerName: "Jane Doe",
         organizerEmail: "not-an-email",
+      };
+      const result = createPollSchema.safeParse(invalidPoll);
+      expect(result.success).toBe(false);
+    });
+
+    it("should validate a valid fuzzy poll", () => {
+      const validPoll = {
+        title: "Fuzzy Meeting",
+        schedulingMode: "FUZZY",
+        timeSlots: [
+          { date: "2026-01-01", label: "Brunch", time: "11:00" },
+          { date: "2026-01-02", label: "Dinner" }
+        ],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
+      };
+      const result = createPollSchema.safeParse(validPoll);
+      expect(result.success).toBe(true);
+    });
+
+    it("should fail if fuzzy slot is missing label", () => {
+      const invalidPoll = {
+        title: "Fuzzy Meeting",
+        schedulingMode: "FUZZY",
+        timeSlots: [{ date: "2026-01-01" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
       };
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);

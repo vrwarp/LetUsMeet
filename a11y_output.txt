@@ -1,0 +1,26 @@
+i  emulators: Starting emulators: auth, functions, firestore
+⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, database, hosting, pubsub, storage, dataconnect
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  functions: Watching "/Users/btsai/antigravity/LetUsMeet/functions" for Cloud Functions...
+⚠  functions: Your requested "node" version "24" doesn't match your global version "25". Using node@25 from host.
+Serving at port 8022
+
+✔  functions: Loaded functions definitions from source: createPoll, getPoll, ping, submitVote.
+✔  functions[us-central1-createPoll]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/createPoll).
+✔  functions[us-central1-getPoll]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/getPoll).
+✔  functions[us-central1-ping]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/ping).
+✔  functions[us-central1-submitVote]: http function initialized (http://127.0.0.1:5001/letusmeet-6f4e1/us-central1/submitVote).
+i  Running script: cd frontend && npx playwright test --project chromium e2e/a11y.spec.ts -g 'Vote Poll page'
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  functions: Stopping Functions Emulator
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "cd frontend && npx playwright test --project chromium e2e/a11y.spec.ts -g 'Vote Poll page'" exited with code 1

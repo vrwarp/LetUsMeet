@@ -63,9 +63,21 @@ export default function ResultsPage() {
     );
   }
 
-  const sortedSlots = [...poll.timeSlots].sort((a, b) => 
-    new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-  );
+  const sortedSlots = [...poll.timeSlots].sort((a, b) => {
+    if (poll.schedulingMode === "EXACT") {
+      return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
+    } else {
+      const dateA = (a as any).date;
+      const dateB = (b as any).date;
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      
+      const timeA = (a as any).time || "";
+      const timeB = (b as any).time || "";
+      if (timeA !== timeB) return timeA.localeCompare(timeB);
+      
+      return ((a as any).label || "").localeCompare((b as any).label || "");
+    }
+  });
 
   const bestSlotId = Object.entries(voteCounts).reduce((best, [id, counts]) => {
     const currentScore = (counts.YES || 0) * 2 + (counts.IF_NEED_BE || 0);
@@ -109,9 +121,18 @@ export default function ResultsPage() {
                 <div>
                   <p className="text-xs uppercase tracking-wider font-semibold text-indigo-100">Current Consensus</p>
                   <p className="text-lg font-bold">
-                    {bestSlotId ? new Date(poll.timeSlots.find(s => s.id === bestSlotId)!.startTime).toLocaleDateString(undefined, {
-                      weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                    }) : 'None yet'}
+                    {bestSlotId ? (() => {
+                      const slot = poll.timeSlots.find(s => s.id === bestSlotId)!;
+                      if ("startTime" in slot) {
+                        return new Date(slot.startTime).toLocaleDateString(undefined, {
+                          weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                        });
+                      } else {
+                        const dateStr = new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                        const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
+                        return `${dateStr} - ${(slot as any).label}${timeStr}`;
+                      }
+                    })() : 'None yet'}
                   </p>
                 </div>
               </div>
@@ -132,12 +153,26 @@ export default function ResultsPage() {
                   <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10">Participants</th>
                   {sortedSlots.map(slot => (
                     <th key={slot.id} className="p-4 text-center min-w-[120px]">
-                      <div className="text-sm font-bold text-neutral-800">
-                        {new Date(slot.startTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                      </div>
-                      <div className="text-xs text-neutral-500 font-medium">
-                        {new Date(slot.startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                      </div>
+                      {poll.schedulingMode === "EXACT" ? (
+                        <>
+                          <div className="text-sm font-bold text-neutral-800">
+                            {new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                          </div>
+                          <div className="text-xs text-neutral-500 font-medium">
+                            {new Date((slot as any).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm font-bold text-neutral-800">
+                            {new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                          </div>
+                          <div className="text-xs text-neutral-500 font-medium">
+                            {(slot as any).label}
+                            {(slot as any).time && <span className="block text-[10px] opacity-70">@ {(slot as any).time}</span>}
+                          </div>
+                        </>
+                      )}
                     </th>
                   ))}
                 </tr>

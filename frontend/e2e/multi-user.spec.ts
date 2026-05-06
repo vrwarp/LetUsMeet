@@ -7,6 +7,8 @@ test.describe('Multi-user Flows', () => {
     const organizerPage = await organizerContext.newPage();
     
     await organizerPage.goto('/create');
+    await organizerPage.getByTestId('organizer-name-input').fill('Test Organizer');
+    await organizerPage.getByTestId('organizer-email-input').fill('organizer@example.com');
     await organizerPage.getByTestId('poll-title-input').fill('Multi-user Sync');
     await organizerPage.getByTestId('add-slot-btn').click(); // Add a second slot
     await organizerPage.getByTestId('create-submit-btn').click();

@@ -145,9 +145,21 @@ export default function VotePollPage() {
     );
   }
 
-  const sortedSlots = [...poll.timeSlots].sort((a, b) => 
-    new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-  );
+  const sortedSlots = [...poll.timeSlots].sort((a, b) => {
+    if (poll.schedulingMode === "EXACT") {
+      return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
+    } else {
+      const dateA = (a as any).date;
+      const dateB = (b as any).date;
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      
+      const timeA = (a as any).time || "";
+      const timeB = (b as any).time || "";
+      if (timeA !== timeB) return timeA.localeCompare(timeB);
+      
+      return ((a as any).label || "").localeCompare((b as any).label || "");
+    }
+  });
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -202,14 +214,15 @@ export default function VotePollPage() {
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-neutral-800 text-lg">You are the Owner</h3>
-                <p className="text-neutral-500 text-sm">Save this link to manage or finalize your poll later.</p>
+                <h2 className="font-bold text-neutral-800 text-lg">You are the Owner</h2>
+                <p className="text-neutral-600 text-sm">Save this link to manage or finalize your poll later.</p>
               </div>
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">
               <input 
                 readOnly 
                 value={adminUrl} 
+                aria-label="Management link"
                 className="bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 flex-1 md:w-64" 
               />
               <button 
@@ -237,8 +250,7 @@ export default function VotePollPage() {
             {sortedSlots.map(slot => (
               <TimeSlotCard
                 key={slot.id}
-                startTime={slot.startTime}
-                endTime={slot.endTime}
+                slot={slot}
                 value={selections[slot.id] || "NO"}
                 onChange={(val) => handleVoteChange(slot.id, val)}
               />
