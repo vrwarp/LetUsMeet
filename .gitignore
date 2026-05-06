@@ -68,3 +68,5 @@ node_modules/
 # dataconnect generated files
 .dataconnect
 frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
