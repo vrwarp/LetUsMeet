@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3 } from "lucide-react";
 import { fetchPollAction, finalizePollAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
@@ -134,29 +134,47 @@ export default function ResultsPage() {
                 </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-400 rounded-xl text-indigo-900">
-                  <Trophy className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wider font-semibold text-indigo-100">Current Consensus</p>
-                  <p className="text-lg font-bold">
-                    {bestSlotId ? (() => {
-                      const slot = poll.timeSlots.find(s => s.id === bestSlotId)!;
-                      if ("startTime" in slot) {
-                        return new Date(slot.startTime).toLocaleDateString(undefined, {
-                          weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                        });
-                      } else {
-                        const dateStr = new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-                        const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
-                        return `${dateStr} - ${(slot as any).label}${timeStr}`;
-                      }
-                    })() : 'None yet'}
-                  </p>
+            <div className="flex flex-col gap-4">
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-400 rounded-xl text-indigo-900">
+                    <Trophy className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider font-semibold text-indigo-100">Current Consensus</p>
+                    <p className="text-lg font-bold">
+                      {bestSlotId ? (() => {
+                        const slot = poll.timeSlots.find(s => s.id === bestSlotId)!;
+                        if ("startTime" in slot) {
+                          return new Date(slot.startTime).toLocaleDateString(undefined, {
+                            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                          });
+                        } else {
+                          const dateStr = new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                          const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
+                          return `${dateStr} - ${(slot as any).label}${timeStr}`;
+                        }
+                      })() : 'None yet'}
+                    </p>
+                  </div>
                 </div>
               </div>
+              {(() => {
+                const token = localStorage.getItem("adminToken_" + pollId);
+                if (isOrganizer || token) {
+                  const editUrl = `/poll/${pollId}/edit${token ? "?adminToken=" + token : ""}`;
+                  return (
+                    <Link
+                      to={editUrl}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white font-bold transition-all"
+                    >
+                      <Edit3 size={18} />
+                      Edit Poll
+                    </Link>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         </div>

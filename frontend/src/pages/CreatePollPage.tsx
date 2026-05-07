@@ -18,6 +18,7 @@ export default function CreatePollPage() {
   const [organizerName, setOrganizerName] = useState("");
   const [organizerEmail, setOrganizerEmail] = useState("");
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [schedulingMode, setSchedulingMode] = useState<"EXACT" | "FUZZY">("EXACT");
   const [slots, setSlots] = useState<TimeSlotInput[]>([
@@ -145,7 +146,7 @@ export default function CreatePollPage() {
         organizerName,
         organizerEmail,
         schedulingMode,
-        description: "",
+        description,
         timeSlots: schedulingMode === "EXACT"
           ? slots.map(slot => ({
             startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
@@ -236,6 +237,20 @@ export default function CreatePollPage() {
               className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-lg"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+ 
+          <div className="flex flex-col gap-2">
+            <label htmlFor="poll-description" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+              <Type size={16} className="text-indigo-500" />
+              Description (Optional)
+            </label>
+            <textarea
+              id="poll-description"
+              placeholder="e.g., Let's discuss the project roadmap and next steps."
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all min-h-[100px] resize-y"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 

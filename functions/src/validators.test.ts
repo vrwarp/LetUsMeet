@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createPollSchema, submitVoteSchema } from "./validators.js";
+import { createPollSchema, submitVoteSchema, updatePollSchema } from "./validators.js";
 
 describe("Validators", () => {
   describe("createPollSchema", () => {
@@ -198,6 +198,20 @@ describe("Validators", () => {
       const result = createPollSchema.safeParse(validPoll);
       expect(result.success).toBe(true);
     });
+ 
+    it("should validate a poll with description", () => {
+      const validPoll = {
+        title: "Team Sync",
+        description: "Weekly sync meeting",
+        location: "Zoom",
+        schedulingMode: "EXACT",
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
+      };
+      const result = createPollSchema.safeParse(validPoll);
+      expect(result.success).toBe(true);
+    });
   });
 
   describe("submitVoteSchema", () => {
@@ -297,6 +311,44 @@ describe("Validators", () => {
       };
       const result = submitVoteSchema.safeParse(validVote);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe("updatePollSchema", () => {
+    it("should validate a valid update request", () => {
+      const validUpdate = {
+        pollId: "poll123",
+        title: "Updated Title",
+        description: "Updated description",
+        location: "New Location",
+        timeSlots: [
+          { id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" },
+          { startTime: "2026-01-01T12:00:00Z", endTime: "2026-01-01T13:00:00Z" }
+        ],
+      };
+      const result = updatePollSchema.safeParse(validUpdate);
+      expect(result.success).toBe(true);
+    });
+
+    it("should fail if pollId is missing", () => {
+      const invalidUpdate = {
+        title: "Updated Title",
+        location: "New Location",
+        timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
+      };
+      const result = updatePollSchema.safeParse(invalidUpdate);
+      expect(result.success).toBe(false);
+    });
+
+    it("should fail if timeSlots is empty", () => {
+      const invalidUpdate = {
+        pollId: "poll123",
+        title: "Updated Title",
+        location: "New Location",
+        timeSlots: [],
+      };
+      const result = updatePollSchema.safeParse(invalidUpdate);
+      expect(result.success).toBe(false);
     });
   });
 });

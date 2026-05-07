@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon, ShieldCheck } from "lucide-react";
+import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3 } from "lucide-react";
 import { fetchPollAction, submitVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
@@ -38,13 +38,16 @@ export default function VotePollPage() {
   const fetchPoll = async () => {
     try {
       const result = await fetchPollAction({ pollId: pollId! }) as any;
-      setPoll(result.data.poll);
+      const pollData = result.data.poll;
+      setPoll(pollData);
       
-      const initial: Record<string, VoteValue> = {};
-      result.data.poll.timeSlots.forEach((slot: any) => {
-        initial[slot.id] = "NO";
-      });
-      setSelections(initial);
+      if (pollData) {
+        const initial: Record<string, VoteValue> = {};
+        pollData.timeSlots.forEach((slot: any) => {
+          initial[slot.id] = "NO";
+        });
+        setSelections(initial);
+      }
       setIsLoading(false);
     } catch (err: any) {
       console.error("Failed to fetch poll:", err);
@@ -205,6 +208,14 @@ export default function VotePollPage() {
             )}
           </div>
         </div>
+
+        {poll.description && (
+          <div className="mb-8 p-6 bg-white rounded-2xl border border-neutral-100 shadow-sm">
+            <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">
+              {poll.description}
+            </p>
+          </div>
+        )}
         
         <div className="flex flex-wrap items-center gap-4 text-neutral-500 font-medium">
           {poll.location && (
@@ -247,6 +258,13 @@ export default function VotePollPage() {
               >
                 Copy Link
               </button>
+              <Link
+                to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
+                className="bg-white text-indigo-600 border border-indigo-200 px-6 py-3 rounded-xl font-bold hover:bg-indigo-50 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
+              >
+                <Edit3 size={18} />
+                Edit Poll
+              </Link>
             </div>
           </div>
         )}

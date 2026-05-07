@@ -28,6 +28,7 @@ export interface Poll {
   organizerEmail: string;
   adminToken: string;
   title: string;
+  description?: string;
   location: string;
   schedulingMode: SchedulingMode;
   timeSlots: TimeSlot[];
@@ -53,11 +54,21 @@ export type CreateTimeSlotPayload =
 
 export interface CreatePollRequest {
   title: string;
+  description?: string;
   location: string;
   schedulingMode: SchedulingMode;
   timeSlots: CreateTimeSlotPayload[];
   organizerName: string;
   organizerEmail: string;
+}
+
+export interface UpdatePollRequest {
+  pollId: string;
+  adminToken?: string;
+  title: string;
+  description?: string;
+  location: string;
+  timeSlots: (CreateTimeSlotPayload & { id?: string })[];
 }
 
 export interface CreatePollResponse {

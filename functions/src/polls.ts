@@ -1,5 +1,5 @@
-import { createPollSchema, finalizePollSchema } from "./validators.js";
-import { FinalizePollRequest, ExactTimeSlot, CreatePollRequest, Poll, TimeSlot } from "./types.js";
+import { createPollSchema, finalizePollSchema, updatePollSchema } from "./validators.js";
+import { FinalizePollRequest, ExactTimeSlot, CreatePollRequest, Poll, TimeSlot, UpdatePollRequest } from "./types.js";
 import { google } from "googleapis";
 import * as crypto from "crypto";
 import * as functions from "firebase-functions/v2";
@@ -16,12 +16,12 @@ export const createPollHandler = async (request: functions.https.CallableRequest
     throw new functions.https.HttpsError("invalid-argument", validation.error.message);
   }
 
-  const { title, location, schedulingMode, timeSlots: rawSlots, organizerName, organizerEmail } = validation.data;
+  const { title, description, location, schedulingMode, timeSlots: rawSlots, organizerName, organizerEmail } = validation.data;
 
   // 3. Generate sequential IDs for time slots
   const timeSlots: TimeSlot[] = rawSlots.map((slot, index) => ({
-    id: `t${index + 1}`,
     ...slot,
+    id: `t${index + 1}`,
   }));
 
   // 4. Generate admin token
@@ -36,6 +36,7 @@ export const createPollHandler = async (request: functions.https.CallableRequest
     organizerEmail,
     adminToken,
     title,
+    description: description || "",
     location: location || "",
     schedulingMode,
     timeSlots,
@@ -209,3 +210,72 @@ export const finalizePollHandler = async (request: functions.https.CallableReque
 };
 
 export const finalizePoll = functions.https.onCall<FinalizePollRequest>(finalizePollHandler);
+
+export const updatePollHandler = async (request: functions.https.CallableRequest<UpdatePollRequest>) => {
+  console.log("updatePoll triggered", { data: request.data, auth: request.auth?.uid });
+  try {
+    const validation = updatePollSchema.safeParse(request.data);
+    if (!validation.success) {
+      throw new functions.https.HttpsError("invalid-argument", validation.error.message);
+    }
+
+    const { pollId, adminToken, title, description, location, timeSlots: rawSlots } = validation.data;
+    const db = getFirestore();
+    const pollRef = db.collection("polls").doc(pollId);
+    const pollDoc = await pollRef.get();
+
+    if (!pollDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "Poll not found.");
+    }
+
+    const pollData = pollDoc.data() as Poll;
+
+    // Authorization: organizerUid matches OR adminToken matches
+    const isOwner = request.auth?.uid && pollData.organizerUid === request.auth.uid;
+    const isAdmin = adminToken && pollData.adminToken === adminToken;
+
+    if (!isOwner && !isAdmin) {
+      throw new functions.https.HttpsError("permission-denied", "Unauthorized to edit this poll.");
+    }
+
+    // Prepare updated time slots
+    // We need to keep existing IDs for slots that are being updated, and generate new ones for new slots.
+    // However, the client should ideally provide IDs for existing ones.
+    // The request payload for timeSlots is (CreateTimeSlotPayload & { id?: string })[]
+    
+    // Find max existing ID to continue sequence if needed
+    const existingIds = pollData.timeSlots
+      .map(s => (s.id && typeof s.id === 'string') ? parseInt(s.id.substring(1)) : NaN)
+      .filter(n => !isNaN(n));
+    let nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+
+    const updatedTimeSlots: TimeSlot[] = rawSlots.map((slot) => {
+      if (slot.id) {
+        return slot as TimeSlot;
+      } else {
+        const newSlot = {
+          ...slot,
+          id: `t${nextId++}`,
+        } as TimeSlot;
+        return newSlot;
+      }
+    });
+
+    await pollRef.update({
+      title,
+      description: description || "",
+      location: location || "",
+      timeSlots: updatedTimeSlots,
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    console.error("Error in updatePoll:", error);
+    throw new functions.https.HttpsError("internal", error.message || "Failed to update poll");
+  }
+};
+
+export const updatePoll = functions.https.onCall<UpdatePollRequest>(updatePollHandler);

@@ -5,6 +5,7 @@ import VotePollPage from "@/pages/VotePollPage";
 import ResultsPage from "@/pages/ResultsPage";
 import Layout from "@/components/Layout";
 import DashboardPage from "@/pages/DashboardPage";
+import EditPollPage from "@/pages/EditPollPage";
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
       { path: "/create", element: <CreatePollPage /> },
       { path: "/poll/:pollId", element: <VotePollPage /> },
       { path: "/poll/:pollId/results", element: <ResultsPage /> },
+      { path: "/poll/:pollId/edit", element: <EditPollPage /> },
       { path: "/dashboard", element: <DashboardPage /> },
     ],
   },

@@ -15,6 +15,7 @@ const fuzzyTimeSlotSchema = z.object({
 
 export const createPollSchema = z.object({
   title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional().or(z.literal("")),
   location: z.string().max(500).optional().or(z.literal("")),
   schedulingMode: z.enum(["EXACT", "FUZZY"]),
   timeSlots: z.array(z.any()).min(1),
@@ -39,6 +40,15 @@ export const submitVoteSchema = z.object({
   participantName: z.string().min(1).max(100),
   participantEmail: z.string().email().optional().or(z.literal("")),
   selections: z.record(z.enum(["YES", "NO", "IF_NEED_BE"])),
+});
+
+export const updatePollSchema = z.object({
+  pollId: z.string().min(1),
+  adminToken: z.string().optional(),
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional().or(z.literal("")),
+  location: z.string().max(500).optional().or(z.literal("")),
+  timeSlots: z.array(z.any()).min(1),
 });
 
 export const finalizePollSchema = z.object({
