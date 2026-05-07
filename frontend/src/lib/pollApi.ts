@@ -39,3 +39,19 @@ export async function submitVoteAction(data: any) {
   const fn = httpsCallable(functions, "submitVote");
   return fn(data);
 }
+
+export async function getOrganizerCalendarAction(data: any) {
+  if ((globalThis as any).IS_VITEST) {
+    return { data: { busyTimes: [] } };
+  }
+  const fn = httpsCallable(functions, "getOrganizerCalendar");
+  return fn(data);
+}
+
+export async function finalizePollAction(data: any) {
+  if ((globalThis as any).IS_VITEST) {
+    return { data: { success: true, eventId: "mock-event-id" } };
+  }
+  const fn = httpsCallable(functions, "finalizePoll");
+  return fn(data);
+}

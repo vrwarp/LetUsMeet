@@ -54,6 +54,8 @@ vi.mock('@/lib/pollApi', () => {
     createPollAction: vi.fn(() => Promise.resolve({ data: { pollId: 'mock-poll-id-123' } })),
     fetchPollAction: mockFetch,
     submitVoteAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
+    getOrganizerCalendarAction: vi.fn(() => Promise.resolve({ data: { busyTimes: [] } })),
+    finalizePollAction: vi.fn(() => Promise.resolve({ data: { success: true, eventId: "mock" } })),
   };
 });
 
@@ -66,7 +68,7 @@ vi.mock('firebase/app', () => ({
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => ({})),
   connectAuthEmulator: vi.fn(),
-  onAuthStateChanged: vi.fn((auth, callback) => {
+  onAuthStateChanged: vi.fn((_auth, callback) => {
     if (typeof callback === 'function') {
       callback({ uid: 'user123', email: 'test@example.com' });
     }

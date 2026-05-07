@@ -7,3 +7,4 @@ setGlobalOptions({ maxInstances: 10, region: "us-central1" });
 
 export * from "./polls.js";
 export * from "./votes.js";
+export * from "./calendar.js";

@@ -40,3 +40,15 @@ export const submitVoteSchema = z.object({
   participantEmail: z.string().email().optional().or(z.literal("")),
   selections: z.record(z.enum(["YES", "NO", "IF_NEED_BE"])),
 });
+
+export const finalizePollSchema = z.object({
+  pollId: z.string().min(1),
+  selectedTimeSlotId: z.string().min(1),
+});
+
+export const getOrganizerCalendarSchema = z.object({
+  timeMin: z.string().datetime(),
+  timeMax: z.string().datetime(),
+}).refine((data) => new Date(data.timeMax) > new Date(data.timeMin), {
+  message: "timeMax must be after timeMin",
+});

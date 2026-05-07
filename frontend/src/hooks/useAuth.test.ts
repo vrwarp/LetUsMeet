@@ -26,7 +26,7 @@ describe('useAuth hook', () => {
 
   it('signs in anonymously if no user is present', async () => {
     // Mock onAuthStateChanged to call back with null initially
-    (onAuthStateChanged as any).mockImplementation((auth: any, callback: any) => {
+    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
       callback(null);
       return vi.fn(); // unsubscribe
     });
@@ -42,7 +42,7 @@ describe('useAuth hook', () => {
 
   it('returns user if already signed in', async () => {
     const mockUser = { uid: 'user-123' };
-    (onAuthStateChanged as any).mockImplementation((auth: any, callback: any) => {
+    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
       callback(mockUser);
       return vi.fn();
     });
@@ -58,7 +58,7 @@ describe('useAuth hook', () => {
   });
 
   it('sets loading to false after auth is initialized', async () => {
-    (onAuthStateChanged as any).mockImplementation((auth: any, callback: any) => {
+    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
       // Delay the callback to simulate async initialization
       setTimeout(() => callback({ uid: 'user-123' }), 10);
       return vi.fn();
@@ -74,7 +74,7 @@ describe('useAuth hook', () => {
   });
 
   it('handles anonymous auth errors gracefully', async () => {
-    (onAuthStateChanged as any).mockImplementation((auth: any, callback: any) => {
+    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
       callback(null);
       return vi.fn();
     });
