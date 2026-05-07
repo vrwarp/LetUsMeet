@@ -42,7 +42,7 @@ export default function ResultsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
         <p className="text-neutral-500 font-medium">Calculating consensus...</p>
       </div>
     );
@@ -53,7 +53,7 @@ export default function ResultsPage() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         <Link 
           to="/" 
-          className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-8 transition-colors"
+          className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Home
@@ -110,14 +110,14 @@ export default function ResultsPage() {
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
       <Link 
         to={`/poll/${pollId}`}
-        className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-8 transition-colors"
+        className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Poll
       </Link>
 
-      <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/50 border border-indigo-50 overflow-hidden mb-12">
-        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-10 text-white">
+      <div className="bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12">
+        <div className="bg-gradient-to-r from-brand-green to-brand-red px-8 py-10 text-white">
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-3">{poll.title}</h1>
@@ -137,11 +137,11 @@ export default function ResultsPage() {
             <div className="flex flex-col gap-4">
               <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-yellow-400 rounded-xl text-indigo-900">
-                    <Trophy className="w-6 h-6" />
+                  <div className="p-2 bg-brand-white rounded-xl text-brand-charcoal">
+                    <Trophy className="w-6 h-6 text-brand-green" />
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wider font-semibold text-indigo-100">Current Consensus</p>
+                    <p className="text-xs uppercase tracking-wider font-bold text-white/80">Current Consensus</p>
                     <p className="text-lg font-bold">
                       {bestSlotId ? (() => {
                         const slot = poll.timeSlots.find(s => s.id === bestSlotId)!;
@@ -181,7 +181,7 @@ export default function ResultsPage() {
 
         <div className="p-8">
           <div className="flex items-center gap-2 mb-6">
-            <Info className="w-5 h-5 text-indigo-600" />
+            <Info className="w-5 h-5 text-brand-green" />
             <h2 className="text-xl font-bold text-neutral-800">Participation Matrix</h2>
           </div>
 
@@ -217,7 +217,7 @@ export default function ResultsPage() {
                         <button
                           onClick={() => handleFinalize(slot.id)}
                           disabled={finalizing === slot.id}
-                          className="mt-2 text-xs font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1 rounded-full transition-colors w-full"
+                          className="mt-2 text-xs font-bold bg-brand-green-light/50 text-brand-green-dark hover:bg-brand-green-light px-3 py-1 rounded-full transition-colors w-full"
                         >
                           {finalizing === slot.id ? "Finalizing..." : "Finalize Here"}
                         </button>

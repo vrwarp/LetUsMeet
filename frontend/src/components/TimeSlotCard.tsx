@@ -44,12 +44,12 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
   const getStyles = () => {
     switch (value) {
       case "YES":
-        return "bg-emerald-600 border-emerald-700 text-white shadow-emerald-100";
+        return "bg-brand-green border-brand-green-dark text-white shadow-brand-green/20";
       case "IF_NEED_BE":
-        return "bg-amber-400 border-amber-500 text-amber-950 border-dashed shadow-amber-100";
+        return "bg-amber-100 border-amber-300 text-amber-900 border-dashed shadow-amber-100/50";
       case "NO":
       default:
-        return "bg-neutral-50 border-neutral-200 text-neutral-900 hover:border-neutral-300 shadow-sm";
+        return "bg-white border-neutral-200 text-brand-charcoal hover:border-brand-green-light hover:bg-neutral-50 shadow-sm";
     }
   };
 
@@ -77,7 +77,7 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
         {timeRange}
       </span>
       {subtext && (
-        <span className={`text-[10px] font-medium ${value === 'NO' ? 'text-neutral-400' : (value === 'IF_NEED_BE' ? 'text-amber-800' : 'text-emerald-50')}`}>
+        <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-400' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-light')}`}>
           {subtext}
         </span>
       )}

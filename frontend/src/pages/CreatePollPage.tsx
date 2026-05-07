@@ -197,7 +197,7 @@ export default function CreatePollPage() {
               type="text"
               data-testid="organizer-name-input"
               placeholder="e.g., Jane Doe"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
               value={organizerName}
               onChange={(e) => setOrganizerName(e.target.value)}
             />
@@ -234,7 +234,7 @@ export default function CreatePollPage() {
               type="text"
               data-testid="poll-title-input"
               placeholder="e.g., Team Sync, Dinner with friends"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-lg"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all text-lg"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -274,7 +274,7 @@ export default function CreatePollPage() {
         {/* Scheduling Mode Selection */}
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-            <Type size={16} className="text-indigo-500" />
+            <Type size={16} className="text-brand-green" />
             Scheduling Mode
           </label>
           <div className="grid grid-cols-2 gap-4">
@@ -285,7 +285,7 @@ export default function CreatePollPage() {
                 // Optionally reset slots or keep date
               }}
               className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "EXACT"
-                ? "border-indigo-500 bg-indigo-50/50"
+                ? "border-brand-green bg-brand-green-light/20"
                 : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
             >
@@ -298,7 +298,7 @@ export default function CreatePollPage() {
                 setSchedulingMode("FUZZY");
               }}
               className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "FUZZY"
-                ? "border-indigo-500 bg-indigo-50/50"
+                ? "border-brand-green bg-brand-green-light/20"
                 : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
             >
@@ -312,7 +312,7 @@ export default function CreatePollPage() {
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <CalendarIcon size={16} className="text-indigo-500" />
+              <CalendarIcon size={16} className="text-brand-green" />
               Propose Time Slots
             </label>
           </div>
@@ -484,7 +484,7 @@ export default function CreatePollPage() {
           type="submit"
           data-testid="create-submit-btn"
           disabled={isSubmitting || !title || !organizerName || !organizerEmail}
-          className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-4 bg-brand-green text-white rounded-xl font-bold text-xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isSubmitting ? (
             <>

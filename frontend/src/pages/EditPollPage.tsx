@@ -172,7 +172,7 @@ export default function EditPollPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
         <p className="text-neutral-500 font-medium">Loading poll details...</p>
       </div>
     );
@@ -182,7 +182,7 @@ export default function EditPollPage() {
     <div className="max-w-2xl mx-auto py-8">
       <Link 
         to={`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`}
-        className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-8 transition-colors"
+        className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Poll
@@ -197,7 +197,7 @@ export default function EditPollPage() {
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-title" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <Type size={16} className="text-indigo-500" />
+              <Type size={16} className="text-brand-green" />
               Meeting Title
             </label>
             <input
@@ -205,7 +205,7 @@ export default function EditPollPage() {
               required
               type="text"
               placeholder="e.g., Team Sync"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-lg"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all text-lg"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -213,7 +213,7 @@ export default function EditPollPage() {
 
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-description" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <Type size={16} className="text-indigo-500" />
+              <Type size={16} className="text-brand-green" />
               Description (Optional)
             </label>
             <textarea
@@ -227,14 +227,14 @@ export default function EditPollPage() {
 
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-location" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <MapPin size={16} className="text-indigo-500" />
+              <MapPin size={16} className="text-brand-green" />
               Location (Optional)
             </label>
             <input
               id="poll-location"
               type="text"
               placeholder="e.g., Zoom, Office"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
@@ -250,7 +250,7 @@ export default function EditPollPage() {
 
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm">
           <label className="text-sm font-bold text-neutral-700 flex items-center gap-2 mb-6">
-            <CalendarIcon size={16} className="text-indigo-500" />
+            <CalendarIcon size={16} className="text-brand-green" />
             Time Slots
           </label>
 
@@ -350,7 +350,7 @@ export default function EditPollPage() {
         <button
           type="submit"
           disabled={isSubmitting || !title}
-          className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-4 bg-brand-green text-white rounded-xl font-bold text-xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isSubmitting ? (
             <Loader2 className="animate-spin" size={24} />

@@ -100,7 +100,7 @@ export default function VotePollPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
         <p className="text-neutral-500 font-medium">Loading poll details...</p>
       </div>
     );
@@ -113,7 +113,7 @@ export default function VotePollPage() {
           <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
           <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
-          <a href={`/poll/${pollId}/results`} className="inline-block bg-indigo-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-indigo-700 transition-colors">
+          <a href={`/poll/${pollId}/results`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
             View Final Results
           </a>
         </div>
@@ -134,7 +134,7 @@ export default function VotePollPage() {
             <Link 
               to={`/poll/${pollId}/results`}
               data-testid="view-results-btn"
-              className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 text-center"
+              className="w-full bg-brand-green text-white font-bold py-4 rounded-2xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 text-center"
             >
               See Consensus Results
             </Link>
@@ -220,24 +220,24 @@ export default function VotePollPage() {
         <div className="flex flex-wrap items-center gap-4 text-neutral-500 font-medium">
           {poll.location && (
             <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100">
-              <MapPin className="w-4 h-4 text-indigo-500" />
+              <MapPin className="w-4 h-4 text-brand-green" />
               <span>{poll.location}</span>
             </div>
           )}
           <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100">
-            <UserIcon className="w-4 h-4 text-indigo-500" />
+            <UserIcon className="w-4 h-4 text-brand-green" />
             <span>{poll.organizerName || "Organizer"}</span>
           </div>
         </div>
 
         {isOwner && (
-          <div className="mt-8 bg-indigo-50 border border-indigo-100 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+          <div className="mt-8 bg-brand-green-light/20 border border-brand-green-light rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+              <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="font-bold text-neutral-800 text-lg">You are the Owner</h2>
+                <h2 className="font-bold text-brand-charcoal text-lg">You are the Owner</h2>
                 <p className="text-neutral-600 text-sm">Save this link to manage or finalize your poll later.</p>
               </div>
             </div>
@@ -254,13 +254,13 @@ export default function VotePollPage() {
                   setShowCopied(true);
                   setTimeout(() => setShowCopied(false), 3000);
                 }}
-                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 whitespace-nowrap"
+                className="bg-brand-green text-white px-6 py-3 rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap"
               >
                 Copy Link
               </button>
               <Link
                 to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
-                className="bg-white text-indigo-600 border border-indigo-200 px-6 py-3 rounded-xl font-bold hover:bg-indigo-50 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
+                className="bg-white text-brand-green border border-brand-green-light px-6 py-3 rounded-xl font-bold hover:bg-neutral-50 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
               >
                 <Edit3 size={18} />
                 Edit Poll
@@ -273,7 +273,7 @@ export default function VotePollPage() {
       <form onSubmit={handleSubmit} className="space-y-12">
         <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
           <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 text-sm">1</span>
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-green-light/50 text-brand-green-dark text-sm">1</span>
             Your Availability
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -305,7 +305,7 @@ export default function VotePollPage() {
                 value={participantName}
                 onChange={(e) => setParticipantName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-2xl px-6 py-4 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-neutral-800 placeholder:text-neutral-300 font-medium"
+                className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-2xl px-6 py-4 focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 outline-none transition-all text-neutral-800 placeholder:text-neutral-300 font-medium"
               />
             </div>
             <div className="space-y-2">
@@ -335,7 +335,7 @@ export default function VotePollPage() {
           type="submit"
           data-testid="vote-submit-btn"
           disabled={!participantName.trim() || isSubmitting}
-          className="w-full bg-indigo-600 text-white font-black py-6 rounded-3xl hover:bg-indigo-700 disabled:bg-neutral-200 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-200 text-xl flex items-center justify-center gap-3 group"
+          className="w-full bg-brand-green text-white font-black py-6 rounded-3xl hover:bg-brand-green-dark disabled:bg-neutral-200 disabled:cursor-not-allowed transition-all shadow-xl shadow-brand-green/20 text-xl flex items-center justify-center gap-3 group"
         >
           {isSubmitting ? (
             <Loader2 className="w-6 h-6 animate-spin" />
