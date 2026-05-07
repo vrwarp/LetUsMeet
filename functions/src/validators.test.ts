@@ -184,6 +184,20 @@ describe("Validators", () => {
       const result = createPollSchema.safeParse(invalidPoll);
       expect(result.success).toBe(false);
     });
+
+    it("should validate a fuzzy poll with null time (Stream E24)", () => {
+      const validPoll = {
+        title: "Fuzzy Meeting",
+        schedulingMode: "FUZZY",
+        timeSlots: [
+          { date: "2026-01-01", label: "Brunch", time: null },
+        ],
+        organizerName: "Jane Doe",
+        organizerEmail: "jane@example.com",
+      };
+      const result = createPollSchema.safeParse(validPoll);
+      expect(result.success).toBe(true);
+    });
   });
 
   describe("submitVoteSchema", () => {

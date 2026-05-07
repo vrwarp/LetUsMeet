@@ -31,7 +31,13 @@ describe('VotePollPage', () => {
     expect(await screen.findByText('Mock Meeting')).toBeInTheDocument();
 
     const nameInput = screen.getByTestId('participant-name-input');
-    fireEvent.change(nameInput, { target: { value: 'Test Voter' } });
+    const emailInput = screen.getByTestId('participant-email-input');
+    
+    // Verify prefilled values
+    await waitFor(() => {
+      expect(nameInput).toHaveValue('Test User');
+      expect(emailInput).toHaveValue('test@example.com');
+    });
 
     // In the component, checkmarks might be text or icons
     const voteButtons = screen.getAllByRole('button');
@@ -95,11 +101,14 @@ describe('VotePollPage', () => {
   it('disables submit button when name is empty (Stream E17)', async () => {
     renderPage();
     const submitBtn = await screen.findByTestId('vote-submit-btn');
-    expect(submitBtn).toBeDisabled();
+    // Name is prefilled now, so it should NOT be disabled
+    expect(submitBtn).not.toBeDisabled();
     
     const nameInput = screen.getByTestId('participant-name-input');
-    fireEvent.change(nameInput, { target: { value: 'Alice' } });
-    expect(submitBtn).not.toBeDisabled();
+    fireEvent.change(nameInput, { target: { value: '' } });
+    await waitFor(() => {
+      expect(submitBtn).toBeDisabled();
+    });
   });
 
   it('displays error on submission failure (Stream E19)', async () => {

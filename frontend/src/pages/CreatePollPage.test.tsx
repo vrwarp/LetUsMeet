@@ -45,8 +45,12 @@ describe('CreatePollPage', () => {
     
     const nameInput = screen.getByTestId('organizer-name-input');
     const emailInput = screen.getByTestId('organizer-email-input');
-    await user.type(nameInput, 'Jane Doe');
-    await user.type(emailInput, 'jane@example.com');
+    
+    // Verify prefilled values from mock useAuth
+    await waitFor(() => {
+      expect(nameInput).toHaveValue('Test User');
+      expect(emailInput).toHaveValue('test@example.com');
+    });
     
     fireEvent.change(startTimeInput, { target: { value: '12:00' } });
     fireEvent.change(endTimeInput, { target: { value: '13:00' } });
@@ -76,10 +80,7 @@ describe('CreatePollPage', () => {
     
     const titleInput = await screen.findByTestId('poll-title-input');
     await userEvent.type(titleInput, 'Title');
-    const nameInput = screen.getByTestId('organizer-name-input');
-    const emailInput = screen.getByTestId('organizer-email-input');
-    await userEvent.type(nameInput, 'Jane');
-    await userEvent.type(emailInput, 'jane@example.com');
+    // name and email are prefilled, so button should be enabled once title is typed
     expect(submitBtn).not.toBeDisabled();
   });
 
@@ -109,11 +110,8 @@ describe('CreatePollPage', () => {
     );
     
     const titleInput = await screen.findByTestId('poll-title-input');
-    const nameInput = screen.getByTestId('organizer-name-input');
-    const emailInput = screen.getByTestId('organizer-email-input');
     await userEvent.type(titleInput, 'Title');
-    await userEvent.type(nameInput, 'Jane');
-    await userEvent.type(emailInput, 'jane@example.com');
+    // name and email are prefilled
     
     const submitBtn = screen.getByTestId('create-submit-btn');
     fireEvent.click(submitBtn);

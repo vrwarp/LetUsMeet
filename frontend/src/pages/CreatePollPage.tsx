@@ -29,6 +29,18 @@ export default function CreatePollPage() {
   const { user } = useAuth();
   const [busyTimes, setBusyTimes] = useState<{start: string, end: string}[]>([]);
 
+  const [hasPrefilled, setHasPrefilled] = useState(false);
+
+  useEffect(() => {
+    if (!hasPrefilled && user && !user.isAnonymous) {
+      if (user.displayName) setOrganizerName(user.displayName);
+      if (user.email) setOrganizerEmail(user.email);
+      if (user.displayName || user.email) {
+        setHasPrefilled(true);
+      }
+    }
+  }, [user, hasPrefilled]);
+
   useEffect(() => {
     async function fetchBusyTimes() {
       if (user && !user.isAnonymous && schedulingMode === "EXACT") {

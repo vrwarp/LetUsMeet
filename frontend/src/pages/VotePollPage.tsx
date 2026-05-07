@@ -8,7 +8,7 @@ import TimeSlotCard from "@/components/TimeSlotCard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const { } = useAuth();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   
   const [poll, setPoll] = useState<Poll | null>(null);
@@ -20,6 +20,18 @@ export default function VotePollPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCopied, setShowCopied] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  const [hasPrefilled, setHasPrefilled] = useState(false);
+
+  useEffect(() => {
+    if (!hasPrefilled && user && !user.isAnonymous) {
+      if (user.displayName) setParticipantName(user.displayName);
+      if (user.email) setParticipantEmail(user.email);
+      if (user.displayName || user.email) {
+        setHasPrefilled(true);
+      }
+    }
+  }, [user, hasPrefilled]);
 
   // const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
 

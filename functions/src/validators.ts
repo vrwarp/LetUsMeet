@@ -10,7 +10,7 @@ const exactTimeSlotSchema = z.object({
 const fuzzyTimeSlotSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
   label: z.string().min(1, "Label is required").max(50, "Label is too long"),
-  time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format").optional().or(z.literal("")),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format").optional().nullable().or(z.literal("")),
 });
 
 export const createPollSchema = z.object({

@@ -19,14 +19,14 @@ afterAll(() => server.close());
 // Global mock for useAuth hook - cover both alias and relative paths
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(() => ({
-    user: { uid: 'user123', email: 'test@example.com' },
+    user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
     loading: false,
   })),
 }));
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: vi.fn(() => ({
-    user: { uid: 'user123', email: 'test@example.com' },
+    user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
     loading: false,
   })),
 }));
@@ -70,7 +70,7 @@ vi.mock('firebase/auth', () => ({
   connectAuthEmulator: vi.fn(),
   onAuthStateChanged: vi.fn((_auth, callback) => {
     if (typeof callback === 'function') {
-      callback({ uid: 'user123', email: 'test@example.com' });
+      callback({ uid: 'user123', email: 'test@example.com', displayName: 'Test User' });
     }
     return () => {};
   }),
