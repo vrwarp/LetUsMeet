@@ -5,9 +5,9 @@ import { http, HttpResponse } from 'msw';
  * Firebase Callable SDK sends POST requests and expects { result: ... } in response.
  */
 
-const REGION = 'us-central1';
-const PROJECT_ID = 'letusmeet-6f4e1';
-const BASE_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
+//
+//
+//
 
 export const handlers = [
   // createPoll

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info } from "lucide-react";
-import { fetchPollAction } from "@/lib/pollApi";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck } from "lucide-react";
+import { fetchPollAction, finalizePollAction } from "@/lib/pollApi";
+import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 
 interface VoteResult {
@@ -12,6 +13,8 @@ interface VoteResult {
 export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const [poll, setPoll] = useState<Poll | null>(null);
+  const { user } = useAuth();
+  const [finalizing, setFinalizing] = useState<string | null>(null);
   const [votes, setVotes] = useState<VoteResult[]>([]);
   const [voteCounts, setVoteCounts] = useState<Record<string, Record<VoteValue, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +24,7 @@ export default function ResultsPage() {
     async function fetchResults() {
       if (!pollId) return;
       try {
-        const result = await fetchPollAction({ pollId });
+        const result = await fetchPollAction({ pollId }) as any;
         setPoll(result.data.poll);
         setVotes(result.data.votes);
         setVoteCounts(result.data.voteCounts);
@@ -84,6 +87,24 @@ export default function ResultsPage() {
     const bestScore = best ? (voteCounts[best].YES || 0) * 2 + (voteCounts[best].IF_NEED_BE || 0) : -1;
     return currentScore > bestScore ? id : best;
   }, null as string | null);
+
+  const handleFinalize = async (slotId: string) => {
+    if (!pollId || !user || finalizing) return;
+    setFinalizing(slotId);
+    try {
+      await finalizePollAction({ pollId, selectedTimeSlotId: slotId });
+      // Update poll state locally
+      setPoll(prev => prev ? { ...prev, status: "FINALIZED", finalizedSlotId: slotId } : prev);
+      alert("Poll finalized successfully!");
+    } catch (err) {
+      console.error("Failed to finalize poll:", err);
+      alert("Failed to finalize poll.");
+    } finally {
+      setFinalizing(null);
+    }
+  };
+
+  const isOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
@@ -172,6 +193,21 @@ export default function ResultsPage() {
                             {(slot as any).time && <span className="block text-[10px] opacity-70">@ {(slot as any).time}</span>}
                           </div>
                         </>
+                      )}
+
+                      {isOrganizer && poll.status === "OPEN" && (
+                        <button
+                          onClick={() => handleFinalize(slot.id)}
+                          disabled={finalizing === slot.id}
+                          className="mt-2 text-xs font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1 rounded-full transition-colors w-full"
+                        >
+                          {finalizing === slot.id ? "Finalizing..." : "Finalize Here"}
+                        </button>
+                      )}
+                      {poll.status === "FINALIZED" && poll.finalizedSlotId === slot.id && (
+                        <div className="mt-2 text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full flex items-center justify-center gap-1">
+                          <CalendarCheck className="w-3 h-3" /> Selected
+                        </div>
                       )}
                     </th>
                   ))}
