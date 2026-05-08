@@ -60,8 +60,8 @@ export default function Layout() {
         <Outlet />
       </main>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
-        <div className="max-w-5xl mx-auto px-4 text-center text-sm text-neutral-500">
-          <p>© 2026 LetUsMeet — Simple, frictionless group scheduling.</p>
+        <div className="max-w-5xl mx-auto px-4 text-center text-sm text-neutral-500 font-medium">
+          <p>© 2026 LetUsMeet. Simple group scheduling.</p>
         </div>
       </footer>
     </div>
