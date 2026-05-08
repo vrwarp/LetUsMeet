@@ -1,7 +1,7 @@
 import { Outlet, Link } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import logoImg from "@/assets/logo.png";
+import logoImg from "@/assets/logo-transparent.webp";
 
 export default function Layout() {
   const { user, loading, signInWithGoogle, signOutUser } = useAuth();
