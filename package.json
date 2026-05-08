@@ -22,6 +22,7 @@
   "author": "",
   "scripts": {
     "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npm run build --prefix functions && npx firebase emulators:start --only auth,firestore,functions\"",
+    "start": "npm run start --prefix frontend",
     "test": "npm run build --prefix frontend && npm run test:unit && npm run test:e2e",
     "test:unit": "npm run build --prefix frontend && npm run test:unit --prefix frontend && npm run build --prefix functions && npx firebase emulators:exec --only firestore \"npm run test --prefix functions\"",
     "test:coverage": "npm run test:coverage --prefix frontend && npm run test:coverage --prefix functions",

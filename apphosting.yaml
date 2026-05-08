@@ -7,6 +7,10 @@ runConfig:
   # cpu: 1
   # memoryMiB: 512
 
+scripts:
+  buildCommand: "npm run build --prefix frontend"
+  runCommand: "npm run start --prefix frontend"
+
 # Environment variables and secrets.
 # env:
   # Configure environment variables.
