@@ -21,10 +21,48 @@
   --color-secondary: var(--color-brand-red);
 
   @keyframes bounce-subtle {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
   }
+
   --animate-bounce-subtle: bounce-subtle 3s ease-in-out infinite;
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
+}
+
+@layer utilities {
+  .bg-brand-gradient {
+    background: linear-gradient(to right, var(--color-brand-green), var(--color-brand-red));
+    background: linear-gradient(in oklch to right, var(--color-brand-green), var(--color-brand-red));
+  }
+
+  .text-brand-gradient {
+    background: linear-gradient(to right, var(--color-brand-green), var(--color-brand-red));
+    background: linear-gradient(in oklch to right, var(--color-brand-green), var(--color-brand-red));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
 @layer base {

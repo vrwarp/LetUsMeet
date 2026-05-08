@@ -117,7 +117,7 @@ export default function ResultsPage() {
       </Link>
 
       <div className="bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12">
-        <div className="bg-gradient-to-r from-brand-green to-brand-red px-8 py-10 text-white">
+        <div className="bg-brand-gradient px-8 py-10 text-white">
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-3">{poll.title}</h1>

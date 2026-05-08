@@ -284,26 +284,26 @@ export default function CreatePollPage() {
                 setSchedulingMode("EXACT");
                 // Optionally reset slots or keep date
               }}
-              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "EXACT"
-                ? "border-brand-green bg-brand-green-light/20"
+              className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] ${schedulingMode === "EXACT"
+                ? "border-brand-green bg-brand-green-light/20 shadow-md shadow-brand-green/5"
                 : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
             >
-              <span className={`font-bold ${schedulingMode === "EXACT" ? "text-indigo-700" : "text-neutral-700"}`}>Exact Times</span>
-              <span className="text-xs text-neutral-500">Pick specific start and end times</span>
+              <span className={`font-bold text-lg ${schedulingMode === "EXACT" ? "text-brand-green-dark" : "text-neutral-700"}`}>Exact Times</span>
+              <span className="text-sm text-neutral-500 leading-snug">Pick specific start and end times for your meeting.</span>
             </button>
             <button
               type="button"
               onClick={() => {
                 setSchedulingMode("FUZZY");
               }}
-              className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col gap-1 ${schedulingMode === "FUZZY"
-                ? "border-brand-green bg-brand-green-light/20"
+              className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] ${schedulingMode === "FUZZY"
+                ? "border-brand-green bg-brand-green-light/20 shadow-md shadow-brand-green/5"
                 : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
             >
-              <span className={`font-bold ${schedulingMode === "FUZZY" ? "text-indigo-700" : "text-neutral-700"}`}>General blocks</span>
-              <span className="text-xs text-neutral-500">Morning, Afternoon, Evening</span>
+              <span className={`font-bold text-lg ${schedulingMode === "FUZZY" ? "text-brand-green-dark" : "text-neutral-700"}`}>General blocks</span>
+              <span className="text-sm text-neutral-500 leading-snug">Choose broad time windows like Morning or Afternoon.</span>
             </button>
           </div>
         </div>
