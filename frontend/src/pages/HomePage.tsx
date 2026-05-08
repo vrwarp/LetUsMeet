@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Calendar, Clock, CheckCircle2, Zap, ArrowRight } from "lucide-react";
-import mascotImg from "@/assets/mascots.png";
+import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
   return (
@@ -17,8 +17,8 @@ export default function HomePage() {
         
         <div className="relative group cursor-pointer">
           <img 
-            src={mascotImg} 
-            alt="LetUsMeet Mascots" 
+            src={heroImg} 
+            alt="LetUsMeet Hero" 
             className="h-48 sm:h-72 w-auto mb-4 animate-bounce-subtle transition-transform group-hover:scale-110" 
           />
           <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-black/5 blur-xl rounded-full"></div>
