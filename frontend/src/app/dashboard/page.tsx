@@ -1,10 +1,11 @@
+"use client";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity } from "lucide-react";
-import type { Poll } from "../types/index";
+import type { Poll } from "@/types/index";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -69,7 +70,7 @@ export default function DashboardPage() {
           <p className="text-neutral-500 mt-1">Manage and finalize your created polls</p>
         </div>
         <Link
-          to="/create"
+          href="/create"
           className="btn-primary-green !px-6 !py-2.5 !text-base"
         >
           Create New Poll
@@ -86,7 +87,7 @@ export default function DashboardPage() {
             You haven't created any polls yet. Get started by creating your first poll to find the perfect meeting time.
           </p>
           <Link
-            to="/create"
+            href="/create"
             className="inline-flex items-center gap-2 px-6 py-3 bg-brand-green-light text-brand-green-dark rounded-xl font-bold hover:bg-brand-green-light/50 transition-colors"
           >
             Create your first poll
@@ -129,13 +130,13 @@ export default function DashboardPage() {
 
                 <div className="flex items-center gap-3">
                   <Link
-                    to={`/poll/${poll.pollId}`}
+                    href={`/poll/${poll.pollId}`}
                     className="px-4 py-2 bg-white/50 text-neutral-700 rounded-lg font-bold hover:bg-white transition-colors text-sm border border-black/5"
                   >
                     View Poll
                   </Link>
                   <Link
-                    to={`/poll/${poll.pollId}/results`}
+                    href={`/poll/${poll.pollId}/results`}
                     className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-1.5 text-sm shadow-sm ${
                       poll.status === "OPEN" ? "bg-brand-green text-white hover:bg-brand-green-dark" : "bg-brand-red text-white hover:bg-brand-red-dark"
                     }`}

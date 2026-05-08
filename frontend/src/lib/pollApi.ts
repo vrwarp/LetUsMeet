@@ -2,7 +2,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/firebase";
 
 export async function createPollAction(data: any) {
-  if ((globalThis as any).IS_VITEST) {
+  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
     return { data: { pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' } };
   }
   const fn = httpsCallable(functions, "createPoll");
@@ -10,7 +10,7 @@ export async function createPollAction(data: any) {
 }
 
 export async function fetchPollAction(data: any) {
-  if ((globalThis as any).IS_VITEST) {
+  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
     return { 
       data: { 
         poll: { 
@@ -33,7 +33,7 @@ export async function fetchPollAction(data: any) {
 }
 
 export async function submitVoteAction(data: any) {
-  if ((globalThis as any).IS_VITEST) {
+  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
     return { data: { success: true } };
   }
   const fn = httpsCallable(functions, "submitVote");
@@ -41,7 +41,7 @@ export async function submitVoteAction(data: any) {
 }
 
 export async function getOrganizerCalendarAction(data: any) {
-  if ((globalThis as any).IS_VITEST) {
+  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
     return { data: { busyTimes: [] } };
   }
   const fn = httpsCallable(functions, "getOrganizerCalendar");
@@ -49,7 +49,7 @@ export async function getOrganizerCalendarAction(data: any) {
 }
 
 export async function finalizePollAction(data: any) {
-  if ((globalThis as any).IS_VITEST) {
+  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
     return { data: { success: true, eventId: "mock-event-id" } };
   }
   const fn = httpsCallable(functions, "finalizePoll");
@@ -57,7 +57,7 @@ export async function finalizePollAction(data: any) {
 }
 
 export async function updatePollAction(data: any) {
-  if ((globalThis as any).IS_VITEST) {
+  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
     return { data: { success: true } };
   }
   const fn = httpsCallable(functions, "updatePoll");
@@ -65,7 +65,7 @@ export async function updatePollAction(data: any) {
 }
 
 export async function deleteVoteAction(data: any) {
-  if ((globalThis as any).IS_VITEST) {
+  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
     return { data: { success: true } };
   }
   const fn = httpsCallable(functions, "deleteVote");

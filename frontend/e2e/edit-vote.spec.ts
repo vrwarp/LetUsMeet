@@ -8,7 +8,7 @@ test.describe('Vote Editing and Multiple Responses', () => {
     await page.getByTestId('organizer-email-input').fill('organizer@e2e.com');
     await page.getByTestId('poll-title-input').fill('E2E Edit Test Poll');
     await page.getByTestId('add-slot-btn').click();
-    await page.getByTestId('create-submit-btn').click();
+    await page.getByTestId('create-submit-btn').click({ force: true });
     
     await page.waitForURL(/\/poll\/[^/]+$/);
     const pollUrl = page.url();

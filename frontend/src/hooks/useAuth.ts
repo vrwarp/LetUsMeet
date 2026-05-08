@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useState } from "react";
 import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import type { User } from "firebase/auth";

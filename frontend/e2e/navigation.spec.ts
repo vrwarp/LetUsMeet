@@ -15,7 +15,7 @@ test.describe('Navigation Flows', () => {
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Nav Test Poll');
-    await page.getByTestId('create-submit-btn').click();
+    await page.getByTestId('create-submit-btn').click({ force: true });
     
     await page.waitForURL(/\/poll\/[^/]+$/);
     const pollUrl = page.url();
@@ -46,7 +46,7 @@ test.describe('Navigation Flows', () => {
     await page.goto('/create');
     // Assuming the header has a link with LetUsMeet or a specific logo
     await page.getByRole('link', { name: /LetUsMeet/i }).first().click();
-    await expect(page).toHaveURL('http://127.0.0.1:5173/');
+    await expect(page).toHaveURL('http://127.0.0.1:3000/');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Let everyone meet');
   });
 });

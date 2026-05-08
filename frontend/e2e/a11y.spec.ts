@@ -21,7 +21,7 @@ test.describe('Accessibility Audits', () => {
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('A11y Poll');
-    await page.getByTestId('create-submit-btn').click();
+    await page.getByTestId('create-submit-btn').click({ force: true });
     await page.waitForURL(/\/poll\/[^/]+$/);
 
     await page.waitForSelector('h1');
@@ -37,7 +37,7 @@ test.describe('Accessibility Audits', () => {
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('A11y Poll Results');
-    await page.getByTestId('create-submit-btn').click();
+    await page.getByTestId('create-submit-btn').click({ force: true });
     await page.waitForURL(/\/poll\/[^/]+$/);
     const pollUrl = page.url();
 

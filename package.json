@@ -1,38 +1,53 @@
 {
-  "name": "letusmeet",
-  "version": "1.0.0",
+  "name": "frontend",
   "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "engines": {
     "node": "22"
   },
-  "workspaces": [
-    "frontend",
-    "functions"
-  ],
-  "description": "",
-  "homepage": "https://github.com/vrwarp/LetUsMeet#readme",
-  "bugs": {
-    "url": "https://github.com/vrwarp/LetUsMeet/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/vrwarp/LetUsMeet.git"
-  },
-  "license": "ISC",
-  "author": "",
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npm run build --prefix functions && npx firebase emulators:start --only auth,firestore,functions\"",
-    "start": "npm run start --prefix frontend",
-    "test": "npm run build --prefix frontend && npm run test:unit && npm run test:e2e",
-    "test:unit": "npm run build --prefix frontend && npm run test:unit --prefix frontend && npm run build --prefix functions && npx firebase emulators:exec --only firestore \"npm run test --prefix functions\"",
-    "test:coverage": "npm run test:coverage --prefix frontend && npm run test:coverage --prefix functions",
-    "test:e2e": "npm run build --prefix functions && npx firebase emulators:exec --only auth,firestore,functions \"npm run test:e2e --prefix frontend\""
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
-    "sirv-cli": "^3.0.1"
+    "firebase": "^12.12.1",
+    "lucide-react": "^1.14.0",
+    "next": "^15.5.18",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "whatwg-fetch": "^3.6.20"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
-    "firebase-tools": "^15.16.0"
+    "@axe-core/playwright": "^4.11.3",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.59.1",
+    "@tailwindcss/vite": "^4.2.4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.19.18",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.5",
+    "autoprefixer": "^10.5.0",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "jsdom": "^29.1.1",
+    "msw": "^2.14.3",
+    "postcss": "^8.5.13",
+    "tailwindcss": "^4.2.4",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.58.2",
+    "vitest": "^4.1.5"
   }
 }

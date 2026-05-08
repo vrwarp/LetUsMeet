@@ -7,7 +7,7 @@ if (!globalThis.crypto) {
     value: webcrypto,
   });
 }
-(globalThis as any).IS_VITEST = true;
+process.env.NEXT_PUBLIC_IS_TESTING = 'true';
 
 import { beforeAll, afterEach, afterAll, vi } from 'vitest';
 import { server } from './mocks/server';

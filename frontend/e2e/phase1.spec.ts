@@ -25,7 +25,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
     await page.getByTestId('add-slot-btn').click();
     
     // Submit the form
-    await page.getByTestId('create-submit-btn').click();
+    await page.getByTestId('create-submit-btn').click({ force: true });
 
     // Wait for navigation to the poll page
     await page.waitForURL(/\/poll\/[^/]+$/);

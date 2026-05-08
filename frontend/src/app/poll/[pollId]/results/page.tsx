@@ -1,5 +1,7 @@
+"use client";
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3 } from "lucide-react";
 import { fetchPollAction, finalizePollAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +13,8 @@ interface VoteResult {
 }
 
 export default function ResultsPage() {
-  const { pollId } = useParams<{ pollId: string }>();
+  const params = useParams();
+  const pollId = params.pollId as string;
   const [poll, setPoll] = useState<Poll | null>(null);
   const { user } = useAuth();
   const [finalizing, setFinalizing] = useState<string | null>(null);

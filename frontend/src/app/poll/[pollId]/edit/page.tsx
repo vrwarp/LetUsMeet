@@ -1,5 +1,7 @@
+"use client";
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { fetchPollAction, updatePollAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,9 +17,10 @@ interface TimeSlotInput {
 }
 
 export default function EditPollPage() {
-  const { pollId } = useParams<{ pollId: string }>();
+  const params = useParams();
+  const pollId = params.pollId as string;
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user } = useAuth();
   
   const [title, setTitle] = useState("");
@@ -160,7 +163,7 @@ export default function EditPollPage() {
           })),
       });
 
-      navigate(`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`);
+      router.push(`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`);
     } catch (err: any) {
       console.error("Failed to update poll", err);
       setError(err.message || "Something went wrong. Please try again.");

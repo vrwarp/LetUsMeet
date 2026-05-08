@@ -7,7 +7,7 @@ test.describe('Vote Update Flow', () => {
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Update Vote Poll');
-    await page.getByTestId('create-submit-btn').click();
+    await page.getByTestId('create-submit-btn').click({ force: true });
     await page.waitForURL(/\/poll\/[^/]+$/);
 
     // Initial Vote

@@ -1,5 +1,7 @@
+"use client";
 import { useEffect, useState } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
 import { fetchPollAction, submitVoteAction, deleteVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,7 +9,8 @@ import type { Poll, Vote, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
 
 export default function VotePollPage() {
-  const { pollId } = useParams<{ pollId: string }>();
+  const params = useParams();
+  const pollId = params.pollId as string;
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   

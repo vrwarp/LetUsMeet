@@ -100,3 +100,6 @@ dist-ssr
 playwright-report/
 test-results/
 
+.next/
+frontend/.next/
+frontend/.next

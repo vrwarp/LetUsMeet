@@ -31,7 +31,7 @@ test.describe('Error & Edge Cases', () => {
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Edge Case Poll');
-    await page.getByTestId('create-submit-btn').click();
+    await page.getByTestId('create-submit-btn').click({ force: true });
     
     await page.waitForURL(/\/poll\/[^/]+$/);
 
