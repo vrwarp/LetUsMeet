@@ -63,3 +63,11 @@ export async function updatePollAction(data: any) {
   const fn = httpsCallable(functions, "updatePoll");
   return fn(data);
 }
+
+export async function deleteVoteAction(data: any) {
+  if ((globalThis as any).IS_VITEST) {
+    return { data: { success: true } };
+  }
+  const fn = httpsCallable(functions, "deleteVote");
+  return fn(data);
+}

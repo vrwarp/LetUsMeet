@@ -11,7 +11,7 @@ describe('Layout', () => {
       </MemoryRouter>
     );
     
-    expect(screen.getByText('LetUsMeet')).toBeInTheDocument();
+    expect(screen.getByAltText('LetUsMeet')).toBeInTheDocument();
     expect(screen.getByText('Create Poll')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /LetUsMeet/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /Create Poll/i })).toHaveAttribute('href', '/create');
@@ -24,7 +24,7 @@ describe('Layout', () => {
       </MemoryRouter>
     );
     
-    expect(screen.getByText(/© 2026 LetUsMeet/i)).toBeInTheDocument();
+    expect(screen.getByText(/Simple group scheduling/i)).toBeInTheDocument();
   });
 
   it('renders child routes via Outlet', () => {

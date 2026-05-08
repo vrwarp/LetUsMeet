@@ -18,8 +18,8 @@ test.describe('Vote Update Flow', () => {
     // Wait for success
     await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
-    // Click "Change my vote"
-    await page.getByRole('button', { name: /Change my vote/i }).click();
+    // Click "Back to poll" (renamed from Change my vote)
+    await page.getByRole('button', { name: /Back to poll/i }).click();
 
     // The form should be visible again
     await expect(page.getByTestId('vote-submit-btn')).toBeVisible();

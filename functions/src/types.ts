@@ -40,6 +40,7 @@ export interface Poll {
 // Vote document
 export interface Vote {
   voteId: string;
+  participantUid?: string | null;
   participantName: string;
   participantEmail?: string | null;
   selections: Record<string, VoteValue>;  // timeSlotId → vote
@@ -78,9 +79,15 @@ export interface CreatePollResponse {
 
 export interface SubmitVoteRequest {
   pollId: string;
+  voteId?: string;
   participantName: string;
   participantEmail?: string;
   selections: Record<string, VoteValue>;
+}
+
+export interface DeleteVoteRequest {
+  pollId: string;
+  voteId: string;
 }
 
 export interface FinalizePollRequest {

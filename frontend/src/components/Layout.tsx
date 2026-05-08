@@ -16,6 +16,7 @@ export default function Layout() {
           <nav className="flex items-center gap-4 sm:gap-6">
             <Link
               to="/create"
+              data-testid="create-poll-btn"
               className="flex items-center gap-2 text-sm font-bold bg-brand-green text-white px-5 py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95 hidden sm:flex"
             >
               <PlusCircle size={18} />

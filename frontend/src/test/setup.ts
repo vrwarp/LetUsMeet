@@ -56,6 +56,8 @@ vi.mock('@/lib/pollApi', () => {
     submitVoteAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
     getOrganizerCalendarAction: vi.fn(() => Promise.resolve({ data: { busyTimes: [] } })),
     finalizePollAction: vi.fn(() => Promise.resolve({ data: { success: true, eventId: "mock" } })),
+    updatePollAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
+    deleteVoteAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
   };
 });
 

@@ -37,9 +37,15 @@ export const createPollSchema = z.object({
 
 export const submitVoteSchema = z.object({
   pollId: z.string().min(1),
+  voteId: z.string().nullable().optional(),
   participantName: z.string().min(1).max(100),
   participantEmail: z.string().email().optional().or(z.literal("")),
   selections: z.record(z.enum(["YES", "NO", "IF_NEED_BE"])),
+});
+
+export const deleteVoteSchema = z.object({
+  pollId: z.string().min(1),
+  voteId: z.string().min(1),
 });
 
 export const updatePollSchema = z.object({

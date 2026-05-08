@@ -3,16 +3,33 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import VotePollPage from './VotePollPage';
 import * as api from '@/lib/pollApi';
+import { useAuth } from '@/hooks/useAuth';
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => mockNavigate };
-});
+vi.mock('@/hooks/useAuth');
+vi.mock('@/lib/pollApi');
 
 describe('VotePollPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (useAuth as any).mockReturnValue({
+      user: { uid: 'user123', displayName: 'Test User', email: 'test@example.com', isAnonymous: false },
+      loading: false,
+      signInWithGoogle: vi.fn(),
+      signOutUser: vi.fn()
+    });
+    (api.fetchPollAction as any).mockResolvedValue({
+      data: {
+        poll: { 
+          pollId: 'mock-poll-id-123',
+          title: 'Mock Meeting', 
+          timeSlots: [{ id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' }],
+          status: 'OPEN'
+        },
+        votes: [],
+        voteCounts: { t1: { YES: 0, NO: 0, IF_NEED_BE: 0 } }
+      }
+    });
+    (api.submitVoteAction as any).mockResolvedValue({ data: { success: true } });
   });
 
   const renderPage = (pollId = 'mock-poll-id-123') => {
@@ -51,7 +68,7 @@ describe('VotePollPage', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Consensus matrix updated/i)).toBeInTheDocument();
+      expect(screen.getByText(/Vote Cast!/i)).toBeInTheDocument();
     });
   });
 

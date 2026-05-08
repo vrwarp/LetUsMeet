@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3 } from "lucide-react";
-import { fetchPollAction, submitVoteAction } from "@/lib/pollApi";
+import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
+import { fetchPollAction, submitVoteAction, deleteVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
-import type { Poll, VoteValue } from "../types/index";
+import type { Poll, Vote, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
 
 export default function VotePollPage() {
@@ -20,6 +20,11 @@ export default function VotePollPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCopied, setShowCopied] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [userVotes, setUserVotes] = useState<Vote[]>([]);
+  const [allVotes, setAllVotes] = useState<Vote[]>([]);
+  const [editingVoteId, setEditingVoteId] = useState<string | null>(null);
+  const [lastSubmissionWasUpdate, setLastSubmissionWasUpdate] = useState(false);
+  const [hasInitializedForm, setHasInitializedForm] = useState(false);
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
@@ -38,22 +43,58 @@ export default function VotePollPage() {
   const fetchPoll = async () => {
     try {
       const result = await fetchPollAction({ pollId: pollId! }) as any;
-      const pollData = result.data.poll;
+      const { poll: pollData, votes: fetchedVotes } = result.data;
       setPoll(pollData);
-      
-      if (pollData) {
-        const initial: Record<string, VoteValue> = {};
-        pollData.timeSlots.forEach((slot: any) => {
-          initial[slot.id] = "NO";
-        });
-        setSelections(initial);
-      }
+      setAllVotes(fetchedVotes || []);
       setIsLoading(false);
     } catch (err: any) {
       console.error("Failed to fetch poll:", err);
       setError("Poll not found or error loading data.");
       setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (poll) {
+      if (user) {
+        const myVotes = allVotes.filter((v: Vote) => v.participantUid === user.uid || v.voteId === user.uid);
+        setUserVotes(myVotes);
+        
+        if (!hasInitializedForm) {
+          if (myVotes.length > 0) {
+            // Default to editing the most recent vote
+            const latestVote = [...myVotes].sort((a, b) => 
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            )[0];
+            loadVoteIntoForm(latestVote, poll);
+            setHasInitializedForm(true);
+          } else if (!isLoading) {
+            // If we are done loading but no votes found, finalize initialization
+            initializeEmptyForm(poll);
+            setHasInitializedForm(true);
+          }
+        }
+      } else if (!hasInitializedForm && !isLoading) {
+        // If user is still null but we've fetched the poll, at least show the empty form
+        initializeEmptyForm(poll);
+      }
+    }
+  }, [poll, allVotes, user, hasInitializedForm, isLoading]);
+
+  const initializeEmptyForm = (pollData: Poll) => {
+    const initial: Record<string, VoteValue> = {};
+    pollData.timeSlots.forEach((slot: any) => {
+      initial[slot.id] = "NO";
+    });
+    setSelections(initial);
+    setEditingVoteId(null);
+  };
+
+  const loadVoteIntoForm = (vote: Vote, _pollData?: Poll) => {
+    setSelections(vote.selections || {});
+    setParticipantName(vote.participantName || "");
+    setParticipantEmail(vote.participantEmail || "");
+    setEditingVoteId(vote.voteId);
   };
 
   useEffect(() => {
@@ -71,15 +112,20 @@ export default function VotePollPage() {
     
     setIsSubmitting(true);
     setError(null);
+    const isUpdate = !!editingVoteId;
 
     try {
       await submitVoteAction({
         pollId,
+        voteId: editingVoteId,
         participantName,
         participantEmail: participantEmail || "",
         selections,
       });
+      setLastSubmissionWasUpdate(isUpdate);
       setSuccess(true);
+      setHasInitializedForm(false); // Allow re-initialization with the latest data
+      fetchPoll(); // Refresh to get the updated vote list
       setIsSubmitting(false);
     } catch (err: any) {
       console.error("Vote submission failed:", err);
@@ -93,6 +139,34 @@ export default function VotePollPage() {
       ...prev,
       [slotId]: value
     }));
+  };
+
+  const handleDeleteVote = async () => {
+    if (!editingVoteId) return;
+    
+    if (!confirm("Are you sure you want to delete this response? This action cannot be undone.")) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await deleteVoteAction({
+        pollId,
+        voteId: editingVoteId,
+      });
+      
+      // Reset form and refresh
+      setHasInitializedForm(false);
+      fetchPoll();
+      setIsSubmitting(false);
+      // We don't set success(true) here because we want to go back to the empty form
+    } catch (err: any) {
+      console.error("Delete vote failed:", err);
+      setError(err.message || "Failed to delete response. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -128,8 +202,14 @@ export default function VotePollPage() {
           <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200">
             <CheckCircle className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-neutral-800 mb-3">Vote Cast!</h2>
-          <p className="text-neutral-600 mb-8 text-lg">Your availability has been recorded successfully.</p>
+          <h2 className="text-3xl font-bold text-neutral-800 mb-3">
+            {lastSubmissionWasUpdate ? "Vote Updated!" : "Vote Cast!"}
+          </h2>
+          <p className="text-neutral-600 mb-8 text-lg">
+            {lastSubmissionWasUpdate 
+              ? "Your availability has been updated successfully." 
+              : "Your availability has been recorded successfully."}
+          </p>
           <div className="flex flex-col gap-4">
             <Link 
               to={`/poll/${pollId}/results`}
@@ -139,10 +219,12 @@ export default function VotePollPage() {
               See Consensus Results
             </Link>
             <button 
-              onClick={() => setSuccess(false)}
+              onClick={() => {
+                setSuccess(false);
+              }}
               className="text-neutral-500 font-semibold hover:text-neutral-700 transition-colors"
             >
-              Change my vote
+              Back to poll
             </button>
           </div>
         </div>
@@ -270,6 +352,75 @@ export default function VotePollPage() {
         )}
       </div>
 
+      {userVotes.length > 0 && (
+        <div className="mb-10 p-6 bg-indigo-50 border border-indigo-100 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                <History className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="font-bold text-neutral-800 text-lg">
+                  {userVotes.length === 1 
+                    ? "You've already submitted a response" 
+                    : `You've submitted ${userVotes.length} responses`}
+                </h2>
+                <p className="text-neutral-600 text-sm">
+                  {editingVoteId 
+                    ? "Editing your previous response. You can update it or submit a new one." 
+                    : "Submitting a new response. You can also edit your previous ones."}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {editingVoteId ? (
+                <button
+                  type="button"
+                  onClick={() => initializeEmptyForm(poll!)}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 border border-indigo-200 rounded-xl font-bold hover:bg-neutral-50 transition-all shadow-sm"
+                >
+                  <Plus size={18} />
+                  Submit New Response
+                </button>
+              ) : (
+                userVotes.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => loadVoteIntoForm(userVotes[0])}
+                    className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 border border-indigo-200 rounded-xl font-bold hover:bg-neutral-50 transition-all shadow-sm"
+                  >
+                    <Edit3 size={18} />
+                    Edit Previous Response
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+          
+          {userVotes.length > 1 && (
+            <div className="mt-6 pt-6 border-t border-indigo-100">
+              <p className="text-sm font-bold text-neutral-500 uppercase tracking-wider mb-3">Switch between your responses:</p>
+              <div className="flex flex-wrap gap-2">
+                {userVotes.map((v, idx) => (
+                  <button
+                    key={v.voteId}
+                    type="button"
+                    onClick={() => loadVoteIntoForm(v)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      editingVoteId === v.voteId 
+                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" 
+                        : "bg-white text-neutral-600 border border-neutral-200 hover:border-indigo-300"
+                    }`}
+                  >
+                    {v.participantName || "Anonymous"} ({new Date(v.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} on {new Date(v.updatedAt).toLocaleDateString([], { month: 'numeric', day: 'numeric' })})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-12">
         <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
           <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
@@ -331,21 +482,37 @@ export default function VotePollPage() {
           </div>
         )}
 
-        <button
-          type="submit"
-          data-testid="vote-submit-btn"
-          disabled={!participantName.trim() || isSubmitting}
-          className="btn-primary-green w-full disabled:bg-neutral-200 disabled:cursor-not-allowed group !py-6 !text-2xl"
-        >
-          {isSubmitting ? (
-            <Loader2 className="w-8 h-8 animate-spin" />
-          ) : (
-            <>
-              Submit Your Vote
-              <Send className="w-7 h-7 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-            </>
+        <div className="flex flex-col md:flex-row gap-4">
+          <button
+            type="submit"
+            data-testid="vote-submit-btn"
+            disabled={!participantName.trim() || isSubmitting}
+            className={`flex-1 disabled:bg-neutral-200 disabled:cursor-not-allowed group !py-6 !text-2xl font-black rounded-3xl transition-all flex items-center justify-center gap-4 ${
+              editingVoteId 
+                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100" 
+                : "bg-brand-green text-white hover:bg-brand-green-dark shadow-xl shadow-brand-green/20"
+            }`}
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-8 h-8 animate-spin" />
+            ) : (
+              <>
+                {editingVoteId ? "Update Your Response" : "Submit Your Vote"}
+                <ChevronRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </button>
+
+          {editingVoteId && !isSubmitting && (
+            <button
+              type="button"
+              onClick={handleDeleteVote}
+              className="px-8 py-6 text-red-600 font-bold hover:bg-red-50 rounded-3xl transition-all border-2 border-transparent hover:border-red-100"
+            >
+              Delete Response
+            </button>
           )}
-        </button>
+        </div>
       </form>
     </div>
   );
