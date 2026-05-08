@@ -97,11 +97,11 @@
   }
 
   .btn-primary-green {
-    @apply bg-brand-green text-white font-black px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl shadow-brand-green/20 hover:bg-brand-green-dark hover:scale-105 active:scale-95;
+    @apply flex items-center justify-center gap-3 bg-brand-green text-white font-black px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl shadow-brand-green/20 hover:bg-brand-green-dark hover:scale-105 active:scale-95;
   }
 
   .btn-primary-red {
-    @apply bg-brand-red text-white font-black px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl shadow-brand-red/20 hover:bg-brand-red-dark hover:scale-105 active:scale-95 active:shadow-brand-red/40 active:ring-4 active:ring-brand-red/20;
+    @apply flex items-center justify-center gap-3 bg-brand-red text-white font-black px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl shadow-brand-red/20 hover:bg-brand-red-dark hover:scale-105 active:scale-95 active:shadow-brand-red/40 active:ring-4 active:ring-brand-red/20;
   }
 
   .selectable-item {

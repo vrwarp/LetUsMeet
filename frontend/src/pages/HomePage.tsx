@@ -9,8 +9,8 @@ export default function HomePage() {
       <div className="absolute top-0 -left-20 w-96 h-96 bg-brand-green/10 blur-[100px] rounded-full -z-10"></div>
       <div className="absolute bottom-0 -right-20 w-96 h-96 bg-brand-red/10 blur-[100px] rounded-full -z-10"></div>
 
-      <section className="max-w-4xl flex flex-col items-center gap-8 relative">
-        <h1 className="text-6xl sm:text-9xl font-black tracking-tight leading-[0.9]">
+      <section className="max-w-4xl flex flex-col items-center gap-10 relative px-6 w-full">
+        <h1 className="text-6xl sm:text-9xl font-black tracking-tight leading-none">
           <span className="text-brand-green">Let everyone </span>
           <span className="text-brand-red">meet.</span>
         </h1>
@@ -18,25 +18,25 @@ export default function HomePage() {
           Meeting made easy.
         </p>
 
-        <div className="relative group cursor-pointer">
-          <img
-            src={heroImg}
-            alt="LetUsMeet Hero"
-            className="h-48 sm:h-64 w-auto mb-4 animate-bounce-subtle transition-transform group-hover:scale-110"
-          />
-          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-black/5 blur-xl rounded-full"></div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-5 mt-4 w-full sm:w-auto">
-          <Link
-            to="/create"
-            data-testid="create-poll-btn"
-            className="btn-primary-green"
-          >
+        <Link
+          to="/create"
+          className="group flex flex-col items-center gap-6 w-full sm:w-auto transition-transform hover:scale-105 active:scale-95"
+          data-testid="create-poll-link-group"
+        >
+          <div className="relative">
+            <img
+              src={heroImg}
+              alt="LetUsMeet Hero"
+              className="h-48 sm:h-64 w-auto mb-4 animate-bounce-subtle transition-transform group-hover:scale-110"
+            />
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-black/5 blur-xl rounded-full"></div>
+          </div>
+
+          <div className="btn-primary-green w-full sm:w-64 group-hover:bg-brand-green-dark group-hover:shadow-brand-green/40 transition-all">
             Start a Poll
-            <ArrowRight size={24} />
-          </Link>
-        </div>
+            <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
+          </div>
+        </Link>
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl px-4">

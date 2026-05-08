@@ -16,7 +16,7 @@ export default function Layout() {
           <nav className="flex items-center gap-4 sm:gap-6">
             <Link
               to="/create"
-              className="flex items-center gap-1.5 text-sm font-semibold text-brand-green-dark hover:text-brand-green transition-colors px-3 py-2 rounded-full hover:bg-brand-green-light hidden sm:flex"
+              className="flex items-center gap-2 text-sm font-bold bg-brand-green text-white px-5 py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95 hidden sm:flex"
             >
               <PlusCircle size={18} />
               <span>Create Poll</span>
@@ -45,10 +45,10 @@ export default function Layout() {
                 ) : (
                   <button
                     onClick={signInWithGoogle}
-                    className="flex items-center gap-2 text-sm font-bold bg-brand-green text-white px-5 py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-neutral-500 hover:text-brand-green transition-colors px-3 py-2 rounded-full hover:bg-neutral-100"
                   >
                     <LogIn size={18} />
-                    <span>Sign in with Google</span>
+                    <span>Sign in</span>
                   </button>
                 )}
               </>
