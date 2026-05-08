@@ -104,7 +104,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className={`text-xl font-black ${poll.status === "OPEN" ? "text-brand-green-dark" : "text-brand-red-dark"}`}>{poll.title}</h3>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      poll.status === "OPEN" ? "bg-white text-brand-green" : "bg-white text-brand-red"
+                      poll.status === "OPEN" ? "bg-white text-brand-green-dark" : "bg-white text-brand-red"
                     }`}>
                       {poll.status}
                     </span>

@@ -70,14 +70,14 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       aria-label={`${dateStr}, ${timeRange}${subtext ? ` ${subtext}` : ''}. Current vote: ${value}. Click to change.`}
       className={`relative flex flex-col items-center gap-1 p-6 rounded-2xl border-2 transition-all cursor-pointer select-none min-h-[120px] justify-center shadow-md active:scale-95 ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
-      <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${value === 'NO' ? 'text-neutral-500' : (value === 'IF_NEED_BE' ? 'text-amber-900' : 'text-white')}`}>
+      <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${value === 'NO' ? 'text-neutral-500' : (value === 'IF_NEED_BE' ? 'text-amber-900' : 'text-brand-green-dark')}`}>
         {dateStr}
       </span>
       <span className="text-xl font-black whitespace-nowrap">
         {timeRange}
       </span>
       {subtext && (
-        <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-400' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-light')}`}>
+        <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-400' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-dark')}`}>
           {subtext}
         </span>
       )}

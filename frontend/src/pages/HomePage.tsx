@@ -11,7 +11,7 @@ export default function HomePage() {
 
       <section className="max-w-4xl flex flex-col items-center gap-10 relative px-6 w-full">
         <h1 className="text-6xl sm:text-9xl font-black tracking-tight leading-none">
-          <span className="text-brand-green">Let everyone </span>
+          <span className="text-brand-green-dark">Let everyone </span>
           <span className="text-brand-red">meet.</span>
         </h1>
         <p className="text-2xl font-bold text-brand-charcoal/60 -mt-4">
