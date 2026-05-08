@@ -70,7 +70,7 @@ export default function DashboardPage() {
         </div>
         <Link
           to="/create"
-          className="px-6 py-2.5 bg-brand-green text-white rounded-xl font-semibold hover:bg-brand-green-dark transition-colors shadow-sm"
+          className="btn-primary-green !px-6 !py-2.5 !text-base"
         >
           Create New Poll
         </Link>
@@ -93,23 +93,23 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {polls.map((poll) => (
             <div
               key={poll.pollId}
-              className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm hover:border-brand-green-light transition-colors"
+              className={`event-card ${poll.status === "OPEN" ? "event-card-green" : "event-card-red"}`}
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-neutral-900">{poll.title}</h3>
+                    <h3 className={`text-xl font-black ${poll.status === "OPEN" ? "text-brand-green-dark" : "text-brand-red-dark"}`}>{poll.title}</h3>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      poll.status === "OPEN" ? "bg-brand-green-light text-brand-green-dark" : "bg-neutral-100 text-neutral-700"
+                      poll.status === "OPEN" ? "bg-white text-brand-green" : "bg-white text-brand-red"
                     }`}>
                       {poll.status}
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-500">
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600 font-medium">
                     <div className="flex items-center gap-1.5">
                       <Calendar size={16} />
                       <span>{new Date(poll.createdAt).toLocaleDateString()}</span>
@@ -130,13 +130,15 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                   <Link
                     to={`/poll/${poll.pollId}`}
-                    className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg font-medium hover:bg-neutral-200 transition-colors text-sm"
+                    className="px-4 py-2 bg-white/50 text-neutral-700 rounded-lg font-bold hover:bg-white transition-colors text-sm border border-black/5"
                   >
                     View Poll
                   </Link>
                   <Link
                     to={`/poll/${poll.pollId}/results`}
-                    className="px-4 py-2 bg-brand-green-light/30 text-brand-green-dark rounded-lg font-medium hover:bg-brand-green-light/50 transition-colors flex items-center gap-1.5 text-sm"
+                    className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-1.5 text-sm shadow-sm ${
+                      poll.status === "OPEN" ? "bg-brand-green text-white hover:bg-brand-green-dark" : "bg-brand-red text-white hover:bg-brand-red-dark"
+                    }`}
                   >
                     <ExternalLink size={16} />
                     Results & Finalize

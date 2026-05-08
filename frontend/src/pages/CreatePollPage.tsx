@@ -197,7 +197,7 @@ export default function CreatePollPage() {
               type="text"
               data-testid="organizer-name-input"
               placeholder="e.g., Jane Doe"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
+              className="w-full"
               value={organizerName}
               onChange={(e) => setOrganizerName(e.target.value)}
             />
@@ -214,7 +214,7 @@ export default function CreatePollPage() {
               type="email"
               data-testid="organizer-email-input"
               placeholder="e.g., jane@example.com"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full"
               value={organizerEmail}
               onChange={(e) => setOrganizerEmail(e.target.value)}
             />
@@ -234,7 +234,7 @@ export default function CreatePollPage() {
               type="text"
               data-testid="poll-title-input"
               placeholder="e.g., Team Sync, Dinner with friends"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all text-lg"
+              className="w-full text-lg"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -248,7 +248,7 @@ export default function CreatePollPage() {
             <textarea
               id="poll-description"
               placeholder="e.g., Let's discuss the project roadmap and next steps."
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all min-h-[100px] resize-y"
+              className="w-full min-h-[100px] resize-y"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -264,7 +264,7 @@ export default function CreatePollPage() {
               type="text"
               data-testid="poll-location-input"
               placeholder="e.g., Zoom, Starbucks, Office"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
@@ -475,7 +475,8 @@ export default function CreatePollPage() {
         </div>
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium">
+          <div className="p-5 bg-white border-2 border-brand-red ring-[6px] ring-brand-red/10 text-brand-red rounded-2xl text-sm font-bold shadow-xl shadow-brand-red/5 flex items-center gap-3 animate-fade-in-up">
+            <div className="w-8 h-8 bg-brand-red text-white rounded-full flex items-center justify-center flex-shrink-0">!</div>
             {error}
           </div>
         )}
@@ -484,7 +485,7 @@ export default function CreatePollPage() {
           type="submit"
           data-testid="create-submit-btn"
           disabled={isSubmitting || !title || !organizerName || !organizerEmail}
-          className="w-full py-4 bg-brand-green text-white rounded-xl font-bold text-xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="btn-primary-green w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           {isSubmitting ? (
             <>

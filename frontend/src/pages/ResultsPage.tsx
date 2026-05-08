@@ -135,14 +135,14 @@ export default function ResultsPage() {
               </div>
             </div>
             <div className="flex flex-col gap-4">
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-brand-white rounded-xl text-brand-charcoal">
-                    <Trophy className="w-6 h-6 text-brand-green" />
+              <div className="event-card event-card-green !bg-white/10 !border-white/40 !backdrop-blur-xl !shadow-none !p-4 !hover:scale-100">
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-brand-green text-white rounded-xl shadow-lg shadow-brand-green/30">
+                    <Trophy className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wider font-bold text-white/80">Current Consensus</p>
-                    <p className="text-lg font-bold">
+                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/70">Top Selection</p>
+                    <p className="text-lg font-black text-white">
                       {bestSlotId ? (() => {
                         const slot = poll.timeSlots.find(s => s.id === bestSlotId)!;
                         if ("startTime" in slot) {
@@ -154,7 +154,7 @@ export default function ResultsPage() {
                           const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
                           return `${dateStr} - ${(slot as any).label}${timeStr}`;
                         }
-                      })() : 'None yet'}
+                      })() : 'No consensus yet'}
                     </p>
                   </div>
                 </div>

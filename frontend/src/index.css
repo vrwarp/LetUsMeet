@@ -9,12 +9,14 @@
   --color-brand-green: #8BC34A;
   --color-brand-green-light: #DCEDC8;
 
-  --color-brand-red-dark: #C62828;
-  --color-brand-red: #E57373;
-  --color-brand-red-light: #FFCDD2;
+  --color-brand-red-dark: #4A0000;
+  --color-brand-red: #660000;
+  --color-brand-red-light: #FFEBEE;
 
+  --color-brand-cream: #FFFAB6;
   --color-brand-charcoal: #424242;
   --color-brand-white: #F5F5F5;
+  --color-brand-light-gray: #E0E0E0;
 
   /* Semantic Mappings */
   --color-primary: var(--color-brand-green);
@@ -49,6 +51,24 @@
   --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
 }
 
+@layer base {
+  body {
+    @apply bg-neutral-50 text-brand-charcoal;
+  }
+
+  input[type="text"], input[type="email"], input[type="number"], textarea, select {
+    @apply border border-neutral-300 rounded-2xl px-5 py-3.5 transition-all duration-300 outline-none bg-white font-medium text-brand-charcoal placeholder:text-neutral-400;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    @apply border-brand-green ring-[6px] ring-brand-green/15 shadow-lg shadow-brand-green/5;
+  }
+
+  input.error, textarea.error, select.error {
+    @apply border-brand-red ring-[6px] ring-brand-red/15 shadow-lg shadow-brand-red/5;
+  }
+}
+
 @layer utilities {
   .bg-brand-gradient {
     background: linear-gradient(to right, var(--color-brand-green), var(--color-brand-red));
@@ -63,10 +83,32 @@
     background-clip: text;
     color: transparent;
   }
-}
 
-@layer base {
-  body {
-    @apply bg-neutral-50 text-neutral-900;
+  .event-card {
+    @apply bg-brand-cream border-l-[10px] rounded-tr-3xl rounded-br-3xl p-6 shadow-xl shadow-black/5 transition-all duration-300 hover:scale-[1.02];
+  }
+
+  .event-card-green {
+    @apply border-brand-green;
+  }
+
+  .event-card-red {
+    @apply border-brand-red;
+  }
+
+  .btn-primary-green {
+    @apply bg-brand-green text-white font-black px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl shadow-brand-green/20 hover:bg-brand-green-dark hover:scale-105 active:scale-95;
+  }
+
+  .btn-primary-red {
+    @apply bg-brand-red text-white font-black px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl shadow-brand-red/20 hover:bg-brand-red-dark hover:scale-105 active:scale-95 active:shadow-brand-red/40 active:ring-4 active:ring-brand-red/20;
+  }
+
+  .selectable-item {
+    @apply p-4 rounded-xl transition-all duration-200 cursor-pointer hover:bg-brand-light-gray/50;
+  }
+
+  .selectable-item-active {
+    @apply bg-brand-green-light/40 border-2 border-brand-green text-brand-green-dark;
   }
 }

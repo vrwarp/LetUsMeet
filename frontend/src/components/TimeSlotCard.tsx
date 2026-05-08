@@ -44,19 +44,19 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
   const getStyles = () => {
     switch (value) {
       case "YES":
-        return "bg-brand-green border-brand-green-dark text-white shadow-brand-green/20";
+        return "bg-brand-green-light/40 border-brand-green text-brand-green-dark shadow-sm ring-2 ring-brand-green/20";
       case "IF_NEED_BE":
-        return "bg-amber-100 border-amber-300 text-amber-900 border-dashed shadow-amber-100/50";
+        return "bg-amber-100/50 border-amber-300 text-amber-900 border-dashed shadow-sm";
       case "NO":
       default:
-        return "bg-white border-neutral-200 text-brand-charcoal hover:border-brand-green-light hover:bg-neutral-50 shadow-sm";
+        return "bg-white border-neutral-200 text-brand-charcoal hover:bg-brand-light-gray/30 hover:border-neutral-300 shadow-sm";
     }
   };
 
   const getIcon = () => {
     switch (value) {
-      case "YES": return <Check size={24} strokeWidth={3} aria-hidden="true" />;
-      case "IF_NEED_BE": return <AlertCircle size={24} strokeWidth={3} aria-hidden="true" />;
+      case "YES": return <div className="bg-brand-green text-white rounded-full p-1"><Check size={20} strokeWidth={4} aria-hidden="true" /></div>;
+      case "IF_NEED_BE": return <AlertCircle size={24} strokeWidth={3} className="text-amber-600" aria-hidden="true" />;
       case "NO": return null;
     }
   };

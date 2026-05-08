@@ -305,7 +305,7 @@ export default function VotePollPage() {
                 value={participantName}
                 onChange={(e) => setParticipantName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-2xl px-6 py-4 focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 outline-none transition-all text-neutral-800 placeholder:text-neutral-300 font-medium"
+                className="w-full"
               />
             </div>
             <div className="space-y-2">
@@ -319,7 +319,7 @@ export default function VotePollPage() {
                 value={participantEmail}
                 onChange={(e) => setParticipantEmail(e.target.value)}
                 placeholder="jane@example.com"
-                className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-2xl px-6 py-4 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-neutral-800 placeholder:text-neutral-300 font-medium"
+                className="w-full"
               />
             </div>
           </div>
@@ -335,14 +335,14 @@ export default function VotePollPage() {
           type="submit"
           data-testid="vote-submit-btn"
           disabled={!participantName.trim() || isSubmitting}
-          className="w-full bg-brand-green text-white font-black py-6 rounded-3xl hover:bg-brand-green-dark disabled:bg-neutral-200 disabled:cursor-not-allowed transition-all shadow-xl shadow-brand-green/20 text-xl flex items-center justify-center gap-3 group"
+          className="btn-primary-green w-full disabled:bg-neutral-200 disabled:cursor-not-allowed group !py-6 !text-2xl"
         >
           {isSubmitting ? (
-            <Loader2 className="w-6 h-6 animate-spin" />
+            <Loader2 className="w-8 h-8 animate-spin" />
           ) : (
             <>
               Submit Your Vote
-              <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              <Send className="w-7 h-7 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
             </>
           )}
         </button>
