@@ -28,6 +28,9 @@
     "test:coverage": "npm run test:coverage --prefix frontend && npm run test:coverage --prefix functions",
     "test:e2e": "npm run build --prefix functions && npx firebase emulators:exec --only auth,firestore,functions \"npm run test:e2e --prefix frontend\""
   },
+  "dependencies": {
+    "sirv-cli": "^3.0.1"
+  },
   "devDependencies": {
     "concurrently": "^9.1.0",
     "firebase-tools": "^15.16.0"

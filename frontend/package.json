@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "start": "sirv dist --port $PORT --host 0.0.0.0 --single",
+    "start": "npx sirv dist --port $PORT --host 0.0.0.0 --single",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:unit": "vitest run",
