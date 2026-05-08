@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, Send, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
+import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
 import { fetchPollAction, submitVoteAction, deleteVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, Vote, VoteValue } from "../types/index";
@@ -401,7 +401,7 @@ export default function VotePollPage() {
             <div className="mt-6 pt-6 border-t border-indigo-100">
               <p className="text-sm font-bold text-neutral-500 uppercase tracking-wider mb-3">Switch between your responses:</p>
               <div className="flex flex-wrap gap-2">
-                {userVotes.map((v, idx) => (
+                {userVotes.map((v) => (
                   <button
                     key={v.voteId}
                     type="button"

@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, Clock, X, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { fetchPollAction, updatePollAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
-import type { Poll, TimeSlot, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
+import type { Poll, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {
   id?: string;
   date: string;
-  startTime: string; // for EXACT
-  endTime: string;   // for EXACT
+  startTime?: string; // for EXACT
+  endTime?: string;   // for EXACT
   label?: string;    // for FUZZY
   time?: string;     // for FUZZY
 }
@@ -107,7 +107,7 @@ export default function EditPollPage() {
     if (schedulingMode === "EXACT") {
       setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], startTime: "09:00", endTime: "10:00" }]);
     } else {
-      setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], label: "General" }]);
+      setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], label: "General", startTime: "", endTime: "" }]);
     }
   };
 

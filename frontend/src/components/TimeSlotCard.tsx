@@ -1,4 +1,4 @@
-import { Check, X, AlertCircle } from "lucide-react";
+import { Check, AlertCircle } from "lucide-react";
 import type { VoteValue, TimeSlot } from "../types/index";
 import { cycleVote } from "@/lib/voteUtils";
 

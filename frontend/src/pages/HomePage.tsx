@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Calendar, Clock, CheckCircle2, Zap, ArrowRight } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, ArrowRight } from "lucide-react";
 import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
