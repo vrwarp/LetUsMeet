@@ -53,14 +53,6 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
     }
   };
 
-  const getIcon = () => {
-    switch (value) {
-      case "YES": return <div className="bg-brand-green text-white rounded-full p-1"><Check size={20} strokeWidth={4} aria-hidden="true" /></div>;
-      case "IF_NEED_BE": return <AlertCircle size={24} strokeWidth={3} className="text-amber-600" aria-hidden="true" />;
-      case "NO": return null;
-    }
-  };
-
   return (
     <button
       type="button"
@@ -68,28 +60,41 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       disabled={disabled}
       data-testid="slot-card"
       aria-label={`${dateStr}, ${timeRange}${subtext ? ` ${subtext}` : ''}. Current vote: ${value}. Click to change.`}
-      className={`relative flex flex-col items-center gap-1 p-6 rounded-2xl border-2 transition-all cursor-pointer select-none min-h-[120px] justify-center shadow-md active:scale-95 ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`relative flex flex-col items-center p-6 rounded-2xl border-2 transition-all cursor-pointer select-none min-h-[140px] justify-between shadow-md active:scale-95 ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
-      <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${value === 'NO' ? 'text-neutral-500' : (value === 'IF_NEED_BE' ? 'text-amber-900' : 'text-brand-green-dark')}`}>
-        {dateStr}
-      </span>
-      <span className="text-xl font-black whitespace-nowrap">
-        {timeRange}
-      </span>
-      {subtext && (
-        <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-400' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-dark')}`}>
-          {subtext}
+      <div className="flex flex-col items-center justify-center gap-1">
+        <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${value === 'NO' ? 'text-neutral-500' : (value === 'IF_NEED_BE' ? 'text-amber-900' : 'text-brand-green-dark')}`}>
+          {dateStr}
         </span>
-      )}
-      <div className="mt-3 flex items-center justify-center">
-        {getIcon()}
+        <span className="text-xl font-black whitespace-nowrap">
+          {timeRange}
+        </span>
+        {subtext && (
+          <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-400' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-dark')}`}>
+            {subtext}
+          </span>
+        )}
       </div>
-      
-      {value === "NO" && (
-        <div className="absolute top-4 right-4 text-neutral-300">
-          <X size={16} aria-hidden="true" />
+
+      <div className="mt-4 flex items-center justify-center gap-5 w-full">
+        {/* YES Icon State */}
+        <div className={`transition-all duration-300 rounded-full p-1.5 flex items-center justify-center ${
+          value === 'YES' 
+            ? 'bg-brand-green text-white shadow-md scale-110' 
+            : 'bg-black/5 text-black/15'
+        }`}>
+          <Check size={18} strokeWidth={4} aria-hidden="true" />
         </div>
-      )}
+
+        {/* IF_NEED_BE Icon State */}
+        <div className={`transition-all duration-300 flex items-center justify-center ${
+          value === 'IF_NEED_BE'
+            ? 'text-amber-600 scale-125 drop-shadow-sm'
+            : 'text-black/10'
+        }`}>
+          <AlertCircle size={24} strokeWidth={3} aria-hidden="true" />
+        </div>
+      </div>
     </button>
   );
 }

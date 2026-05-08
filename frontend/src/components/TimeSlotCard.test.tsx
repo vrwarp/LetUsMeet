@@ -29,7 +29,7 @@ describe('TimeSlotCard', () => {
   it('displays NO state styling by default', () => {
     render(<TimeSlotCard {...defaultProps} />);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-neutral-50');
+    expect(button).toHaveClass('bg-white');
     expect(button).toHaveClass('border-neutral-200');
   });
 
@@ -40,30 +40,26 @@ describe('TimeSlotCard', () => {
     expect(onChange).toHaveBeenCalledWith('YES');
   });
 
-  it('displays YES state styling and icon', () => {
+  it('displays YES state styling and always shows both icons', () => {
     render(<TimeSlotCard {...defaultProps} value="YES" />);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-emerald-600');
-    // Lucide check icon has stroke-width 3 and size 20 in the component
-    const svg = button.querySelector('svg');
-    expect(svg).toBeInTheDocument();
+    expect(button).toHaveClass('bg-brand-green-light/40');
+    expect(button.querySelectorAll('svg').length).toBe(2);
   });
 
-  it('displays IF_NEED_BE state styling and icon', () => {
+  it('displays IF_NEED_BE state styling and always shows both icons', () => {
     render(<TimeSlotCard {...defaultProps} value="IF_NEED_BE" />);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-amber-400');
+    expect(button).toHaveClass('bg-amber-100/50');
     expect(button).toHaveClass('border-dashed');
-    const svg = button.querySelector('svg');
-    expect(svg).toBeInTheDocument();
+    expect(button.querySelectorAll('svg').length).toBe(2);
   });
 
-  it('displays NO state styling and icon', () => {
+  it('displays NO state styling and always shows both icons', () => {
     render(<TimeSlotCard {...defaultProps} value="NO" />);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-neutral-50');
-    // NO state has an X icon in the corner but not in the center getIcon()
-    expect(button.querySelector('.lucide-x')).toBeInTheDocument();
+    expect(button).toHaveClass('bg-white');
+    expect(button.querySelectorAll('svg').length).toBe(2);
   });
 
   it('does NOT call onChange when disabled', () => {
