@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && cp -r .next/standalone/frontend/. .next/standalone/ && rm -rf .next/standalone/frontend",
+
     "start": "next start",
     "lint": "next lint",
     "test": "npm run test:unit",
