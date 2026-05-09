@@ -85,7 +85,10 @@ export const submitVoteHandler = async (request: functions.https.CallableRequest
   return { success: true, voteId: voteRef.id };
 };
 
-export const submitVote = functions.https.onCall<SubmitVoteRequest>({ cors: true, invoker: "public" }, submitVoteHandler);
+export const submitVote = functions.https.onCall<SubmitVoteRequest>(
+  { cors: true, invoker: "public" },
+  submitVoteHandler
+);
 
 export const deleteVoteHandler = async (request: functions.https.CallableRequest<DeleteVoteRequest>) => {
   // 1. Validate auth
@@ -131,4 +134,7 @@ export const deleteVoteHandler = async (request: functions.https.CallableRequest
   return { success: true };
 };
 
-export const deleteVote = functions.https.onCall<DeleteVoteRequest>({ cors: true, invoker: "public" }, deleteVoteHandler);
+export const deleteVote = functions.https.onCall<DeleteVoteRequest>(
+  { cors: true, invoker: "public" },
+  deleteVoteHandler
+);

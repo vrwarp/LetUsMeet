@@ -58,7 +58,10 @@ export const createPollHandler = async (request: functions.https.CallableRequest
   }
 };
 
-export const createPoll = functions.https.onCall<CreatePollRequest>({ cors: true, invoker: "public" }, createPollHandler);
+export const createPoll = functions.https.onCall<CreatePollRequest>(
+  { cors: true, invoker: "public" },
+  createPollHandler
+);
 
 export const getPollHandler = async (request: functions.https.CallableRequest<{ pollId: string }>) => {
   const { pollId } = request.data;
@@ -101,13 +104,19 @@ export const getPollHandler = async (request: functions.https.CallableRequest<{ 
   };
 };
 
-export const getPoll = functions.https.onCall<{ pollId: string }>({ cors: true, invoker: "public" }, getPollHandler);
+export const getPoll = functions.https.onCall<{ pollId: string }>(
+  { cors: true, invoker: "public" },
+  getPollHandler
+);
 
 export const pingHandler = async () => {
   return { pong: true };
 };
 
-export const ping = functions.https.onCall({ cors: true, invoker: "public" }, pingHandler);
+export const ping = functions.https.onCall(
+  { cors: true, invoker: "public" },
+  pingHandler
+);
 
 
 export const finalizePollHandler = async (request: functions.https.CallableRequest<FinalizePollRequest>) => {
@@ -153,7 +162,10 @@ export const finalizePollHandler = async (request: functions.https.CallableReque
   return { success: true };
 };
 
-export const finalizePoll = functions.https.onCall<FinalizePollRequest>({ cors: true, invoker: "public" }, finalizePollHandler);
+export const finalizePoll = functions.https.onCall<FinalizePollRequest>(
+  { cors: true, invoker: "public" },
+  finalizePollHandler
+);
 
 export const updatePollHandler = async (request: functions.https.CallableRequest<UpdatePollRequest>) => {
   console.log("updatePoll triggered", { data: request.data, auth: request.auth?.uid });
@@ -222,4 +234,7 @@ export const updatePollHandler = async (request: functions.https.CallableRequest
   }
 };
 
-export const updatePoll = functions.https.onCall<UpdatePollRequest>({ cors: true, invoker: "public" }, updatePollHandler);
+export const updatePoll = functions.https.onCall<UpdatePollRequest>(
+  { cors: true, invoker: "public" },
+  updatePollHandler
+);
