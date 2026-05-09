@@ -20,13 +20,13 @@
   "license": "ISC",
   "author": "",
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npx firebase emulators:start --only auth,firestore\"",
+    "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npx firebase emulators:start --only auth,firestore,hosting\"",
     "build": "npm run build --prefix frontend",
-    "start": "node node_modules/sirv-cli/bin.js frontend/dist --port $PORT --host 0.0.0.0 --single",
     "test": "npm run build --prefix frontend && npm run test:unit && npm run test:e2e",
     "test:unit": "npm run build --prefix frontend && npm run test:unit --prefix frontend",
     "test:coverage": "npm run test:coverage --prefix frontend",
-    "test:e2e": "npx firebase emulators:exec --only auth,firestore \"npm run test:e2e --prefix frontend\""
+    "test:e2e": "npx firebase emulators:exec --only auth,firestore,hosting \"npm run test:e2e --prefix frontend\"",
+    "deploy": "npm run build && npx firebase deploy --only hosting,firestore,auth"
   },
   "dependencies": {
   },

@@ -195,8 +195,8 @@ export default function VotePollPage() {
   if (success) {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <div className="bg-green-50 rounded-3xl p-10 border border-green-100 shadow-xl shadow-green-100/50">
-          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200">
+        <div className="bg-brand-green-light/50 rounded-3xl p-10 border border-brand-green-light shadow-xl shadow-brand-green/10">
+          <div className="w-20 h-20 bg-brand-green rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-brand-green/20">
             <CheckCircle className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-neutral-800 mb-3">

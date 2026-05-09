@@ -219,7 +219,7 @@ export default function ResultsPage() {
                         </button>
                       )}
                       {poll.status === "FINALIZED" && poll.finalizedSlotId === slot.id && (
-                        <div className="mt-2 text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full flex items-center justify-center gap-1">
+                        <div className="mt-2 text-xs font-bold bg-brand-green-light text-brand-green-dark px-3 py-1 rounded-full flex items-center justify-center gap-1">
                           <CalendarCheck className="w-3 h-3" /> Selected
                         </div>
                       )}
@@ -236,7 +236,7 @@ export default function ResultsPage() {
                     {sortedSlots.map(slot => (
                       <td key={slot.id} className="p-4 text-center">
                         <div data-testid={`vote-cell-${idx}-${slot.id}`} className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${
-                          vote.selections[slot.id] === "YES" ? "bg-green-100 text-green-700" :
+                          vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark" :
                           vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-100 text-amber-700" :
                           "bg-red-50 text-red-400"
                         }`}>
@@ -258,7 +258,7 @@ export default function ResultsPage() {
                 <tr>
                   <td className="p-4 text-neutral-600 sticky left-0 bg-neutral-50/50 z-10 border-r border-neutral-50">Total Yes</td>
                   {sortedSlots.map(slot => (
-                    <td key={slot.id} data-testid={`total-yes-${slot.id}`} className="p-4 text-center text-green-600">
+                    <td key={slot.id} data-testid={`total-yes-${slot.id}`} className="p-4 text-center text-brand-green">
                       {voteCounts[slot.id]?.YES || 0}
                     </td>
                   ))}

@@ -26,24 +26,14 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
-    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-
     try {
       const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      const refreshToken = credential?.idToken; // In a real app we might need a different flow for refresh token
 
-      if (token && result.user) {
+      if (result.user) {
         await setDoc(doc(db, "users", result.user.uid), {
           uid: result.user.uid,
           email: result.user.email,
           displayName: result.user.displayName,
-          googleTokens: {
-            accessToken: token,
-            refreshToken: refreshToken || null,
-          },
           createdAt: new Date().toISOString(),
         }, { merge: true });
       }
