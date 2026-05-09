@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Clock, CheckCircle2, ArrowRight } from "lucide-react";
+import { Clock, CheckCircle2, ArrowRight, Zap } from "lucide-react";
 import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
@@ -68,15 +68,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div data-testid="feature-privacy" className="group glass-card-light p-12 rounded-[3rem] hover:shadow-brand-green/15 hover:-translate-y-3 transition-all duration-500 flex flex-col items-center gap-8 text-center relative overflow-hidden">
+        <div data-testid="feature-realtime" className="group glass-card-light p-12 rounded-[3rem] hover:shadow-brand-green/15 hover:-translate-y-3 transition-all duration-500 flex flex-col items-center gap-8 text-center relative overflow-hidden">
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-green/5 blur-2xl rounded-full transition-all group-hover:bg-brand-green/10"></div>
           <div className="w-20 h-20 premium-gradient-green text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-brand-green/20 transition-all group-hover:rotate-12 group-hover:scale-110">
-            <CheckCircle2 size={40} strokeWidth={2.5} />
+            <Zap size={40} strokeWidth={2.5} fill="currentColor" />
           </div>
           <div className="space-y-3 relative z-10">
-            <h2 className="font-display text-2xl font-bold text-brand-charcoal tracking-tight">Privacy First</h2>
+            <h2 className="font-display text-2xl font-bold text-brand-charcoal tracking-tight">Realtime Sync</h2>
             <p className="text-brand-charcoal/60 text-base leading-relaxed">
-              Your data is secure. <br />No tracking, no selling, just polls.
+              Watch updates happen instantly. <br />No refreshing, just smooth coordination.
             </p>
           </div>
         </div>
