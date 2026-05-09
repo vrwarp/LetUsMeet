@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import CreatePollPage from '@/pages/CreatePollPage';
-import * as pollApi from '@/lib/pollApi';
+import * as pollService from '@/lib/pollService';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -101,7 +101,7 @@ describe('CreatePollPage', () => {
   });
 
   it('displays error message on API failure (Stream E10)', async () => {
-    vi.mocked(pollApi.createPollAction).mockRejectedValueOnce(new Error('API Error'));
+    vi.mocked(pollService.createPoll).mockRejectedValueOnce(new Error('API Error'));
     
     render(
       <MemoryRouter>

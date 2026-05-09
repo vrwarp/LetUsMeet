@@ -31,35 +31,52 @@ vi.mock('../hooks/useAuth', () => ({
   })),
 }));
 
-// Global mock for pollApi
-vi.mock('@/lib/pollApi', () => {
-  const mockFetch = vi.fn((data: any) => Promise.resolve({ 
-    data: { 
-      poll: { 
-        pollId: data?.pollId || 'mock-poll-id-123',
+// Global mock for pollService
+vi.mock('@/lib/pollService', () => {
+  const mockSubscribe = vi.fn((pollId: string, callback: any) => {
+    callback({
+      poll: {
+        id: pollId,
+        pollId: pollId,
         organizerUid: 'user123',
-        title: 'Mock Meeting', 
-        location: 'Virtual', 
+        title: 'Mock Meeting',
+        location: 'Virtual',
         status: 'OPEN',
+        schedulingMode: 'EXACT',
         timeSlots: [
           { id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' },
-        ] 
+        ],
+        createdAt: '2026-05-09T00:00:00Z'
       },
       votes: [],
       voteCounts: { t1: { YES: 0, NO: 0, IF_NEED_BE: 0 } }
-    } 
-  }));
-  
+    });
+    return () => {}; // Unsubscribe function
+  });
+
   return {
-    createPollAction: vi.fn(() => Promise.resolve({ data: { pollId: 'mock-poll-id-123' } })),
-    fetchPollAction: mockFetch,
-    submitVoteAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
-    getOrganizerCalendarAction: vi.fn(() => Promise.resolve({ data: { busyTimes: [] } })),
-    finalizePollAction: vi.fn(() => Promise.resolve({ data: { success: true, eventId: "mock" } })),
-    updatePollAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
-    deleteVoteAction: vi.fn(() => Promise.resolve({ data: { success: true } })),
+    createPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' })),
+    subscribeToPoll: mockSubscribe,
+    subscribeToUserPolls: vi.fn((uid: string, callback: any) => {
+      callback([{
+        id: 'mock-poll-id-123',
+        pollId: 'mock-poll-id-123',
+        organizerUid: uid,
+        title: 'Mock User Poll',
+        status: 'OPEN',
+        createdAt: '2026-05-09T00:00:00Z',
+        schedulingMode: 'EXACT',
+        timeSlots: []
+      }]);
+      return () => {};
+    }),
+    submitVote: vi.fn(() => Promise.resolve()),
+    finalizePoll: vi.fn(() => Promise.resolve()),
+    updatePoll: vi.fn(() => Promise.resolve()),
+    deleteVote: vi.fn(() => Promise.resolve()),
   };
 });
+
 
 // Mock Firebase SDKs
 vi.mock('firebase/app', () => ({

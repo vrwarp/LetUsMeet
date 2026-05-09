@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
-import { fetchPollAction, submitVoteAction, deleteVoteAction } from "@/lib/pollApi";
+import { subscribeToPoll, submitVote, deleteVote } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, Vote, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const { user } = useAuth();
+  const { user, loading: isAuthLoading } = useAuth();
   const [searchParams] = useSearchParams();
   
   const [poll, setPoll] = useState<Poll | null>(null);
@@ -21,10 +21,10 @@ export default function VotePollPage() {
   const [showCopied, setShowCopied] = useState(false);
   const [success, setSuccess] = useState(false);
   const [userVotes, setUserVotes] = useState<Vote[]>([]);
-  const [allVotes, setAllVotes] = useState<Vote[]>([]);
   const [editingVoteId, setEditingVoteId] = useState<string | null>(null);
   const [lastSubmissionWasUpdate, setLastSubmissionWasUpdate] = useState(false);
-  const [hasInitializedForm, setHasInitializedForm] = useState(false);
+  const hasInitializedFormRef = useRef(false);
+  const hasInitializedWithVoteRef = useRef(false);
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
@@ -40,46 +40,43 @@ export default function VotePollPage() {
 
   // const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
 
-  const fetchPoll = async () => {
-    try {
-      const result = await fetchPollAction({ pollId: pollId! }) as any;
-      const { poll: pollData, votes: fetchedVotes } = result.data;
-      setPoll(pollData);
-      setAllVotes(fetchedVotes || []);
-      setIsLoading(false);
-    } catch (err: any) {
-      console.error("Failed to fetch poll:", err);
-      setError("Poll not found or error loading data.");
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (poll) {
-      if (user) {
-        const myVotes = allVotes.filter((v: Vote) => v.participantUid === user.uid || v.voteId === user.uid);
+    if (!pollId) return;
+    
+    setIsLoading(true);
+    const unsubscribe = subscribeToPoll(pollId, (data) => {
+      setPoll(data.poll as any);
+      
+      if (data.poll && user) {
+        const myVotes = (data.votes as any).filter((v: Vote) => v.participantUid === user.uid);
         setUserVotes(myVotes);
         
-        if (!hasInitializedForm) {
-          if (myVotes.length > 0) {
-            // Default to editing the most recent vote
-            const latestVote = [...myVotes].sort((a, b) => 
-              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-            )[0];
-            loadVoteIntoForm(latestVote, poll);
-            setHasInitializedForm(true);
-          } else if (!isLoading) {
-            // If we are done loading but no votes found, finalize initialization
-            initializeEmptyForm(poll);
-            setHasInitializedForm(true);
-          }
+        const foundVote = myVotes.length > 0;
+        
+        if (foundVote && !hasInitializedWithVoteRef.current) {
+          // Initialize with existing vote (even if we already initialized as empty)
+          const latestVote = [...myVotes].sort((a, b) => 
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          )[0];
+          loadVoteIntoForm(latestVote);
+          hasInitializedWithVoteRef.current = true;
+          hasInitializedFormRef.current = true;
+        } else if (!hasInitializedFormRef.current) {
+          // Initialize as empty for now
+          initializeEmptyForm(data.poll as any);
+          hasInitializedFormRef.current = true;
         }
-      } else if (!hasInitializedForm && !isLoading) {
-        // If user is still null but we've fetched the poll, at least show the empty form
-        initializeEmptyForm(poll);
+      } else if (data.poll && !user && !hasInitializedFormRef.current) {
+        initializeEmptyForm(data.poll as any);
+        hasInitializedFormRef.current = true;
       }
-    }
-  }, [poll, allVotes, user, hasInitializedForm, isLoading]);
+      
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [pollId, user?.uid]);
+ // Removed hasInitializedForm to avoid re-subscribing on form init
 
   const initializeEmptyForm = (pollData: Poll) => {
     const initial: Record<string, VoteValue> = {};
@@ -87,21 +84,18 @@ export default function VotePollPage() {
       initial[slot.id] = "NO";
     });
     setSelections(initial);
+    setParticipantName(user?.displayName || "");
+    setParticipantEmail(user?.email || "");
     setEditingVoteId(null);
+    hasInitializedWithVoteRef.current = false;
   };
 
-  const loadVoteIntoForm = (vote: Vote, _pollData?: Poll) => {
+  const loadVoteIntoForm = (vote: Vote) => {
     setSelections(vote.selections || {});
     setParticipantName(vote.participantName || "");
     setParticipantEmail(vote.participantEmail || "");
-    setEditingVoteId(vote.voteId);
+    setEditingVoteId(vote.voteId || null);
   };
-
-  useEffect(() => {
-    if (pollId) {
-      fetchPoll();
-    }
-  }, [pollId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,22 +104,25 @@ export default function VotePollPage() {
       return;
     }
     
+    if (isAuthLoading || !user) {
+      setError("Waiting for authentication...");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
     const isUpdate = !!editingVoteId;
 
     try {
-      await submitVoteAction({
-        pollId,
-        voteId: editingVoteId,
+      await submitVote(pollId!, {
         participantName,
         participantEmail: participantEmail || "",
         selections,
-      });
+      }, editingVoteId);
       setLastSubmissionWasUpdate(isUpdate);
       setSuccess(true);
-      setHasInitializedForm(false); // Allow re-initialization with the latest data
-      fetchPoll(); // Refresh to get the updated vote list
+      hasInitializedFormRef.current = false;
+      hasInitializedWithVoteRef.current = false;
       setIsSubmitting(false);
     } catch (err: any) {
       console.error("Vote submission failed:", err);
@@ -133,6 +130,7 @@ export default function VotePollPage() {
       setIsSubmitting(false);
     }
   };
+
 
   const handleVoteChange = (slotId: string, value: VoteValue) => {
     setSelections(prev => ({
@@ -142,7 +140,7 @@ export default function VotePollPage() {
   };
 
   const handleDeleteVote = async () => {
-    if (!editingVoteId) return;
+    if (!pollId || !user) return;
     
     if (!confirm("Are you sure you want to delete this response? This action cannot be undone.")) {
       return;
@@ -152,22 +150,21 @@ export default function VotePollPage() {
     setError(null);
 
     try {
-      await deleteVoteAction({
-        pollId,
-        voteId: editingVoteId,
-      });
+      if (!editingVoteId) return;
+      await deleteVote(pollId, editingVoteId);
       
-      // Reset form and refresh
-      setHasInitializedForm(false);
-      fetchPoll();
+      // Reset form
+      hasInitializedFormRef.current = false;
+      hasInitializedWithVoteRef.current = false;
       setIsSubmitting(false);
-      // We don't set success(true) here because we want to go back to the empty form
+      // Success is implicit through real-time sync
     } catch (err: any) {
       console.error("Delete vote failed:", err);
       setError(err.message || "Failed to delete response. Please try again.");
       setIsSubmitting(false);
     }
   };
+
 
 
 

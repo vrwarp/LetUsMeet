@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/firebase";
+import { subscribeToUserPolls } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity } from "lucide-react";
 import type { Poll } from "../types/index";
@@ -12,35 +11,18 @@ export default function DashboardPage() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    async function fetchPolls() {
-      if (!user || user.isAnonymous) {
-        setFetching(false);
-        return;
-      }
-
-      try {
-        const pollsRef = collection(db, "polls");
-        const q = query(
-          pollsRef,
-          where("organizerUid", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const fetchedPolls: Poll[] = [];
-        querySnapshot.forEach((doc) => {
-          fetchedPolls.push(doc.data() as Poll);
-        });
-        setPolls(fetchedPolls);
-      } catch (error) {
-        console.error("Error fetching polls:", error);
-      } finally {
-        setFetching(false);
-      }
+    if (loading || !user || user.isAnonymous) {
+      setFetching(false);
+      return;
     }
 
-    if (!loading) {
-      fetchPolls();
-    }
+    setFetching(true);
+    const unsubscribe = subscribeToUserPolls(user.uid, (fetchedPolls) => {
+      setPolls(fetchedPolls);
+      setFetching(false);
+    });
+
+    return () => unsubscribe();
   }, [user, loading]);
 
   if (loading || fetching) {

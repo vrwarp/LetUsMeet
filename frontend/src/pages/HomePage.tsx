@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Calendar, Clock, CheckCircle2, ArrowRight } from "lucide-react";
+import { Clock, CheckCircle2, ArrowRight } from "lucide-react";
 import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
@@ -58,13 +58,13 @@ export default function HomePage() {
             Yes, No, and If-need-be options.
           </p>
         </div>
-        <div data-testid="feature-sync" className="group bg-brand-charcoal p-10 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center gap-4 text-center border border-white/10">
+        <div data-testid="feature-privacy" className="group bg-brand-charcoal p-10 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center gap-4 text-center border border-white/10">
           <div className="w-16 h-16 bg-white/10 text-brand-green rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 group-hover:scale-110">
-            <Calendar size={32} />
+            <CheckCircle2 size={32} />
           </div>
-          <h2 className="font-black text-xl text-brand-cream">Google Sync</h2>
+          <h2 className="font-black text-xl text-brand-cream">Privacy First</h2>
           <p className="text-brand-cream/60 text-sm leading-relaxed">
-            See conflicts and auto-generate events.
+            Your data is secured by Firebase.
           </p>
         </div>
       </section>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3 } from "lucide-react";
-import { fetchPollAction, finalizePollAction } from "@/lib/pollApi";
+import { subscribeToPoll, finalizePoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 
@@ -21,22 +21,18 @@ export default function ResultsPage() {
   const [pollError, setPollError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchResults() {
-      if (!pollId) return;
-      try {
-        const result = await fetchPollAction({ pollId }) as any;
-        setPoll(result.data.poll);
-        setVotes(result.data.votes);
-        setVoteCounts(result.data.voteCounts);
-        setIsLoading(false);
-      } catch (err: any) {
-        console.error("Failed to fetch results:", err);
-        setPollError(err?.message || err?.toString() || "Could not load results.");
-        setIsLoading(false);
-      }
-    }
+    if (!pollId) return;
+    
+    setIsLoading(true);
+    const unsubscribe = subscribeToPoll(pollId, (data) => {
+      setPoll(data.poll as any);
+      setVotes(data.votes as any);
+      setVoteCounts(data.voteCounts);
+      setIsLoading(false);
+      setPollError(null);
+    });
 
-    fetchResults();
+    return () => unsubscribe();
   }, [pollId]);
 
   if (isLoading) {
@@ -89,12 +85,11 @@ export default function ResultsPage() {
   }, null as string | null);
 
   const handleFinalize = async (slotId: string) => {
-    if (!pollId || !user || finalizing) return;
+    if (!pollId || finalizing) return;
     setFinalizing(slotId);
     try {
-      await finalizePollAction({ pollId, selectedTimeSlotId: slotId });
-      // Update poll state locally
-      setPoll(prev => prev ? { ...prev, status: "FINALIZED", finalizedSlotId: slotId } : prev);
+      const token = localStorage.getItem("adminToken_" + pollId) || undefined;
+      await finalizePoll(pollId, slotId, token);
       alert("Poll finalized successfully!");
     } catch (err) {
       console.error("Failed to finalize poll:", err);
@@ -103,6 +98,7 @@ export default function ResultsPage() {
       setFinalizing(null);
     }
   };
+
 
   const isOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
 

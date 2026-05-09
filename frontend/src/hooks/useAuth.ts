@@ -9,17 +9,15 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         setLoading(false);
       } else {
-        try {
-          await signInAnonymously(auth);
-        } catch (error) {
+        signInAnonymously(auth).catch((error) => {
           console.error("Anonymous auth failed", error);
           setLoading(false);
-        }
+        });
       }
     });
 

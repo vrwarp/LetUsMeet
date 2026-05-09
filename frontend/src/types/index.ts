@@ -25,8 +25,8 @@ export interface Poll {
   pollId: string;
   organizerUid?: string | null;
   organizerName: string;
-  organizerEmail: string;
-  adminToken: string;
+  organizerEmail?: string;
+  adminToken?: string;
   title: string;
   description?: string;
   location: string;

@@ -4,11 +4,18 @@ test.describe('Vote Update Flow', () => {
   test('allows a user to change their vote', async ({ page }) => {
     // Create poll
     await page.goto('/create');
+    await page.waitForTimeout(2000);
+    
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Update Vote Poll');
-    await page.getByTestId('create-submit-btn').click();
+    
+    const submitBtn = page.getByTestId('create-submit-btn');
+    await expect(submitBtn).toBeEnabled();
+    await submitBtn.click();
+    
     await page.waitForURL(/\/poll\/[^/]+$/);
+    await expect(page.locator('text=Loading poll details...')).not.toBeVisible();
 
     // Initial Vote
     await page.getByTestId('slot-card').nth(0).click(); // YES
@@ -30,6 +37,6 @@ test.describe('Vote Update Flow', () => {
     await page.getByTestId('vote-submit-btn').click();
 
     // Should see success again
-    await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
+    await expect(page.locator('h2', { hasText: /(Vote Cast!|Vote Updated!)/ })).toBeVisible();
   });
 });

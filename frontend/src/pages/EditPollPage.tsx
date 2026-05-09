@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
-import { fetchPollAction, updatePollAction } from "@/lib/pollApi";
-import { useAuth } from "@/hooks/useAuth";
+import { subscribeToPoll, updatePoll } from "@/lib/pollService";
 import type { Poll, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {
@@ -18,7 +17,6 @@ export default function EditPollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -35,57 +33,44 @@ export default function EditPollPage() {
   const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
 
   useEffect(() => {
-    async function loadPoll() {
-      if (!pollId) return;
-      try {
-        const result = await fetchPollAction({ pollId }) as any;
-        const poll = result.data.poll as Poll;
-        
-        // Authorization check
-        const isOwner = user && !user.isAnonymous && poll.organizerUid === user.uid;
-        const isAdmin = adminToken === poll.adminToken;
-        
-        if (!isOwner && !isAdmin && !isLoading) {
-           // We'll check this after loading to be sure
+    if (!pollId) return;
+    
+    setIsLoading(true);
+    const unsubscribe = subscribeToPoll(pollId, (data) => {
+      const poll = data.poll as Poll;
+      setTitle(poll.title);
+      setDescription(poll.description || "");
+      setLocation(poll.location);
+      setSchedulingMode(poll.schedulingMode);
+      setVoteCounts(data.voteCounts);
+
+      const initialSlots: TimeSlotInput[] = poll.timeSlots.map(slot => {
+        if (poll.schedulingMode === "EXACT") {
+          const exact = slot as ExactTimeSlot;
+          const start = new Date(exact.startTime);
+          const end = new Date(exact.endTime);
+          return {
+            id: exact.id,
+            date: start.toISOString().split('T')[0],
+            startTime: start.toTimeString().substring(0, 5),
+            endTime: end.toTimeString().substring(0, 5),
+          };
+        } else {
+          const fuzzy = slot as FuzzyTimeSlot;
+          return {
+            id: fuzzy.id,
+            date: fuzzy.date,
+            label: fuzzy.label,
+            time: fuzzy.time,
+          };
         }
+      });
+      setSlots(initialSlots);
+      setIsLoading(false);
+    });
 
-        setTitle(poll.title);
-        setDescription(poll.description || "");
-        setLocation(poll.location);
-        setSchedulingMode(poll.schedulingMode);
-        setVoteCounts(result.data.voteCounts);
-
-        const initialSlots: TimeSlotInput[] = poll.timeSlots.map(slot => {
-          if (poll.schedulingMode === "EXACT") {
-            const exact = slot as ExactTimeSlot;
-            const start = new Date(exact.startTime);
-            const end = new Date(exact.endTime);
-            return {
-              id: exact.id,
-              date: start.toISOString().split('T')[0],
-              startTime: start.toTimeString().substring(0, 5),
-              endTime: end.toTimeString().substring(0, 5),
-            };
-          } else {
-            const fuzzy = slot as FuzzyTimeSlot;
-            return {
-              id: fuzzy.id,
-              date: fuzzy.date,
-              label: fuzzy.label,
-              time: fuzzy.time,
-            };
-          }
-        });
-        setSlots(initialSlots);
-        setIsLoading(false);
-      } catch (err: any) {
-        console.error("Failed to fetch poll:", err);
-        setError("Poll not found or unauthorized.");
-        setIsLoading(false);
-      }
-    }
-    loadPoll();
-  }, [pollId, user, adminToken]);
+    return () => unsubscribe();
+  }, [pollId]);
 
   const handlePickerClick = (e: React.MouseEvent<HTMLInputElement>) => {
     const el = e.currentTarget;
@@ -139,10 +124,9 @@ export default function EditPollPage() {
     setIsSubmitting(true);
     setError(null);
 
+    if (!pollId) return;
     try {
-      await updatePollAction({
-        pollId,
-        adminToken: adminToken || undefined,
+      await updatePoll(pollId, {
         title,
         description,
         location,
@@ -151,14 +135,15 @@ export default function EditPollPage() {
             id: slot.id,
             startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
             endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
-          }))
+          })) as any[]
           : slots.map(slot => ({
             id: slot.id,
             date: slot.date,
             label: slot.label || "General",
             time: slot.time || undefined,
-          })),
+          })) as any[],
       });
+
 
       navigate(`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`);
     } catch (err: any) {
