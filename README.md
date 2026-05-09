@@ -41,26 +41,27 @@ experimental: {
 The functions use `"type": "module"`. Ensure `eslintrc` uses the `.cjs` extension to avoid module scope errors:
 - `functions/.eslintrc.js` → `functions/.eslintrc.cjs`
 
-#### Bypassing CORS with Next.js Rewrites
-2nd Gen functions often face CORS preflight failures due to 302 redirects between `cloudfunctions.net` and `run.app`. To resolve this, we proxy all function calls through the Next.js server.
+#### Bypassing CORS with Secure API Proxy
+2nd Gen functions often face CORS preflight failures due to redirects between `cloudfunctions.net` and `run.app`. We solve this by proxying all calls through a secure Next.js API Route that signs requests with the App Hosting server's identity.
 
-1. **Next.js Config**: Add rewrites in `frontend/next.config.js`:
-   ```javascript
-   async rewrites() {
-     return [{
-       source: "/api/functions/:function",
-       destination: "https://:function-wu3h4frdia-uc.a.run.app", // Match your project suffix
-     }];
-   }
-
-   ```
-2. **Frontend Calls**: Use `httpsCallableFromURL` to call the local proxy path:
+1. **Secure Proxy Route**: Requests are handled by `frontend/src/app/api/functions/[name]/route.ts`. This route fetches an ID token from the Google Metadata Server and forwards it to the private Cloud Function.
+2. **Frontend Calls**: Use `httpsCallableFromURL` in `pollApi.ts` to call the local proxy path:
    ```typescript
    const url = `${window.location.origin}/api/functions/${name.toLowerCase()}`;
    return httpsCallableFromURL(functions, url);
    ```
 
 ### 3. Firebase Console Setup
+
+#### IAM Permissions (Critical)
+Since the frontend server (App Hosting) proxies requests, you must grant it permission to invoke your Cloud Run functions. You can do this for the whole project at once:
+
+```bash
+# Grant the App Hosting service account permission to call ANY Cloud Run service in this project
+gcloud projects add-iam-policy-binding letusmeet-6f4e1 \
+  --member="serviceAccount:firebase-app-hosting-compute@letusmeet-6f4e1.iam.gserviceaccount.com" \
+  --role="roles/run.invoker"
+```
 
 #### Authentication
 - **Enable Anonymous Auth**: Required for guest voting.
@@ -69,15 +70,12 @@ The functions use `"type": "module"`. Ensure `eslintrc` uses the `.cjs` extensio
 #### Firestore
 - **Provision Database**: Ensure the `(default)` database is manually created in the Firebase Console.
 
-#### IAM Permissions (Critical)
-Since the frontend server (App Hosting) proxies requests to the functions, you must grant the App Hosting service account permission to invoke the functions:
+### Troubleshooting 401/403 (Unauthorized/Forbidden)
+If you see 401/403 errors in your App Hosting logs:
+1. Ensure the **IAM Permissions** command above was run successfully.
+2. Ensure your function names in the Cloud Run dashboard match the names being called (all lowercase).
 
-```bash
-gcloud run services add-iam-policy-binding [FUNCTION_NAME] \
-  --region=us-central1 \
-  --member="serviceAccount:firebase-app-hosting-compute@[PROJECT_ID].iam.gserviceaccount.com" \
-  --role="roles/run.invoker"
-```
+
 
 ---
 

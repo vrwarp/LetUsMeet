@@ -9,16 +9,8 @@ const nextConfig = {
       root: path.join(__dirname, ".."),
     },
   },
-  async rewrites() {
-    return [
-      {
-        source: "/api/functions/:function",
-        destination: "https://:function-wu3h4frdia-uc.a.run.app",
-      },
-
-    ];
-  },
 };
+
 
 
 
