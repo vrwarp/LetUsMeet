@@ -25,12 +25,12 @@ export const createPollSchema = z.object({
   if (data.schedulingMode === "EXACT") {
     const result = z.array(exactTimeSlotSchema).safeParse(data.timeSlots);
     if (!result.success) {
-      result.error.issues.forEach(issue => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
+      result.error.issues.forEach((issue) => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
     }
   } else {
     const result = z.array(fuzzyTimeSlotSchema).safeParse(data.timeSlots);
     if (!result.success) {
-      result.error.issues.forEach(issue => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
+      result.error.issues.forEach((issue) => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
     }
   }
 });

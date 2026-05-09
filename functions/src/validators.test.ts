@@ -12,7 +12,7 @@ describe("Validators", () => {
           {
             startTime: new Date(Date.now() + 3600000).toISOString(),
             endTime: new Date(Date.now() + 7200000).toISOString(),
-          }
+          },
         ],
         organizerName: "Jane Doe",
         organizerEmail: "jane@example.com",
@@ -95,7 +95,7 @@ describe("Validators", () => {
           {
             startTime: new Date(Date.now() + 7200000).toISOString(),
             endTime: new Date(Date.now() + 3600000).toISOString(),
-          }
+          },
         ],
         organizerName: "Jane Doe",
         organizerEmail: "jane@example.com",
@@ -124,7 +124,7 @@ describe("Validators", () => {
       const invalidPoll = {
         title: "Meeting",
         location: "Zoom",
-        schedulingMode: "INVALID", 
+        schedulingMode: "INVALID",
         timeSlots: [{ startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
         organizerName: "Jane Doe",
         organizerEmail: "jane@example.com",
@@ -164,7 +164,7 @@ describe("Validators", () => {
         schedulingMode: "FUZZY",
         timeSlots: [
           { date: "2026-01-01", label: "Brunch", time: "11:00" },
-          { date: "2026-01-02", label: "Dinner" }
+          { date: "2026-01-02", label: "Dinner" },
         ],
         organizerName: "Jane Doe",
         organizerEmail: "jane@example.com",
@@ -198,7 +198,7 @@ describe("Validators", () => {
       const result = createPollSchema.safeParse(validPoll);
       expect(result.success).toBe(true);
     });
- 
+
     it("should validate a poll with description", () => {
       const validPoll = {
         title: "Team Sync",
@@ -221,8 +221,8 @@ describe("Validators", () => {
         participantName: "Alice",
         selections: {
           "slot1": "YES",
-          "slot2": "IF_NEED_BE"
-        }
+          "slot2": "IF_NEED_BE",
+        },
       };
       const result = submitVoteSchema.safeParse(validVote);
       expect(result.success).toBe(true);
@@ -233,7 +233,7 @@ describe("Validators", () => {
         pollId: "poll123",
         participantName: "Alice",
         participantEmail: "alice@example.com",
-        selections: { "slot1": "YES" }
+        selections: { "slot1": "YES" },
       };
       const result = submitVoteSchema.safeParse(validVote);
       expect(result.success).toBe(true);
@@ -244,7 +244,7 @@ describe("Validators", () => {
         pollId: "poll123",
         participantName: "Alice",
         participantEmail: "",
-        selections: { "slot1": "YES" }
+        selections: { "slot1": "YES" },
       };
       const result = submitVoteSchema.safeParse(validVote);
       expect(result.success).toBe(true);
@@ -254,7 +254,7 @@ describe("Validators", () => {
       const invalidVote = {
         pollId: "",
         participantName: "Alice",
-        selections: { "slot1": "YES" }
+        selections: { "slot1": "YES" },
       };
       const result = submitVoteSchema.safeParse(invalidVote);
       expect(result.success).toBe(false);
@@ -264,7 +264,7 @@ describe("Validators", () => {
       const invalidVote = {
         pollId: "poll123",
         participantName: "",
-        selections: { "slot1": "YES" }
+        selections: { "slot1": "YES" },
       };
       const result = submitVoteSchema.safeParse(invalidVote);
       expect(result.success).toBe(false);
@@ -274,7 +274,7 @@ describe("Validators", () => {
       const invalidVote = {
         pollId: "poll123",
         participantName: "a".repeat(101),
-        selections: { "slot1": "YES" }
+        selections: { "slot1": "YES" },
       };
       const result = submitVoteSchema.safeParse(invalidVote);
       expect(result.success).toBe(false);
@@ -285,7 +285,7 @@ describe("Validators", () => {
         pollId: "poll123",
         participantName: "Alice",
         participantEmail: "not-an-email",
-        selections: { "slot1": "YES" }
+        selections: { "slot1": "YES" },
       };
       const result = submitVoteSchema.safeParse(invalidVote);
       expect(result.success).toBe(false);
@@ -296,8 +296,8 @@ describe("Validators", () => {
         pollId: "poll123",
         participantName: "Alice",
         selections: {
-          "slot1": "MAYBE" // Not in enum
-        }
+          "slot1": "MAYBE", // Not in enum
+        },
       };
       const result = submitVoteSchema.safeParse(invalidVote);
       expect(result.success).toBe(false);
@@ -307,7 +307,7 @@ describe("Validators", () => {
       const validVote = {
         pollId: "poll123",
         participantName: "Alice",
-        selections: {}
+        selections: {},
       };
       const result = submitVoteSchema.safeParse(validVote);
       expect(result.success).toBe(true);
@@ -323,7 +323,7 @@ describe("Validators", () => {
         location: "New Location",
         timeSlots: [
           { id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" },
-          { startTime: "2026-01-01T12:00:00Z", endTime: "2026-01-01T13:00:00Z" }
+          { startTime: "2026-01-01T12:00:00Z", endTime: "2026-01-01T13:00:00Z" },
         ],
       };
       const result = updatePollSchema.safeParse(validUpdate);

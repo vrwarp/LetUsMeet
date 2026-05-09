@@ -6,8 +6,8 @@ export type PollStatus = "OPEN" | "FINALIZED";
 // Time slot for exact scheduling
 export interface ExactTimeSlot {
   id: string;
-  startTime: string;  // ISO 8601
-  endTime: string;    // ISO 8601
+  startTime: string; // ISO 8601
+  endTime: string; // ISO 8601
 }
 
 // Time slot for fuzzy scheduling
@@ -34,7 +34,7 @@ export interface Poll {
   timeSlots: TimeSlot[];
   status: PollStatus;
   finalizedSlotId?: string;
-  createdAt: string;  // ISO 8601
+  createdAt: string; // ISO 8601
 }
 
 // Vote document
@@ -43,7 +43,7 @@ export interface Vote {
   participantUid?: string | null;
   participantName: string;
   participantEmail?: string | null;
-  selections: Record<string, VoteValue>;  // timeSlotId → vote
+  selections: Record<string, VoteValue>; // timeSlotId → vote
   createdAt: string;
   updatedAt: string;
 }

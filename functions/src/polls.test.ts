@@ -69,7 +69,7 @@ describe("Polls Handlers", () => {
         location: "Test Location",
         schedulingMode: "EXACT" as const,
         timeSlots: [
-          { startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }
+          { startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" },
         ],
         organizerName: "Jane Doe",
         organizerEmail: "jane@example.com",
@@ -88,7 +88,7 @@ describe("Polls Handlers", () => {
         organizerName: "Jane Doe",
         organizerEmail: "jane@example.com",
         adminToken: expect.any(String),
-        status: "OPEN"
+        status: "OPEN",
       }));
     });
 
@@ -99,7 +99,7 @@ describe("Polls Handlers", () => {
         schedulingMode: "EXACT" as const,
         timeSlots: [
           { startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" },
-          { startTime: "2026-01-01T12:00:00Z", endTime: "2026-01-01T13:00:00Z" }
+          { startTime: "2026-01-01T12:00:00Z", endTime: "2026-01-01T13:00:00Z" },
         ],
         organizerName: "Jane Doe",
         organizerEmail: "jane@example.com",
@@ -135,25 +135,25 @@ describe("Polls Handlers", () => {
       const pollData = {
         pollId: "p1",
         title: "Test",
-        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
       };
       mockGet.mockResolvedValueOnce({ exists: true, data: () => pollData });
-      
+
       const mockVotesSnapshot = {
         docs: [
           { data: () => ({ selections: { t1: "YES" } }) },
-          { data: () => ({ selections: { t1: "IF_NEED_BE" } }) }
-        ]
+          { data: () => ({ selections: { t1: "IF_NEED_BE" } }) },
+        ],
       };
-      
+
       const mockSubCollection = vi.fn().mockReturnValue({
-        get: vi.fn().mockResolvedValue(mockVotesSnapshot)
+        get: vi.fn().mockResolvedValue(mockVotesSnapshot),
       });
 
       mockDoc.mockReturnValue({
         id: "p1",
         get: mockGet,
-        collection: mockSubCollection
+        collection: mockSubCollection,
       });
 
       const result = await getPollHandler(makeCallableRequest({ pollId: "p1" }));
@@ -166,15 +166,15 @@ describe("Polls Handlers", () => {
       const pollData = {
         pollId: "p1",
         title: "Test",
-        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
       };
       mockGet.mockResolvedValueOnce({ exists: true, data: () => pollData });
       mockDoc.mockReturnValue({
         id: "p1",
         get: mockGet,
         collection: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue({ docs: [] })
-        })
+          get: vi.fn().mockResolvedValue({ docs: [] }),
+        }),
       });
 
       const result = await getPollHandler(makeCallableRequest({ pollId: "p1" }));
@@ -185,22 +185,22 @@ describe("Polls Handlers", () => {
       const pollData = {
         pollId: "p1",
         title: "Test",
-        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }]
+        timeSlots: [{ id: "t1", startTime: "2026-01-01T10:00:00Z", endTime: "2026-01-01T11:00:00Z" }],
       };
       mockGet.mockResolvedValueOnce({ exists: true, data: () => pollData });
-      
+
       const mockVotesSnapshot = {
         docs: [
-          { data: () => ({ selections: { t1: "YES", invalid_slot: "YES" } }) }
-        ]
+          { data: () => ({ selections: { t1: "YES", invalid_slot: "YES" } }) },
+        ],
       };
-      
+
       mockDoc.mockReturnValue({
         id: "p1",
         get: mockGet,
         collection: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue(mockVotesSnapshot)
-        })
+          get: vi.fn().mockResolvedValue(mockVotesSnapshot),
+        }),
       });
 
       const result = await getPollHandler(makeCallableRequest({ pollId: "p1" }));

@@ -32,7 +32,7 @@ export const submitVoteHandler = async (request: functions.https.CallableRequest
   // 4. Verify selections match poll time slots
   const validSlotIds = new Set(pollData.timeSlots.map((s: any) => s.id));
   const selectionIds = Object.keys(selections);
-  if (!selectionIds.every(id => validSlotIds.has(id))) {
+  if (!selectionIds.every((id) => validSlotIds.has(id))) {
     throw new functions.https.HttpsError("invalid-argument", "One or more time slot IDs are invalid.");
   }
 
@@ -54,11 +54,11 @@ export const submitVoteHandler = async (request: functions.https.CallableRequest
     }
   } else {
     // Creating a new vote
-    // Note: We used to use UID as doc ID, so we should check if a vote with this UID exists 
+    // Note: We used to use UID as doc ID, so we should check if a vote with this UID exists
     // to maintain the "edit" behavior for legacy votes if they don't provide a voteId.
     const legacyVoteRef = pollRef.collection("votes").doc(request.auth.uid);
     const legacyVote = await legacyVoteRef.get();
-    
+
     if (legacyVote.exists) {
       voteRef = legacyVoteRef;
       existingVoteData = legacyVote.data();
@@ -66,10 +66,10 @@ export const submitVoteHandler = async (request: functions.https.CallableRequest
       voteRef = pollRef.collection("votes").doc();
     }
   }
-  
+
   const now = new Date().toISOString();
   const createdAt = existingVoteData ? existingVoteData.createdAt : now;
-  
+
   const voteData: Vote = {
     voteId: voteRef.id,
     participantUid: request.auth.uid,
