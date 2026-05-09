@@ -48,10 +48,11 @@ The functions use `"type": "module"`. Ensure `eslintrc` uses the `.cjs` extensio
    ```javascript
    async rewrites() {
      return [{
-       source: "/api/functions/:path*",
-       destination: "https://:path*-wu3h4frdia-uc.a.run.app", // Match your project suffix
+       source: "/api/functions/:function",
+       destination: "https://:function-wu3h4frdia-uc.a.run.app", // Match your project suffix
      }];
    }
+
    ```
 2. **Frontend Calls**: Use `httpsCallableFromURL` to call the local proxy path:
    ```typescript

@@ -12,9 +12,10 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/functions/:path*",
-        destination: "https://:path*-wu3h4frdia-uc.a.run.app",
+        source: "/api/functions/:function",
+        destination: "https://:function-wu3h4frdia-uc.a.run.app",
       },
+
     ];
   },
 };
