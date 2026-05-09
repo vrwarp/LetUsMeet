@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PROJECT_SUFFIX = "wu3h4frdia-uc.a.run.app";
 
-export async function POST(req: NextRequest, { params }: { params: { name: string } }) {
-  const functionName = (await params).name.toLowerCase();
+export async function POST(req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+  const { name } = await params;
+  const functionName = name.toLowerCase();
   const targetUrl = `https://${functionName}-${PROJECT_SUFFIX}`;
 
   try {

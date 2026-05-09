@@ -1,19 +1,12 @@
-const path = require('path');
+const path = require("path");
 
 const nextConfig = {
-  allowedDevOrigins: ['127.0.0.1'],
+  allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
-  experimental: {
-    outputFileTracingRoot: path.join(__dirname, ".."),
-    turbopack: {
-      root: path.join(__dirname, ".."),
-    },
+  outputFileTracingRoot: path.join(__dirname, ".."),
+  turbopack: {
+    root: path.join(__dirname, ".."),
   },
 };
-
-
-
-
-
 
 module.exports = nextConfig;

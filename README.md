@@ -27,13 +27,15 @@ We use a "flattening" script in `frontend/package.json` to fix this:
 #### Monorepo Path Resolution (`next.config.js`)
 Ensure the build process can find the workspace root for tracing dependencies:
 ```javascript
-experimental: {
+const nextConfig = {
+  output: "standalone",
   outputFileTracingRoot: path.join(__dirname, ".."),
   turbopack: {
     root: path.join(__dirname, ".."),
   },
-}
+};
 ```
+
 
 ### 2. Backend Configuration (`functions/`)
 
