@@ -16,12 +16,14 @@ test.describe('Error & Edge Cases', () => {
 
   test('displays error for non-existent poll (G1)', async ({ page }) => {
     await page.goto('/poll/invalid-poll-id-123');
-    await expect(page.getByText(/Poll not found/i)).toBeVisible();
+    await page.waitForSelector('[data-testid="loader"]', { state: 'detached' });
+    await expect(page.getByTestId('error-message')).toContainText(/Poll not found/i);
   });
 
   test('displays error state for non-existent poll results (G2)', async ({ page }) => {
     await page.goto('/poll/invalid-poll-id-123/results');
-    await expect(page.getByText(/Poll not found/i)).toBeVisible();
+    await page.waitForSelector('[data-testid="loader"]', { state: 'detached' });
+    await expect(page.getByTestId('error-message')).toContainText(/Poll not found/i);
   });
 
   test('prevents voting without name (G3)', async ({ page }) => {

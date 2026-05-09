@@ -11,14 +11,14 @@ export default defineConfig({
     ['html', { open: 'never' }] // Options: 'always', 'never', or 'on-failure' (default)
   ],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:3000',
     trace: 'on-first-retry',
   },
   webServer: {
     command: 'npm run dev',
-    url: 'http://127.0.0.1:5173',
+    url: 'http://127.0.0.1:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 30000,
+    timeout: 120000,
   },
   projects: [
     {

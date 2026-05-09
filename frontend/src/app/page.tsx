@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
+import Image from "next/image";
 import { Calendar, Clock, CheckCircle2, ArrowRight } from "lucide-react";
 import heroImg from "@/assets/hero-transparent.webp";
 
@@ -19,15 +20,16 @@ export default function HomePage() {
         </p>
 
         <Link
-          to="/create"
+          href="/create"
           className="group flex flex-col items-center gap-6 w-full sm:w-auto transition-transform hover:scale-105 active:scale-95"
-          data-testid="create-poll-link-group"
+          data-testid="create-poll-btn"
         >
           <div className="relative">
-            <img
+            <Image
               src={heroImg}
               alt="LetUsMeet Hero"
               className="h-48 sm:h-64 w-auto mb-4 animate-bounce-subtle transition-transform group-hover:scale-110"
+              priority
             />
             <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-4 bg-black/5 blur-xl rounded-full"></div>
           </div>

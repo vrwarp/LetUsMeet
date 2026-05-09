@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail, Clock, X } from "lucide-react";
 import { createPollAction, getOrganizerCalendarAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,7 +16,7 @@ interface TimeSlotInput {
 }
 
 export default function CreatePollPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [organizerName, setOrganizerName] = useState("");
   const [organizerEmail, setOrganizerEmail] = useState("");
   const [title, setTitle] = useState("");
@@ -166,7 +168,7 @@ export default function CreatePollPage() {
         localStorage.setItem(`adminToken_${result.data.pollId}`, result.data.adminToken);
       }
 
-      navigate(`/poll/${result.data.pollId}`);
+      router.push(`/poll/${result.data.pollId}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
       setError(err.message || "Something went wrong. Please try again.");

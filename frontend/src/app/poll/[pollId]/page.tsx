@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
+"use client";
+
+import { useEffect, useState, use } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
 import { fetchPollAction, submitVoteAction, deleteVoteAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
-import type { Poll, Vote, VoteValue } from "../types/index";
+import type { Poll, Vote, VoteValue } from "@/types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
 
-export default function VotePollPage() {
-  const { pollId } = useParams<{ pollId: string }>();
+export default function VotePollPage({ params }: { params: Promise<{ pollId: string }> }) {
+  const { pollId } = use(params);
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
   
   const [poll, setPoll] = useState<Poll | null>(null);
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
@@ -37,8 +40,6 @@ export default function VotePollPage() {
       }
     }
   }, [user, hasPrefilled]);
-
-  // const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
 
   const fetchPoll = async () => {
     try {
@@ -169,8 +170,6 @@ export default function VotePollPage() {
     }
   };
 
-
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
@@ -187,9 +186,9 @@ export default function VotePollPage() {
           <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
           <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
-          <a href={`/poll/${pollId}/results`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
+          <Link href={`/poll/${pollId}/results`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
             View Final Results
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -212,7 +211,7 @@ export default function VotePollPage() {
           </p>
           <div className="flex flex-col gap-4">
             <Link 
-              to={`/poll/${pollId}/results`}
+              href={`/poll/${pollId}/results`}
               data-testid="view-results-btn"
               className="w-full bg-brand-green text-white font-bold py-4 rounded-2xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 text-center"
             >
@@ -236,8 +235,8 @@ export default function VotePollPage() {
   if (error || !poll) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <p className="text-neutral-500 text-lg mb-6">{error || "Poll not found."}</p>
-        <Link to="/" className="text-indigo-600 font-bold hover:underline">Return to Home</Link>
+        <p data-testid="error-message" className="text-neutral-500 text-lg mb-6">{error || "Poll not found."}</p>
+        <Link href="/" className="text-indigo-600 font-bold hover:underline">Return to Home</Link>
       </div>
     );
   }
@@ -264,9 +263,9 @@ export default function VotePollPage() {
     setTimeout(() => setShowCopied(false), 3000);
   };
 
-  const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
+  const adminToken = searchParams.get("adminToken") || (typeof window !== 'undefined' ? localStorage.getItem(`adminToken_${pollId}`) : null);
   const isOwner = adminToken === poll.adminToken;
-  const adminUrl = `${window.location.origin}/poll/${pollId}?adminToken=${poll.adminToken}`;
+  const adminUrl = typeof window !== 'undefined' ? `${window.location.origin}/poll/${pollId}?adminToken=${poll.adminToken}` : "";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
@@ -341,7 +340,7 @@ export default function VotePollPage() {
                 Copy Link
               </button>
               <Link
-                to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
+                href={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
                 className="bg-white text-brand-green border border-brand-green-light px-6 py-3 rounded-xl font-bold hover:bg-neutral-50 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
               >
                 <Edit3 size={18} />
