@@ -2,12 +2,14 @@ import { Outlet, Link } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/logo-transparent.webp";
+import ScrollToTop from "./ScrollToTop";
 
 export default function Layout() {
   const { user, loading, signInWithGoogle, signOutUser } = useAuth();
 
   return (
     <div className="min-h-screen bg-neutral-50 text-brand-charcoal font-sans flex flex-col">
+      <ScrollToTop />
       <header className="bg-white border-b border-neutral-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
