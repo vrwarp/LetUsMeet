@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3 } from "lucide-react";
-import { subscribeToPoll, finalizePoll } from "@/lib/pollService";
+import { subscribeToPoll, finalizePoll, claimPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 
@@ -19,6 +19,7 @@ export default function ResultsPage() {
   const [voteCounts, setVoteCounts] = useState<Record<string, Record<VoteValue, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
     if (!pollId) return;
@@ -99,6 +100,23 @@ export default function ResultsPage() {
     }
   };
 
+  const handleClaim = async () => {
+    if (!pollId || isClaiming) return;
+    const token = localStorage.getItem("adminToken_" + pollId) || new URLSearchParams(window.location.search).get("adminToken");
+    if (!token) return;
+
+    setIsClaiming(true);
+    try {
+      await claimPoll(pollId, token, user?.uid);
+      // No need to alert, the poll organizerUid change will trigger a re-render via subscription
+    } catch (err) {
+      console.error("Failed to claim poll:", err);
+      alert("Failed to claim poll. Please try again.");
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
 
   const isOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
 
@@ -111,6 +129,35 @@ export default function ResultsPage() {
         <ArrowLeft className="w-4 h-4" />
         Back to Poll
       </Link>
+
+      {(() => {
+        const token = localStorage.getItem("adminToken_" + pollId) || new URLSearchParams(window.location.search).get("adminToken");
+        const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
+        
+        if (user && !user.isAnonymous && !isActuallyOrganizer && token && token === poll.adminToken) {
+          return (
+            <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
+                  <CalendarCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-brand-charcoal text-lg">Claim this Poll</h2>
+                  <p className="text-neutral-600 text-sm">You have administrative access. Would you like to add this poll to your dashboard?</p>
+                </div>
+              </div>
+              <button
+                onClick={handleClaim}
+                disabled={isClaiming}
+                className="px-8 py-3 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap disabled:opacity-50"
+              >
+                {isClaiming ? "Adding to Dashboard..." : "Add to My Dashboard"}
+              </button>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12">
         <div className="bg-brand-gradient px-8 py-10 text-white">

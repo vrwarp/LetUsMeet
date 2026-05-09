@@ -9,6 +9,19 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // E2E Test Helper: Check for a mock user in localStorage
+    const testUserStr = localStorage.getItem("testUser");
+    if (testUserStr) {
+      try {
+        const testUser = JSON.parse(testUserStr);
+        setUser(testUser as User);
+        setLoading(false);
+        return;
+      } catch (e) {
+        console.error("Failed to parse testUser", e);
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);

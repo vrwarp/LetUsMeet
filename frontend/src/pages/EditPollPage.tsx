@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
-import { subscribeToPoll, updatePoll } from "@/lib/pollService";
+import { subscribeToPoll, updatePoll, claimPoll } from "@/lib/pollService";
+import { useAuth } from "@/hooks/useAuth";
+import { ShieldCheck } from "lucide-react";
 import type { Poll, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {
@@ -17,6 +19,7 @@ export default function EditPollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -28,7 +31,9 @@ export default function EditPollPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
   const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
+  const [poll, setPoll] = useState<Poll | null>(null);
 
   const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
 
@@ -37,15 +42,16 @@ export default function EditPollPage() {
     
     setIsLoading(true);
     const unsubscribe = subscribeToPoll(pollId, (data) => {
-      const poll = data.poll as Poll;
-      setTitle(poll.title);
-      setDescription(poll.description || "");
-      setLocation(poll.location);
-      setSchedulingMode(poll.schedulingMode);
+      const fetchedPoll = data.poll as Poll;
+      setPoll(fetchedPoll);
+      setTitle(fetchedPoll.title);
+      setDescription(fetchedPoll.description || "");
+      setLocation(fetchedPoll.location);
+      setSchedulingMode(fetchedPoll.schedulingMode);
       setVoteCounts(data.voteCounts);
 
-      const initialSlots: TimeSlotInput[] = poll.timeSlots.map(slot => {
-        if (poll.schedulingMode === "EXACT") {
+      const initialSlots: TimeSlotInput[] = fetchedPoll.timeSlots.map(slot => {
+        if (fetchedPoll.schedulingMode === "EXACT") {
           const exact = slot as ExactTimeSlot;
           const start = new Date(exact.startTime);
           const end = new Date(exact.endTime);
@@ -154,6 +160,22 @@ export default function EditPollPage() {
     }
   };
 
+  const handleClaim = async () => {
+    if (!pollId || isClaiming) return;
+    if (!adminToken) return;
+
+    setIsClaiming(true);
+    try {
+      await claimPoll(pollId, adminToken, user?.uid);
+      // Re-render via subscription
+    } catch (err) {
+      console.error("Failed to claim poll:", err);
+      setError("Failed to claim poll. Please try again.");
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -172,6 +194,34 @@ export default function EditPollPage() {
         <ArrowLeft className="w-4 h-4" />
         Back to Poll
       </Link>
+
+      {(() => {
+        if (!poll) return null;
+        const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
+        if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken && adminToken === poll.adminToken) {
+          return (
+            <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-brand-charcoal text-lg">Claim this Poll</h2>
+                  <p className="text-neutral-600 text-sm">You have administrative access. Would you like to add this poll to your dashboard?</p>
+                </div>
+              </div>
+              <button
+                onClick={handleClaim}
+                disabled={isClaiming}
+                className="px-8 py-3 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap disabled:opacity-50"
+              >
+                {isClaiming ? "Adding to Dashboard..." : "Add to My Dashboard"}
+              </button>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="mb-10">
         <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Edit Your Poll</h1>

@@ -74,6 +74,7 @@ vi.mock('@/lib/pollService', () => {
     finalizePoll: vi.fn(() => Promise.resolve()),
     updatePoll: vi.fn(() => Promise.resolve()),
     deleteVote: vi.fn(() => Promise.resolve()),
+    claimPoll: vi.fn(() => Promise.resolve()),
   };
 });
 

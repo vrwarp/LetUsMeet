@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
-import { subscribeToPoll, submitVote, deleteVote } from "@/lib/pollService";
+import { subscribeToPoll, submitVote, deleteVote, claimPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, Vote, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
@@ -23,6 +23,7 @@ export default function VotePollPage() {
   const [userVotes, setUserVotes] = useState<Vote[]>([]);
   const [editingVoteId, setEditingVoteId] = useState<string | null>(null);
   const [lastSubmissionWasUpdate, setLastSubmissionWasUpdate] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
   const hasInitializedFormRef = useRef(false);
   const hasInitializedWithVoteRef = useRef(false);
 
@@ -162,6 +163,23 @@ export default function VotePollPage() {
       console.error("Delete vote failed:", err);
       setError(err.message || "Failed to delete response. Please try again.");
       setIsSubmitting(false);
+    }
+  };
+
+  const handleClaim = async () => {
+    if (!pollId || isClaiming) return;
+    const token = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
+    if (!token) return;
+
+    setIsClaiming(true);
+    try {
+      await claimPoll(pollId, token, user?.uid);
+      // Re-render happens via subscription
+    } catch (err) {
+      console.error("Failed to claim poll:", err);
+      alert("Failed to claim poll. Please try again.");
+    } finally {
+      setIsClaiming(false);
     }
   };
 
@@ -347,6 +365,33 @@ export default function VotePollPage() {
             </div>
           </div>
         )}
+
+        {(() => {
+          const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
+          if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken && adminToken === poll.adminToken) {
+            return (
+              <div className="mt-8 bg-brand-green-light/30 border border-brand-green-light rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-brand-charcoal text-lg">Claim this Poll</h2>
+                    <p className="text-neutral-600 text-sm">You have administrative access. Would you like to add this poll to your dashboard?</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleClaim}
+                  disabled={isClaiming}
+                  className="px-8 py-3 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap disabled:opacity-50"
+                >
+                  {isClaiming ? "Adding to Dashboard..." : "Add to My Dashboard"}
+                </button>
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {userVotes.length > 0 && (

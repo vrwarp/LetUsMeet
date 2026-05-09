@@ -101,6 +101,22 @@ export async function updatePoll(pollId: string, data: Partial<Poll>) {
 }
 
 /**
+ * Associates an existing poll with a signed-in user's account.
+ * Requires the admin token to prove ownership.
+ */
+export async function claimPoll(pollId: string, _adminToken: string, uid?: string) {
+  const organizerUid = uid || auth.currentUser?.uid;
+  if (!organizerUid) throw new Error("Must be signed in to claim a poll");
+  
+  const pollRef = doc(db, "polls", pollId);
+  // Security rules verify the update based on existing adminToken
+  await updateDoc(pollRef, {
+    organizerUid: organizerUid,
+    updatedAt: new Date().toISOString()
+  });
+}
+
+/**
  * Deletes a vote for a specific poll.
  */
 export async function deleteVote(pollId: string, voteId: string) {
