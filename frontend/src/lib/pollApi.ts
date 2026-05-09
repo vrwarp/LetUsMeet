@@ -40,17 +40,10 @@ export async function submitVoteAction(data: any) {
   return fn(data);
 }
 
-export async function getOrganizerCalendarAction(data: any) {
-  if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
-    return { data: { busyTimes: [] } };
-  }
-  const fn = httpsCallable(functions, "getOrganizerCalendar");
-  return fn(data);
-}
 
 export async function finalizePollAction(data: any) {
   if (process.env.NEXT_PUBLIC_IS_TESTING === 'true') {
-    return { data: { success: true, eventId: "mock-event-id" } };
+    return { data: { success: true } };
   }
   const fn = httpsCallable(functions, "finalizePoll");
   return fn(data);

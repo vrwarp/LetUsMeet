@@ -97,17 +97,5 @@ export interface FinalizePollRequest {
 
 export interface FinalizePollResponse {
   success: boolean;
-  eventId?: string;
 }
 
-export interface GetOrganizerCalendarRequest {
-  timeMin: string; // ISO 8601 string
-  timeMax: string; // ISO 8601 string
-}
-
-export interface GetOrganizerCalendarResponse {
-  busyTimes: {
-    start: string;
-    end: string;
-  }[];
-}

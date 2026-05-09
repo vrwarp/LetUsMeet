@@ -62,9 +62,3 @@ export const finalizePollSchema = z.object({
   selectedTimeSlotId: z.string().min(1),
 });
 
-export const getOrganizerCalendarSchema = z.object({
-  timeMin: z.string().datetime(),
-  timeMax: z.string().datetime(),
-}).refine((data) => new Date(data.timeMax) > new Date(data.timeMin), {
-  message: "timeMax must be after timeMin",
-});

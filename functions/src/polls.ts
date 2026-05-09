@@ -1,6 +1,5 @@
 import { createPollSchema, finalizePollSchema, updatePollSchema } from "./validators.js";
-import { FinalizePollRequest, ExactTimeSlot, CreatePollRequest, Poll, TimeSlot, UpdatePollRequest } from "./types.js";
-import { google } from "googleapis";
+import { FinalizePollRequest, CreatePollRequest, Poll, TimeSlot, UpdatePollRequest } from "./types.js";
 import * as crypto from "crypto";
 import * as functions from "firebase-functions/v2";
 import { getFirestore } from "firebase-admin/firestore";
@@ -148,65 +147,7 @@ export const finalizePollHandler = async (request: functions.https.CallableReque
     finalizedSlotId: selectedTimeSlotId,
   });
 
-  // 5. Calendar Integration (Only if EXACT scheduling)
-  let eventId = undefined;
-  if (pollData.schedulingMode === "EXACT") {
-    try {
-      const exactSlot = selectedSlot as ExactTimeSlot;
-
-      // Get User Tokens
-      const userDoc = await db.collection("users").doc(request.auth.uid).get();
-      const userData = userDoc.data();
-
-      if (userData?.googleTokens?.accessToken) {
-        // Fetch votes to get attendees
-        const votesSnapshot = await pollRef.collection("votes").get();
-        const attendees: { email: string }[] = [];
-        votesSnapshot.forEach(doc => {
-          const voteData = doc.data();
-          if (voteData.participantEmail) {
-            const userVote = voteData.selections?.[selectedTimeSlotId];
-            if (userVote === "YES" || userVote === "IF_NEED_BE") {
-              attendees.push({ email: voteData.participantEmail });
-            }
-          }
-        });
-
-        const oauth2Client = new google.auth.OAuth2("client_id", "client_secret", "redirect_uri");
-        oauth2Client.setCredentials({
-          access_token: userData.googleTokens.accessToken,
-          ...(userData.googleTokens.refreshToken ? { refresh_token: userData.googleTokens.refreshToken } : {}),
-        });
-
-        const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-        const event = {
-          summary: pollData.title,
-          location: pollData.location,
-          start: {
-            dateTime: exactSlot.startTime,
-          },
-          end: {
-            dateTime: exactSlot.endTime,
-          },
-          attendees: attendees,
-        };
-
-        const response = await calendar.events.insert({
-          calendarId: "primary",
-          sendUpdates: "all",
-          requestBody: event,
-        });
-
-        eventId = response.data.id;
-      }
-    } catch (error) {
-      console.error("Failed to create Google Calendar event:", error);
-      // We do not throw an error here, the poll is successfully finalized even if calendar sync fails.
-    }
-  }
-
-  return { success: true, eventId };
+  return { success: true };
 };
 
 export const finalizePoll = functions.https.onCall<FinalizePollRequest>(finalizePollHandler);

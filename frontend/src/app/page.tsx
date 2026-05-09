@@ -67,19 +67,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Google Sync Card */}
-        <div data-testid="feature-sync" className="group bg-white p-10 rounded-[2.5rem] shadow-xl shadow-black/[0.03] hover:shadow-2xl hover:shadow-brand-green/10 hover:-translate-y-2 transition-all duration-500 flex flex-col items-center gap-6 text-center border border-neutral-100 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-brand-green/5 blur-3xl rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
-          <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:rotate-12 group-hover:scale-110 group-hover:bg-brand-green group-hover:text-white">
-            <Calendar size={32} />
-          </div>
-          <div className="space-y-2 relative z-10">
-            <h2 className="font-black text-2xl text-brand-charcoal tracking-tight">Google Sync</h2>
-            <p className="text-neutral-500 text-base leading-relaxed font-medium">
-              See conflicts and auto-generate events.
-            </p>
-          </div>
-        </div>
       </section>
     </div>
   );
