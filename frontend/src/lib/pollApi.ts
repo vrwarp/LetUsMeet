@@ -1,14 +1,12 @@
 import { httpsCallable, httpsCallableFromURL } from "firebase/functions";
 import { functions } from "@/firebase";
 
-const PROJECT_SUFFIX = "wu3h4frdia-uc.a.run.app";
-
 function getCallable(name: string) {
   if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
     return httpsCallable(functions, name);
   }
-  // Use direct Cloud Run URL in production to avoid CORS/Redirect issues with 2nd Gen functions
-  const url = `https://${name.toLowerCase()}-${PROJECT_SUFFIX}`;
+  // Use Next.js Rewrite proxy in production to bypass CORS entirely
+  const url = `${window.location.origin}/api/functions/${name.toLowerCase()}`;
   return httpsCallableFromURL(functions, url);
 }
 
