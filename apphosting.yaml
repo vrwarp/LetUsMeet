@@ -3,6 +3,10 @@
 runConfig:
   minInstances: 0
 
+scripts:
+  buildCommand: "npm run build && cp -r .next/standalone/frontend/. .next/standalone/ && rm -rf .next/standalone/frontend"
+
+
 
 # Environment variables and secrets.
 # env:
