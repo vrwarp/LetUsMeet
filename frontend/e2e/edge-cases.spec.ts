@@ -3,14 +3,14 @@ import { test, expect } from '@playwright/test';
 test.describe('Error & Edge Cases', () => {
   test('displays validation errors on empty form submission', async ({ page }) => {
     await page.goto('/create');
-    
+
     // Clear any default values if necessary
     await page.getByTestId('poll-title-input').fill('');
-    
+
     // Attempt to submit
     const submitBtn = page.getByTestId('create-submit-btn');
     await expect(submitBtn).toBeDisabled();
-    
+
     // It should not allow submission without title
   });
 
@@ -28,6 +28,8 @@ test.describe('Error & Edge Cases', () => {
 
   test('prevents voting without name (G3)', async ({ page }) => {
     await page.goto('/');
+    await page.waitForTimeout(2000);
+
     // Navigate to create and create one quickly
     await page.getByTestId('create-poll-btn').click();
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
@@ -36,7 +38,7 @@ test.describe('Error & Edge Cases', () => {
     const createBtn = page.getByTestId('create-submit-btn');
     await expect(createBtn).toBeEnabled();
     await createBtn.click();
-    
+
     await page.waitForURL(/\/poll\/[^/]+$/);
     await page.waitForTimeout(2000);
 
