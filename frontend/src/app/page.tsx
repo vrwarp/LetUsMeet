@@ -5,10 +5,7 @@ import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
   return (
-    <div className="relative flex flex-col items-center text-center py-12 gap-20 overflow-hidden">
-      {/* Decorative Background Blobs */}
-      <div className="absolute top-0 -left-20 w-96 h-96 bg-brand-green/10 blur-[100px] rounded-full -z-10"></div>
-      <div className="absolute bottom-0 -right-20 w-96 h-96 bg-brand-red/10 blur-[100px] rounded-full -z-10"></div>
+    <div className="flex flex-col items-center text-center py-12 gap-20">
 
       <section className="max-w-4xl flex flex-col items-center gap-10 relative px-6 w-full">
         <h1 className="text-6xl sm:text-9xl font-black tracking-tight leading-none">
@@ -42,32 +39,46 @@ export default function HomePage() {
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl px-4">
-        <div data-testid="feature-frictionless" className="group bg-brand-charcoal p-10 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center gap-4 text-center border border-white/10">
-          <div className="w-16 h-16 bg-white/10 text-brand-green rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6 group-hover:scale-110">
+        {/* Zero Friction Card */}
+        <div data-testid="feature-frictionless" className="group bg-white p-10 rounded-[2.5rem] shadow-xl shadow-black/[0.03] hover:shadow-2xl hover:shadow-brand-green/10 hover:-translate-y-2 transition-all duration-500 flex flex-col items-center gap-6 text-center border border-neutral-100 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-brand-green/5 blur-3xl rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
+          <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:rotate-6 group-hover:scale-110 group-hover:bg-brand-green group-hover:text-white">
             <CheckCircle2 size={32} />
           </div>
-          <h2 className="font-black text-xl text-brand-cream">Zero Friction</h2>
-          <p className="text-brand-cream/60 text-sm leading-relaxed">
-            Vote in one click. No logins or apps.
-          </p>
+          <div className="space-y-2 relative z-10">
+            <h2 className="font-black text-2xl text-brand-charcoal tracking-tight">Zero Friction</h2>
+            <p className="text-neutral-500 text-base leading-relaxed font-medium">
+              Vote in one click. No logins or apps.
+            </p>
+          </div>
         </div>
-        <div data-testid="feature-trinary" className="group bg-brand-charcoal p-10 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center gap-4 text-center border border-white/10">
-          <div className="w-16 h-16 bg-white/10 text-brand-red rounded-2xl flex items-center justify-center transition-transform group-hover:-rotate-6 group-hover:scale-110">
+
+        {/* Trinary Voting Card */}
+        <div data-testid="feature-trinary" className="group bg-white p-10 rounded-[2.5rem] shadow-xl shadow-black/[0.03] hover:shadow-2xl hover:shadow-brand-red/10 hover:-translate-y-2 transition-all duration-500 flex flex-col items-center gap-6 text-center border border-neutral-100 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-brand-red/5 blur-3xl rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
+          <div className="w-16 h-16 bg-brand-red/10 text-brand-red rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:-rotate-6 group-hover:scale-110 group-hover:bg-brand-red group-hover:text-white">
             <Clock size={32} />
           </div>
-          <h2 className="font-black text-xl text-brand-cream">Trinary Voting</h2>
-          <p className="text-brand-cream/60 text-sm leading-relaxed">
-            Yes, No, and If-need-be options.
-          </p>
+          <div className="space-y-2 relative z-10">
+            <h2 className="font-black text-2xl text-brand-charcoal tracking-tight">Trinary Voting</h2>
+            <p className="text-neutral-500 text-base leading-relaxed font-medium">
+              Yes, No, and If-need-be options.
+            </p>
+          </div>
         </div>
-        <div data-testid="feature-sync" className="group bg-brand-charcoal p-10 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center gap-4 text-center border border-white/10">
-          <div className="w-16 h-16 bg-white/10 text-brand-green rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 group-hover:scale-110">
+
+        {/* Google Sync Card */}
+        <div data-testid="feature-sync" className="group bg-white p-10 rounded-[2.5rem] shadow-xl shadow-black/[0.03] hover:shadow-2xl hover:shadow-brand-green/10 hover:-translate-y-2 transition-all duration-500 flex flex-col items-center gap-6 text-center border border-neutral-100 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-brand-green/5 blur-3xl rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150 duration-700"></div>
+          <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:rotate-12 group-hover:scale-110 group-hover:bg-brand-green group-hover:text-white">
             <Calendar size={32} />
           </div>
-          <h2 className="font-black text-xl text-brand-cream">Google Sync</h2>
-          <p className="text-brand-cream/60 text-sm leading-relaxed">
-            See conflicts and auto-generate events.
-          </p>
+          <div className="space-y-2 relative z-10">
+            <h2 className="font-black text-2xl text-brand-charcoal tracking-tight">Google Sync</h2>
+            <p className="text-neutral-500 text-base leading-relaxed font-medium">
+              See conflicts and auto-generate events.
+            </p>
+          </div>
         </div>
       </section>
     </div>
