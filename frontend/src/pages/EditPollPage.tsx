@@ -279,7 +279,7 @@ export default function EditPollPage() {
         <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
            <div className="flex items-center gap-2 text-neutral-600 font-medium">
               <AlertTriangle size={18} className="text-amber-500" />
-              <span>Scheduling mode is fixed to <strong>{schedulingMode}</strong></span>
+              <span>Scheduling mode is fixed to <strong>{schedulingMode === "EXACT" ? "Exact Times" : "Flexible Windows"}</strong></span>
            </div>
         </div>
 
@@ -295,72 +295,82 @@ export default function EditPollPage() {
               const hasVotes = counts && (counts.YES || 0) + (counts.NO || 0) + (counts.IF_NEED_BE || 0) > 0;
               
               return (
-                <div key={index} className="flex flex-wrap items-center gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-100 group relative">
-                  {hasVotes && (
-                    <div className="absolute -top-2 -right-2 bg-amber-100 text-amber-700 p-1.5 rounded-full shadow-sm z-10" title="Has votes cast">
-                      <AlertTriangle size={12} />
-                    </div>
-                  )}
-                  <label className="relative flex-1 min-w-[160px] cursor-pointer">
-                    <div className="flex items-center px-3 py-2 text-neutral-700 font-medium bg-white rounded-lg border border-neutral-200">
-                      <CalendarIcon size={16} className="text-indigo-400 mr-2" />
-                      <span>{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
-                    </div>
-                    <input
-                      type="date"
-                      required
-                      onClick={handlePickerClick}
-                      onBlur={handleBlur}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      value={slot.date}
-                      onChange={(e) => updateSlot(index, "date", e.target.value)}
-                    />
-                  </label>
-                  
-                  {schedulingMode === "EXACT" ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="time"
-                        required
-                        className="px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                        value={slot.startTime}
-                        onChange={(e) => updateSlot(index, "startTime", e.target.value)}
-                      />
-                      <span className="text-neutral-400 font-bold text-xs">TO</span>
-                      <input
-                        type="time"
-                        required
-                        className="px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                        value={slot.endTime}
-                        onChange={(e) => updateSlot(index, "endTime", e.target.value)}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Label"
-                        className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium outline-none"
-                        value={slot.label}
-                        onChange={(e) => updateSlot(index, "label", e.target.value)}
-                      />
-                      <input
-                        type="time"
-                        className="w-28 px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium outline-none"
-                        value={slot.time || ""}
-                        onChange={(e) => updateSlot(index, "time", e.target.value)}
-                      />
-                    </div>
-                  )}
+                <div key={index} className="relative group">
+                  <div className="flex flex-col sm:grid sm:grid-cols-[150px_1fr_40px] sm:items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
+                    {hasVotes && (
+                      <div className="absolute -top-2 -left-2 bg-amber-100 text-amber-700 p-1.5 rounded-full shadow-sm z-20 border border-amber-200" title="This slot already has votes. Deleting it will remove them.">
+                        <AlertTriangle size={12} />
+                      </div>
+                    )}
 
-                  <button
-                    type="button"
-                    onClick={() => removeSlot(index)}
-                    disabled={slots.length === 1}
-                    className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                    {/* Date Column */}
+                    <label className="relative group/date cursor-pointer">
+                      <div className="flex items-center px-4 py-2.5 text-neutral-700 font-medium bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
+                        <CalendarIcon size={16} className="text-indigo-400 mr-2 flex-shrink-0" />
+                        <span className="truncate text-sm font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
+                      </div>
+                      <input
+                        type="date"
+                        required
+                        onClick={handlePickerClick}
+                        onBlur={handleBlur}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                        value={slot.date}
+                        onChange={(e) => updateSlot(index, "date", e.target.value)}
+                      />
+                    </label>
+                    
+                    {/* Content Column */}
+                    <div className="flex-1">
+                      {schedulingMode === "EXACT" ? (
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="time"
+                            required
+                            className="flex-1 sm:w-28 px-4 py-2.5 rounded-xl border border-neutral-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none bg-white shadow-sm"
+                            value={slot.startTime}
+                            onChange={(e) => updateSlot(index, "startTime", e.target.value)}
+                          />
+                          <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
+                          <input
+                            type="time"
+                            required
+                            className="flex-1 sm:w-28 px-4 py-2.5 rounded-xl border border-neutral-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none bg-white shadow-sm"
+                            value={slot.endTime}
+                            onChange={(e) => updateSlot(index, "endTime", e.target.value)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Label"
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm"
+                            value={slot.label}
+                            onChange={(e) => updateSlot(index, "label", e.target.value)}
+                          />
+                          <input
+                            type="time"
+                            className="w-full lg:w-28 px-4 py-2.5 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm"
+                            value={slot.time || ""}
+                            onChange={(e) => updateSlot(index, "time", e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Column */}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeSlot(index)}
+                        disabled={slots.length === 1}
+                        className="p-2.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all sm:opacity-0 sm:group-hover:opacity-100 disabled:hidden flex-shrink-0"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               );
             })}

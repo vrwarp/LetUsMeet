@@ -9,8 +9,8 @@ test.describe('Fuzzy Scheduling', () => {
     await page.fill('[data-testid="organizer-email-input"]', 'organizer@example.com');
     await page.fill('[data-testid="poll-title-input"]', 'Fuzzy Meeting');
     
-    // Select "General blocks" mode
-    await page.click('text=General blocks');
+    // Select "Flexible Windows" mode
+    await page.click('text=Flexible Windows');
     
     // Enter custom label for first slot
     await page.fill('[data-testid="slot-label-0"]', 'Brunch');
