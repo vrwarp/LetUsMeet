@@ -6,6 +6,7 @@ import {
   updateDoc, 
   onSnapshot, 
   deleteDoc,
+  getDoc,
   query,
   where,
   orderBy
@@ -60,14 +61,26 @@ export async function submitVote(pollId: string, voteData: Omit<Vote, "participa
 
   const id = existingVoteId || generateId();
   const voteRef = doc(db, "polls", pollId, "votes", id);
+  const { participantEmail, ...publicData } = voteData as any;
   
+  // Save public data (name and selections)
   await setDoc(voteRef, {
-    ...voteData,
+    ...publicData,
     voteId: id,
     participantUid: auth.currentUser.uid,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }, { merge: true });
+
+  // Save private data (email) in a restricted subcollection
+  if (participantEmail) {
+    const privateRef = doc(db, "polls", pollId, "votes", id, "private", "data");
+    await setDoc(privateRef, {
+      email: participantEmail,
+      participantUid: auth.currentUser.uid,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  }
 }
 
 /**
@@ -135,6 +148,21 @@ export async function claimPoll(pollId: string, _adminToken: string, uid?: strin
 export async function deleteVote(pollId: string, voteId: string) {
   const voteRef = doc(db, "polls", pollId, "votes", voteId);
   await deleteDoc(voteRef);
+}
+
+/**
+ * Fetches private data for a specific vote (e.g. email).
+ * Only succeeds if authorized by security rules.
+ */
+export async function getPrivateVoteData(pollId: string, voteId: string) {
+  try {
+    const privateRef = doc(db, "polls", pollId, "votes", voteId, "private", "data");
+    const snap = await getDoc(privateRef);
+    return snap.exists() ? snap.data() : null;
+  } catch (error) {
+    console.error("Error fetching private vote data:", error);
+    return null;
+  }
 }
 
 /**

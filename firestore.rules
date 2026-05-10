@@ -25,7 +25,7 @@ service cloud.firestore {
       allow delete: if false; // Better to set status to DELETED if needed
 
       match /votes/{voteId} {
-        // Votes are public to read
+        // Votes are public to read (excluding private data)
         allow read: if true;
         
         // Anyone can create/update their own vote if the poll is open
@@ -34,6 +34,17 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
           
         allow delete: if request.auth != null && resource.data.participantUid == request.auth.uid;
+
+        // Private data subcollection (e.g. emails)
+        match /private/data {
+          // Only the poll organizer or the voter themselves can read the private data
+          allow read: if (request.auth != null && request.auth.uid == get(/databases/$(database)/documents/polls/$(pollId)).data.organizerUid)
+                      || (request.auth != null && request.auth.uid == resource.data.participantUid);
+          
+          allow create, update: if request.auth != null
+                      && request.auth.uid == request.resource.data.participantUid
+                      && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
+        }
       }
     }
 

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy } from "lucide-react";
-import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll } from "@/lib/pollService";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Mail, Send } from "lucide-react";
+import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll, getPrivateVoteData } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 
 interface VoteResult {
+  voteId: string;
   participantName: string;
   selections: Record<string, VoteValue>;
 }
@@ -23,6 +24,10 @@ export default function ResultsPage() {
   const [isClaiming, setIsClaiming] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showAddressCopied, setShowAddressCopied] = useState(false);
+  const [emails, setEmails] = useState<Record<string, string>>({});
+  const [isFetchingEmails, setIsFetchingEmails] = useState(false);
+
+  const isOrganizer = user && !user.isAnonymous && poll?.organizerUid === user.uid;
 
   useEffect(() => {
     if (!pollId) return;
@@ -38,6 +43,12 @@ export default function ResultsPage() {
 
     return () => unsubscribe();
   }, [pollId]);
+
+  useEffect(() => {
+    if (isOrganizer && votes.length > 0 && Object.keys(emails).length === 0 && !isFetchingEmails) {
+      handleRevealEmails();
+    }
+  }, [isOrganizer, votes, emails, isFetchingEmails]);
 
   if (isLoading) {
     return (
@@ -150,15 +161,99 @@ export default function ResultsPage() {
     setTimeout(() => setShowAddressCopied(false), 2000);
   };
 
+  const handleRevealEmails = async () => {
+    if (!pollId || isFetchingEmails) return;
+    setIsFetchingEmails(true);
+    try {
+      const results = await Promise.all(
+        votes.map(async (vote) => {
+          const data = await getPrivateVoteData(pollId, vote.voteId);
+          return { voteId: vote.voteId, email: data?.email };
+        })
+      );
+      
+      const emailMap: Record<string, string> = {};
+      results.forEach(r => {
+        if (r.email) emailMap[r.voteId] = r.email;
+      });
+      setEmails(emailMap);
+    } catch (error) {
+      console.error("Failed to fetch emails:", error);
+    } finally {
+      setIsFetchingEmails(false);
+    }
+  };
 
-  const isOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
+  const handleComposeEmail = () => {
+    if (!poll) return;
+
+    const participantsWithEmail = votes
+      .map(v => ({ name: v.participantName, email: emails[v.voteId] }))
+      .filter(v => !!v.email);
+
+    const participantsWithoutEmail = votes
+      .filter(v => !emails[v.voteId])
+      .map(v => v.participantName);
+
+    const toString = participantsWithEmail
+      .map(p => `"${p.name}" <${p.email}>`)
+      .join(", ");
+
+    const subject = `Meeting Update: ${poll.title}`;
+    
+    let bodyText = `Hi everyone,\n\n`;
+    
+    if (participantsWithoutEmail.length > 0) {
+      bodyText += `[Note: The following participants' emails were unavailable and not included in this thread: ${participantsWithoutEmail.join(", ")}]\n\n`;
+    }
+
+    bodyText += `I'm writing to share an update regarding our meeting "${poll.title}".\n\n`;
+    
+    if (poll.status === "FINALIZED" && poll.finalizedSlotId) {
+      const slot = poll.timeSlots.find(s => s.id === poll.finalizedSlotId);
+      if (slot) {
+        const dateStr = poll.schedulingMode === "EXACT" 
+          ? new Date((slot as any).startTime).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+          : `${new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${(slot as any).label})`;
+        
+        bodyText += `CONFIRMED DATE:\n${dateStr}\n\n`;
+      }
+    }
+
+    if (poll.location) {
+      bodyText += `LOCATION:\n${poll.location}\n\n`;
+    }
+
+    bodyText += `You can view the full results and the availability grid here: ${window.location.href}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
+
+    const mailtoUrl = `mailto:${toString}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+    window.location.href = mailtoUrl;
+  };
+
 
   const renderMatrixTable = () => (
     <div className="overflow-x-auto rounded-2xl border border-neutral-100 bg-white">
       <table data-testid="results-matrix" className="w-full border-collapse min-w-[600px]">
         <thead>
           <tr className="bg-neutral-50 border-b border-neutral-100">
-            <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Participants</th>
+            <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <span>Participants</span>
+                {isOrganizer && (
+                  <button 
+                    onClick={handleComposeEmail}
+                    disabled={isFetchingEmails}
+                    className="p-1.5 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green hover:text-brand-green-dark group relative"
+                    title="Email all participants"
+                  >
+                    {isFetchingEmails ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-neutral-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl z-50">
+                      Email Participants
+                    </span>
+                  </button>
+                )}
+              </div>
+            </th>
             {sortedSlots.map(slot => (
               <th key={slot.id} className={`p-4 text-center min-w-[140px] transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/50 border-x-2 border-brand-green/20' : ''}`}>
                 {poll.schedulingMode === "EXACT" ? (
@@ -203,8 +298,13 @@ export default function ResultsPage() {
         <tbody>
           {votes.map((vote, idx) => (
             <tr key={idx} data-testid={`participant-row-${idx}`} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
-              <td data-testid="participant-name" className="p-4 font-bold text-neutral-800 sticky left-0 bg-white z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                {vote.participantName}
+              <td data-testid="participant-name" className="p-4 sticky left-0 bg-white z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                <div className="flex flex-col">
+                  <span className="font-bold text-neutral-800">{vote.participantName}</span>
+                  {emails[vote.voteId] && (
+                    <span className="text-[10px] text-neutral-500 font-medium truncate max-w-[120px]">{emails[vote.voteId]}</span>
+                  )}
+                </div>
               </td>
               {sortedSlots.map(slot => (
                 <td key={slot.id} className={`p-4 text-center transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/20 border-x-2 border-brand-green/10' : ''}`}>
