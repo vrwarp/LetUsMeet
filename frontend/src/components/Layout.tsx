@@ -1,7 +1,7 @@
 import { Outlet, Link } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import logoImg from "@/assets/logo-transparent.webp";
+import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import ScrollToTop from "./ScrollToTop";
 
 export default function Layout() {
