@@ -138,6 +138,7 @@ export async function claimPoll(pollId: string, _adminToken: string, uid?: strin
   // Security rules verify the update based on existing adminToken
   await updateDoc(pollRef, {
     organizerUid: organizerUid,
+    adminToken: _adminToken, // Required by security rules to authorize the update
     updatedAt: new Date().toISOString()
   });
 }

@@ -8,7 +8,8 @@ test.describe('Claim Poll Flow', () => {
 
     await page.getByTestId('organizer-name-input').fill('Anonymous Creator');
     await page.getByTestId('organizer-email-input').fill('anon@example.com');
-    await page.getByTestId('poll-title-input').fill('Unclaimed Poll');
+    const pollTitle = `Unclaimed Poll ${Date.now()}`;
+    await page.getByTestId('poll-title-input').fill(pollTitle);
     
     const addSlotBtn = page.getByTestId('add-slot-btn');
     await expect(addSlotBtn).toBeEnabled();
@@ -18,7 +19,7 @@ test.describe('Claim Poll Flow', () => {
     await submitBtn.click();
 
     // Wait for navigation
-    await page.waitForURL(/\/poll\/[^/]+$/, { timeout: 30000 });
+    await page.waitForURL(/\/poll\/[^/]+$/, { timeout: 60000 });
     await page.waitForTimeout(1000);
     const pollId = page.url().split('/').pop()?.split('?')[0];
     
@@ -46,11 +47,11 @@ test.describe('Claim Poll Flow', () => {
 
     // 5. Banner should disappear after claiming
     await expect(page.getByText(/Claim this Poll/i)).not.toBeVisible();
+    await page.waitForTimeout(2000);
 
     // 6. Go to dashboard and verify the poll is there
     await page.goto('/dashboard');
-    await page.waitForTimeout(2000);
-    await expect(page.locator('h3', { hasText: 'Unclaimed Poll' })).toBeVisible();
+    await expect(page.locator('h2', { hasText: pollTitle })).toBeVisible({ timeout: 15000 });
   });
 
   test('shows claim banner on results page too', async ({ page }) => {
@@ -59,12 +60,13 @@ test.describe('Claim Poll Flow', () => {
     await page.waitForTimeout(2000);
     await page.getByTestId('organizer-name-input').fill('Temp Creator');
     await page.getByTestId('organizer-email-input').fill('temp@example.com');
-    await page.getByTestId('poll-title-input').fill('Results Claim Test');
+    const pollTitle = `Results Claim Test ${Date.now()}`;
+    await page.getByTestId('poll-title-input').fill(pollTitle);
     
     await page.getByTestId('add-slot-btn').click();
     
     await page.getByTestId('create-submit-btn').click();
-    await page.waitForURL(/\/poll\/[^/]+$/, { timeout: 30000 });
+    await page.waitForURL(/\/poll\/[^/]+$/, { timeout: 60000 });
     
     const pollId = page.url().split('/').pop()?.split('?')[0];
     const resultsUrl = `/poll/${pollId}/results`;

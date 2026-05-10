@@ -18,7 +18,8 @@ test.describe('Phase 1 Critical User Journeys', () => {
     // --- 2. Create Poll Page ---
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
-    await page.getByTestId('poll-title-input').fill('Playwright E2E Poll');
+    const pollTitle = `Playwright E2E Poll ${Date.now()}`;
+    await page.getByTestId('poll-title-input').fill(pollTitle);
     await page.getByTestId('poll-location-input').fill('E2E Test Location');
     
     // Fill first slot
@@ -33,7 +34,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
     expect(pollUrl).toMatch(/\/poll\/[a-zA-Z0-9_-]+$/);
 
     // --- 3. Vote Poll Page ---
-    await expect(page.getByTestId('poll-title')).toContainText('Playwright E2E Poll');
+    await expect(page.getByTestId('poll-title')).toContainText(pollTitle);
     
     // Cycle vote on the first slot (clicks from NO -> YES)
     const slotCards = page.getByTestId('slot-card');

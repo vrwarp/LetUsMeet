@@ -8,7 +8,7 @@ test.describe('Vote Update Flow', () => {
     
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
-    await page.getByTestId('poll-title-input').fill('Update Vote Poll');
+    await page.getByTestId('poll-title-input').fill(`Update Vote Poll ${Date.now()}`);
     
     const submitBtn = page.getByTestId('create-submit-btn');
     await expect(submitBtn).toBeEnabled();

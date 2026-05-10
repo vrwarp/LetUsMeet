@@ -8,7 +8,7 @@ test.describe('Vote Editing and Multiple Responses', () => {
 
     await page.getByTestId('organizer-name-input').fill('E2E Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@e2e.com');
-    await page.getByTestId('poll-title-input').fill('E2E Edit Test Poll');
+    await page.getByTestId('poll-title-input').fill(`E2E Edit Test Poll ${Date.now()}`);
 
     const addSlotBtn = page.getByTestId('add-slot-btn');
     await expect(addSlotBtn).toBeEnabled();

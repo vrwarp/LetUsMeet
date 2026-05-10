@@ -22,10 +22,14 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npx firebase emulators:start --only auth,firestore,hosting\"",
     "build": "npm run build --prefix frontend",
-    "test": "npm run build --prefix frontend && npm run test:unit && npm run test:e2e",
+    "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "npm run build --prefix frontend && npm run test:unit --prefix frontend",
     "test:coverage": "npm run test:coverage --prefix frontend",
-    "test:e2e": "npx firebase emulators:exec --only auth,firestore,hosting \"npm run test:e2e --prefix frontend\"",
+    "test:e2e": "npm run test:e2e:chromium && npm run test:e2e:firefox && npm run test:e2e:webkit",
+    "test:e2e:chromium": "mkdir -p frontend/playwright-report/chromium frontend/test-results/chromium && docker build -t letusmeet-e2e -f Dockerfile.e2e . && docker run --rm -v $(pwd)/frontend/playwright-report/chromium:/app/frontend/playwright-report -v $(pwd)/frontend/test-results/chromium:/app/frontend/test-results letusmeet-e2e npx firebase emulators:exec --only auth,firestore,hosting \"npm run test:e2e --prefix frontend -- --project=chromium\"",
+    "test:e2e:firefox": "mkdir -p frontend/playwright-report/firefox frontend/test-results/firefox && docker build -t letusmeet-e2e -f Dockerfile.e2e . && docker run --rm -v $(pwd)/frontend/playwright-report/firefox:/app/frontend/playwright-report -v $(pwd)/frontend/test-results/firefox:/app/frontend/test-results letusmeet-e2e npx firebase emulators:exec --only auth,firestore,hosting \"npm run test:e2e --prefix frontend -- --project=firefox\"",
+    "test:e2e:webkit": "mkdir -p frontend/playwright-report/webkit frontend/test-results/webkit && docker build -t letusmeet-e2e -f Dockerfile.e2e . && docker run --rm -v $(pwd)/frontend/playwright-report/webkit:/app/frontend/playwright-report -v $(pwd)/frontend/test-results/webkit:/app/frontend/test-results letusmeet-e2e npx firebase emulators:exec --only auth,firestore,hosting \"npm run test:e2e --prefix frontend -- --project=webkit\"",
+    "test:e2e:local": "npx firebase emulators:exec --only auth,firestore,hosting \"npm run test:e2e --prefix frontend\"",
     "deploy": "npm run build && npx firebase deploy --only hosting,firestore,auth"
   },
   "dependencies": {

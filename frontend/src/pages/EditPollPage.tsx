@@ -331,7 +331,7 @@ export default function EditPollPage() {
                             value={slot.startTime}
                             onChange={(e) => updateSlot(index, "startTime", e.target.value)}
                           />
-                          <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
+                          <span className="text-neutral-600 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
                           <input
                             type="time"
                             required

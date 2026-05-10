@@ -330,7 +330,7 @@ export default function CreatePollPage() {
                             onChange={(e) => updateSlot(index, "startTime", e.target.value)}
                           />
                         </label>
-                        <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
+                        <span className="text-neutral-600 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
                         <label className="relative group/end cursor-pointer flex-1 sm:flex-none">
                           <div className="flex items-center px-4 py-2.5 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full sm:w-32 shadow-sm">
                             <Clock size={16} className="text-indigo-400 mr-2 flex-shrink-0" />

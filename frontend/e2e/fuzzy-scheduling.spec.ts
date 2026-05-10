@@ -7,7 +7,8 @@ test.describe('Fuzzy Scheduling', () => {
     
     await page.fill('[data-testid="organizer-name-input"]', 'Test Organizer');
     await page.fill('[data-testid="organizer-email-input"]', 'organizer@example.com');
-    await page.fill('[data-testid="poll-title-input"]', 'Fuzzy Meeting');
+    const pollTitle = `Fuzzy Meeting ${Date.now()}`;
+    await page.fill('[data-testid="poll-title-input"]', pollTitle);
     
     // Select "Flexible Windows" mode
     await page.click('text=Flexible Windows');
@@ -27,7 +28,7 @@ test.describe('Fuzzy Scheduling', () => {
     
     // Wait for navigation to poll page
     await expect(page).toHaveURL(/\/poll\/[a-zA-Z0-9]+/);
-    await expect(page.locator('[data-testid="poll-title"]')).toHaveText('Fuzzy Meeting');
+    await expect(page.locator('[data-testid="poll-title"]')).toHaveText(pollTitle);
     
     // 2. Vote on the poll
     await page.fill('[data-testid="participant-name-input"]', 'Test Participant');

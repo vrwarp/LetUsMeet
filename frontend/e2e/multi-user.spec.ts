@@ -11,7 +11,8 @@ test.describe('Multi-user Flows', () => {
     
     await organizerPage.getByTestId('organizer-name-input').fill('Test Organizer');
     await organizerPage.getByTestId('organizer-email-input').fill('organizer@example.com');
-    await organizerPage.getByTestId('poll-title-input').fill('Multi-user Sync');
+    const pollTitle = `Multi-user Sync ${Date.now()}`;
+    await organizerPage.getByTestId('poll-title-input').fill(pollTitle);
     
     const addBtn = organizerPage.getByTestId('add-slot-btn');
     await expect(addBtn).toBeEnabled();
@@ -40,7 +41,7 @@ test.describe('Multi-user Flows', () => {
     await p1Page.goto(pollUrl);
     await p1Page.waitForTimeout(2000);
     await expect(p1Page.locator('text=Loading poll details...')).not.toBeVisible({ timeout: 30000 });
-    await expect(p1Page.getByTestId('poll-title')).toContainText('Multi-user Sync');
+    await expect(p1Page.getByTestId('poll-title')).toContainText(pollTitle);
     
     const p1SlotCards = p1Page.getByTestId('slot-card');
     await p1SlotCards.nth(0).click(); // YES

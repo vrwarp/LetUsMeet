@@ -21,7 +21,7 @@ test.describe('Accessibility Audits', () => {
     await page.waitForTimeout(2000);
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
-    await page.getByTestId('poll-title-input').fill('A11y Poll');
+    await page.getByTestId('poll-title-input').fill(`A11y Poll ${Date.now()}`);
 
     const submitBtn = page.getByTestId('create-submit-btn');
     await expect(submitBtn).toBeEnabled();
@@ -43,7 +43,7 @@ test.describe('Accessibility Audits', () => {
     await page.waitForTimeout(2000);
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
-    await page.getByTestId('poll-title-input').fill('A11y Poll Results');
+    await page.getByTestId('poll-title-input').fill(`A11y Poll Results ${Date.now()}`);
 
     const submitBtn = page.getByTestId('create-submit-btn');
     await expect(submitBtn).toBeEnabled();

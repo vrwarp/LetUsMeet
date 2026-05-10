@@ -70,7 +70,7 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
           {timeRange}
         </span>
         {subtext && (
-          <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-400' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-dark')}`}>
+          <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-600' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-dark')}`}>
             {subtext}
           </span>
         )}

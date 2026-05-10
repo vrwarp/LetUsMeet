@@ -420,7 +420,7 @@ export default function VotePollPage() {
                     ? "You've already submitted a response" 
                     : `You've submitted ${userVotes.length} responses`}
                 </h2>
-                <p className="text-neutral-500 text-xs mt-1 font-medium">
+                <p className="text-neutral-600 text-xs mt-1 font-medium">
                   {editingVoteId 
                     ? "Editing your previous response. You can update it or start fresh." 
                     : "Submitting a new response. You can also edit your existing ones below."}
@@ -454,7 +454,7 @@ export default function VotePollPage() {
           
           {userVotes.length > 1 && (
             <div className="mt-5 pt-5 border-t border-indigo-100">
-              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-3">Switch between your responses:</p>
+              <p className="text-[10px] font-bold text-neutral-600 uppercase tracking-wider mb-3">Switch between your responses:</p>
               <div className="flex flex-wrap gap-2">
                 {userVotes.map((v) => (
                   <button

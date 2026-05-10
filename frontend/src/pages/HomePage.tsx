@@ -15,7 +15,7 @@ export default function HomePage() {
             Let everyone <br />
             <span className="text-brand-gradient">meet.</span>
           </h1>
-          <p className="text-xl sm:text-2xl font-medium text-brand-charcoal/40 tracking-tight max-w-2xl mx-auto">
+          <p className="text-xl sm:text-2xl font-medium text-brand-charcoal/60 tracking-tight max-w-2xl mx-auto">
             The simplest way to coordinate with groups, <br className="hidden sm:block" /> friends, and teams.
           </p>
         </div>

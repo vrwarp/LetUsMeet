@@ -55,7 +55,7 @@ export default function DashboardPage() {
           <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4">
             <Calendar size={32} />
           </div>
-          <h3 className="text-xl font-bold text-neutral-800 mb-2">No polls yet</h3>
+          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls yet</h2>
           <p className="text-neutral-500 max-w-md mx-auto mb-6">
             You haven't created any polls yet. Get started by creating your first poll to find the perfect meeting time.
           </p>
@@ -76,7 +76,7 @@ export default function DashboardPage() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-xl sm:text-2xl font-black text-neutral-800 tracking-tight group-hover:text-brand-green transition-colors">{poll.title}</h3>
+                    <h2 className="text-xl sm:text-2xl font-black text-neutral-800 tracking-tight group-hover:text-brand-green transition-colors">{poll.title}</h2>
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       poll.status === "OPEN" 
                         ? "bg-brand-green-light text-brand-green-dark" 
