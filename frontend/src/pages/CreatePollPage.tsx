@@ -146,7 +146,7 @@ export default function CreatePollPage() {
   return (
     <div className="max-w-2xl mx-auto py-4 sm:py-8">
       <div className="mb-10">
-        <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">New Meeting Poll</h1>
+        <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Create a Meeting Poll</h1>
         <p className="text-neutral-500">Define the details and suggest some time slots.</p>
       </div>
 

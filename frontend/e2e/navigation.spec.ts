@@ -28,9 +28,9 @@ test.describe('Navigation Flows', () => {
     await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
     // Poll Success -> Results
-    await page.getByRole('link', { name: /See Consensus Results/i }).click();
+    await page.getByTestId('view-results-link').click();
     await page.waitForURL(/\/poll\/[^/]+\/results$/);
-    await expect(page.getByRole('heading', { name: /Participation Matrix/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Availability Grid/i })).toBeVisible();
 
     // Results -> Poll
     await page.getByRole('link', { name: /Back to Poll/i }).click();

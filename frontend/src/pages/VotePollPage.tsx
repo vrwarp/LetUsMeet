@@ -228,7 +228,7 @@ export default function VotePollPage() {
           <div className="flex flex-col gap-4">
             <Link 
               to={`/poll/${pollId}/results`}
-              data-testid="view-results-btn"
+              data-testid="view-results-link"
               className="w-full bg-brand-green text-white font-bold py-4 rounded-2xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 text-center"
             >
               View Group Availability
@@ -293,6 +293,7 @@ export default function VotePollPage() {
           <div className="flex items-center gap-2">
             <Link 
               to={`/poll/${pollId}/results`}
+              data-testid="view-results-link"
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-neutral-600 font-bold text-sm hover:bg-neutral-50 transition-colors shadow-sm"
             >
               <History className="w-4 h-4 text-brand-green" />
@@ -421,8 +422,8 @@ export default function VotePollPage() {
                 </h2>
                 <p className="text-neutral-500 text-xs mt-1 font-medium">
                   {editingVoteId 
-                    ? "Editing your response. You can update it or start fresh." 
-                    : "You can edit your previous response or submit a new one."}
+                    ? "Editing your previous response. You can update it or start fresh." 
+                    : "Submitting a new response. You can also edit your existing ones below."}
                 </p>
               </div>
             </div>
@@ -434,7 +435,7 @@ export default function VotePollPage() {
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 whitespace-nowrap"
                 >
                   <Plus size={16} />
-                  Submit New
+                  Submit New Response
                 </button>
               ) : (
                 userVotes.length > 0 && (

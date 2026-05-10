@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Mail, Send } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Send } from "lucide-react";
 import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll, getPrivateVoteData } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
@@ -236,14 +236,14 @@ export default function ResultsPage() {
       <table data-testid="results-matrix" className="w-full border-collapse min-w-[600px]">
         <thead>
           <tr className="bg-neutral-50 border-b border-neutral-100">
-            <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+            <th className="p-4 text-left font-semibold text-neutral-700 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
               <div className="flex items-center justify-between gap-2">
                 <span>Participants</span>
                 {isOrganizer && (
                   <button 
                     onClick={handleComposeEmail}
                     disabled={isFetchingEmails}
-                    className="p-1.5 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green hover:text-brand-green-dark group relative"
+                    className="p-1.5 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green-dark hover:text-brand-green-darker group relative"
                     title="Email all participants"
                   >
                     {isFetchingEmails ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -261,7 +261,7 @@ export default function ResultsPage() {
                     <div className="text-sm font-bold text-neutral-800">
                       {new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
                     </div>
-                    <div className="text-xs text-neutral-500 font-medium">
+                    <div className="text-xs text-neutral-700 font-bold">
                       {new Date((slot as any).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                     </div>
                   </>
@@ -270,7 +270,7 @@ export default function ResultsPage() {
                     <div className="text-sm font-bold text-neutral-800">
                       {new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
                     </div>
-                    <div className="text-xs text-neutral-500 font-medium">
+                    <div className="text-xs text-neutral-700 font-bold">
                       {(slot as any).label}
                       {(slot as any).time && <span className="block text-[10px] opacity-70">@ {(slot as any).time}</span>}
                     </div>
@@ -302,7 +302,7 @@ export default function ResultsPage() {
                 <div className="flex flex-col">
                   <span className="font-bold text-neutral-800">{vote.participantName}</span>
                   {emails[vote.voteId] && (
-                    <span className="text-[10px] text-neutral-500 font-medium truncate max-w-[120px]">{emails[vote.voteId]}</span>
+                    <span className="text-[10px] text-neutral-700 font-bold truncate max-w-[120px]">{emails[vote.voteId]}</span>
                   )}
                 </div>
               </td>
@@ -310,8 +310,8 @@ export default function ResultsPage() {
                 <td key={slot.id} className={`p-4 text-center transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/20 border-x-2 border-brand-green/10' : ''}`}>
                   <div data-testid={`vote-cell-${idx}-${slot.id}`} className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-lg font-bold shadow-sm ${
                     vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark border border-brand-green/10" :
-                    vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-100 text-amber-700 border border-amber-200" :
-                    "bg-red-50 text-red-400 border border-red-100"
+                    vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-50 text-amber-800 border border-amber-200" :
+                    "bg-red-50 text-red-600 border border-red-100"
                   }`}>
                     {vote.selections[slot.id] === "YES" ? "✓" : vote.selections[slot.id] === "IF_NEED_BE" ? "?" : "×"}
                   </div>
@@ -321,7 +321,7 @@ export default function ResultsPage() {
           ))}
           {votes.length === 0 && (
             <tr>
-              <td colSpan={sortedSlots.length + 1} className="p-12 text-center text-neutral-400 font-medium italic">
+              <td colSpan={sortedSlots.length + 1} className="p-12 text-center text-neutral-600 font-medium italic">
                 No votes have been cast yet.
               </td>
             </tr>
@@ -329,9 +329,9 @@ export default function ResultsPage() {
         </tbody>
         <tfoot className="bg-neutral-50/80 border-t-2 border-neutral-100 font-black">
           <tr>
-            <td className="p-5 text-neutral-600 sticky left-0 bg-neutral-50/80 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase tracking-wider text-xs">Total Yes</td>
+            <td className="p-5 text-neutral-700 sticky left-0 bg-neutral-50/80 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase tracking-wider text-xs font-black">Total Yes</td>
             {sortedSlots.map(slot => (
-              <td key={slot.id} data-testid={`total-yes-${slot.id}`} className={`p-5 text-center text-xl text-brand-green transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/50 border-x-2 border-brand-green/20' : ''}`}>
+              <td key={slot.id} data-testid={`total-yes-${slot.id}`} className={`p-5 text-center text-xl text-brand-green-dark transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/50 border-x-2 border-brand-green/20' : ''}`}>
                 {voteCounts[slot.id]?.YES || 0}
               </td>
             ))}
@@ -388,15 +388,15 @@ export default function ResultsPage() {
       <div className={`bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12 transition-all duration-500 ${poll.status === "FINALIZED" ? "ring-4 ring-brand-green/20" : ""}`}>
         <div className={`px-8 py-10 text-white transition-all duration-700 ${
           poll.status === "FINALIZED" 
-            ? "bg-gradient-to-br from-brand-green-dark via-brand-green to-emerald-500" 
+            ? "bg-gradient-to-br from-brand-green-dark via-brand-green to-brand-green-dark" 
             : "bg-brand-gradient"
         }`}>
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div className="flex-1 min-w-[300px]">
               <div className="flex items-center gap-3 mb-3">
-                <h1 className="text-3xl md:text-5xl font-black tracking-tight">{poll.title}</h1>
+                <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white">{poll.title}</h1>
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-white/80 font-medium">
+              <div className="flex flex-wrap items-center gap-4 text-white font-medium">
                 {poll.location && (
                   <button 
                     onClick={handleCopyAddress}
@@ -413,8 +413,8 @@ export default function ResultsPage() {
                       </div>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] uppercase tracking-wider font-black text-white/50 leading-none">Location</span>
-                          <Copy className="w-3 h-3 text-white/30 group-hover:text-white/60 transition-colors" />
+                          <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none">Location</span>
+                          <Copy className="w-3 h-3 text-white/60 group-hover:text-white transition-colors" />
                         </div>
                         <span className="text-sm font-bold leading-snug break-words">{poll.location}</span>
                       </div>
@@ -426,7 +426,7 @@ export default function ResultsPage() {
                         <CheckCircle2 className="w-4 h-4" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-wider font-black text-white/80 leading-none mb-1">Success</span>
+                        <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none mb-1">Success</span>
                         <span className="text-sm font-bold leading-none text-white whitespace-nowrap">Address Copied to Clipboard!</span>
                       </div>
                     </div>
@@ -439,7 +439,7 @@ export default function ResultsPage() {
                         <CheckCircle2 className="w-4 h-4" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-wider font-black text-white/50 leading-none mb-1.5">Confirmed Participation</span>
+                        <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none mb-1.5">Confirmed Participation</span>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1.5">
                             <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-[10px] font-black">✓</div>
@@ -460,8 +460,8 @@ export default function ResultsPage() {
                         <Users className="w-4 h-4" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-wider font-black text-white/50 leading-none mb-1">Participants</span>
-                        <span className="text-sm font-bold leading-none">{votes.length} people joined</span>
+                        <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none mb-1">Participants</span>
+                        <span className="text-sm font-bold leading-none">{votes.length} participants</span>
                       </div>
                     </>
                   )}
@@ -553,7 +553,7 @@ export default function ResultsPage() {
             </div>
             <button
               onClick={() => setIsMaximized(true)}
-              className="flex items-center justify-center gap-2 p-2.5 sm:px-4 sm:py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl font-bold text-sm transition-all active:scale-95"
+              className="flex items-center justify-center gap-2 p-2.5 sm:px-4 sm:py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl font-bold text-sm transition-all active:scale-95"
               aria-label="Maximize"
             >
               <Maximize2 size={18} />
@@ -571,7 +571,7 @@ export default function ResultsPage() {
           <div className="flex items-center justify-between mb-6 text-white">
             <div>
               <h2 className="text-2xl font-black tracking-tight">{poll.title}</h2>
-              <p className="text-white/60 font-medium">Availability Grid</p>
+              <p className="text-white/80 font-medium">Availability Grid</p>
             </div>
             <button
               onClick={() => setIsMaximized(false)}

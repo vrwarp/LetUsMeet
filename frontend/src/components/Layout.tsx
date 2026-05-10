@@ -22,7 +22,7 @@ export default function Layout() {
               className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white p-2 sm:px-5 sm:py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
             >
               <PlusCircle size={20} />
-              <span className="hidden sm:inline">New Poll</span>
+              <span className="hidden sm:inline">Create Poll</span>
             </Link>
 
             {!loading && (
@@ -48,7 +48,7 @@ export default function Layout() {
                 ) : (
                   <button
                     onClick={signInWithGoogle}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-neutral-500 hover:text-brand-green transition-colors px-3 py-2 rounded-full hover:bg-neutral-100"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 hover:text-brand-green transition-colors px-3 py-2 rounded-full hover:bg-neutral-100"
                   >
                     <LogIn size={18} />
                     <span>Sign in</span>
@@ -63,7 +63,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
-        <div className="max-w-5xl mx-auto px-4 text-center text-sm text-neutral-500 font-medium">
+        <div className="max-w-5xl mx-auto px-4 text-center text-sm text-neutral-600 font-medium">
           <p>© 2026 <span className="text-brand-green font-bold">LetUs</span><span className="text-brand-red font-bold">Meet</span>. Simple group scheduling.</p>
         </div>
       </footer>

@@ -51,7 +51,7 @@ test.describe('Fuzzy Scheduling', () => {
     await expect(page.locator('text=Vote Cast!')).toBeVisible();
     
     // 3. View Results
-    await page.click('[data-testid="view-results-btn"]');
+    await page.click('[data-testid="view-results-link"]');
     await expect(page).toHaveURL(/\/poll\/[a-zA-Z0-9]+\/results/);
     
     // Check matrix for the vote

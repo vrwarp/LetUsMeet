@@ -66,7 +66,7 @@ test.describe('Multi-user Flows', () => {
     await expect(p2Page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
     // 4. View Results
-    await p2Page.getByRole('link', { name: /See Consensus Results/i }).click();
+    await p2Page.getByTestId('view-results-link').click();
     await p2Page.waitForURL(/\/poll\/[^/]+\/results$/);
     
     // Verify matrix
