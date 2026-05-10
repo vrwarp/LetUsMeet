@@ -318,23 +318,17 @@ export default function ResultsPage() {
 
         <div className="p-8">
           <div className="flex items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-brand-green" />
-              <h2 className="text-xl font-bold text-neutral-800 tracking-tight">Availability Grid</h2>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <Info className="w-5 h-5 text-brand-green flex-shrink-0" />
+              <h2 className="text-xl font-bold text-neutral-800 tracking-tight whitespace-nowrap">Availability Grid</h2>
             </div>
             <button
               onClick={() => setIsMaximized(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl font-bold text-sm transition-all active:scale-95 sm:hidden"
+              className="flex items-center justify-center gap-2 p-2.5 sm:px-4 sm:py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl font-bold text-sm transition-all active:scale-95"
+              aria-label="Maximize"
             >
-              <Maximize2 size={16} />
-              Full Screen
-            </button>
-            <button
-              onClick={() => setIsMaximized(true)}
-              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl font-bold text-sm transition-all active:scale-95"
-            >
-              <Maximize2 size={16} />
-              Maximize
+              <Maximize2 size={18} />
+              <span className="hidden sm:inline">Maximize</span>
             </button>
           </div>
 

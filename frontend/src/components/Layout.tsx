@@ -19,10 +19,10 @@ export default function Layout() {
             <Link
               to="/create"
               data-testid="create-poll-btn"
-              className="flex items-center gap-2 text-sm font-bold bg-brand-green text-white px-5 py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95 hidden sm:flex"
+              className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white p-2 sm:px-5 sm:py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-              <PlusCircle size={18} />
-              <span>Create Poll</span>
+              <PlusCircle size={20} />
+              <span className="hidden sm:inline">New Poll</span>
             </Link>
 
             {!loading && (

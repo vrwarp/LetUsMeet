@@ -348,30 +348,32 @@ export default function VotePollPage() {
                 <p className="text-neutral-600 text-sm">Save this link to manage or finalize your poll later.</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full lg:w-auto">
               <input 
                 readOnly 
                 value={adminUrl} 
                 aria-label="Management link"
-                className="bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 flex-1 md:w-64" 
+                className="bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 w-full lg:w-64" 
               />
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(adminUrl);
-                  setShowCopied(true);
-                  setTimeout(() => setShowCopied(false), 3000);
-                }}
-                className="bg-brand-green text-white px-6 py-3 rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap"
-              >
-                Copy Link
-              </button>
-              <Link
-                to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
-                className="bg-white text-brand-green border border-brand-green-light px-6 py-3 rounded-xl font-bold hover:bg-neutral-50 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm"
-              >
-                <Edit3 size={18} />
-                Edit Poll
-              </Link>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(adminUrl);
+                    setShowCopied(true);
+                    setTimeout(() => setShowCopied(false), 3000);
+                  }}
+                  className="bg-brand-green text-white px-5 py-3 rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap flex-1 lg:flex-none text-center"
+                >
+                  Copy Link
+                </button>
+                <Link
+                  to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
+                  className="bg-white text-brand-green border border-brand-green-light px-5 py-3 rounded-xl font-bold hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm flex-1 lg:flex-none"
+                >
+                  <Edit3 size={18} />
+                  Edit
+                </Link>
+              </div>
             </div>
           </div>
         )}
