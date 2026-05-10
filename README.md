@@ -1,16 +1,19 @@
 # LetUsMeet 📅
 
-A high-performance, real-time meeting poll application built with **Vite**, **React**, and **Firebase**.
+A high-performance, real-time meeting poll application built with **Vite**, **React 19**, and **Firebase**. 
 
-## 🚀 Architecture: Classic Firebase (Serverless)
+**LetUsMeet** emphasizes **instant synchronization and real-time collaboration**. As users select their availability, votes are broadcasted live to all participants, eliminating the need for page refreshes and providing a seamless scheduling experience.
 
-This project uses a simplified, client-centric architecture that eliminates the need for complex backend deployments and CORS proxies.
+## 🚀 Architecture: Real-Time Serverless
 
-- **Frontend**: Vite + React 19 + Tailwind CSS (via Vanilla CSS modules).
+This project uses a client-centric architecture that eliminates complex backends, prioritizing real-time data sync and rapid UI updates.
+
+- **Frontend**: Vite + React 19 + Tailwind CSS v4.
 - **Database**: Cloud Firestore (Direct client-side access).
-- **Real-time**: Leverages Firestore `onSnapshot` for instant UI updates across all participants.
+- **Real-Time Sync**: Leverages Firestore `onSnapshot` to instantly push updates to the UI, so organizers and participants see consensus building in real-time.
+- **Accessibility**: Built with inclusive design in mind, ensuring WCAG 2.1 AA compliance across the scheduling and results matrices.
 - **Security**: Robust data validation and authorization via **Firestore Security Rules**.
-- **Auth**: Firebase Anonymous & Google Authentication.
+- **Auth**: Firebase Anonymous & Google Authentication for frictionless participation.
 
 ## 🛠️ Local Development
 
@@ -20,7 +23,7 @@ This project uses a simplified, client-centric architecture that eliminates the 
    ```
 
 2. **Start Development Environment**:
-   This command starts the Vite dev server and the Firebase Emulators (Auth & Firestore) simultaneously.
+   This command concurrently starts the Vite dev server and the Firebase Emulators (Auth, Firestore, Hosting).
    ```bash
    npm run dev
    ```
@@ -31,10 +34,10 @@ This project uses a simplified, client-centric architecture that eliminates the 
 
 ## 🧪 Testing
 
-The project uses **Vitest** for unit testing and the Firebase Emulator for integration tests.
+The project utilizes **Vitest** for unit tests and **Playwright** against Firebase Emulators for full End-to-End (E2E) testing.
 
 ```bash
-# Run all tests
+# Run all tests (Builds frontend, then runs unit + E2E)
 npm test
 
 # Run unit tests only
@@ -46,25 +49,20 @@ npm run test:e2e
 
 ## 📦 Deployment
 
-Deploying the application is now a single-step process.
+Deploying the application is a single-step process utilizing Firebase Hosting.
 
-1. **Build the Frontend**:
-   ```bash
-   npm run build
-   ```
+```bash
+# Builds the frontend and deploys hosting, firestore rules, and auth configuration
+npm run deploy
+```
 
-2. **Deploy to Firebase Hosting / App Hosting**:
-   Since the backend has been decommissioned, you only need to deploy the static assets and security rules.
-   ```bash
-   npx firebase deploy --only hosting,firestore:rules
-   ```
+## 🔐 Security & Access Model
 
-## 🔐 Security Model
-
-We use a "Token-based Organizer" pattern for polls:
-- **Organizer UID**: If the user is logged in, their UID is stored as the owner.
-- **Admin Token**: If the user is a guest, a secure UUID is generated and stored locally. Security rules allow updates if this token is provided in the request data.
-- **Vote Integrity**: Rules ensure that a user can only create or modify their own vote, and only while the poll status is `OPEN`.
+LetUsMeet uses a robust "Token-based Organizer" pattern to securely manage polls:
+- **Organizer UID**: If the user is logged in via Google Auth, their UID is stored as the poll owner.
+- **Admin Token**: If the user is an anonymous guest, a secure UUID is generated and stored locally in their browser. Security rules strictly require this token to allow poll modifications.
+- **Claiming Polls**: Guests can seamlessly claim their anonymous polls by signing in later.
+- **Vote Integrity**: Rules ensure that a user can only create or modify their own vote, and only while the poll status is `OPEN`. Changes are instantly broadcast to all connected clients.
 
 ---
 Built with ❤️ by Antigravity.
