@@ -9,8 +9,8 @@ test.describe('Fuzzy Scheduling', () => {
     await page.fill('[data-testid="organizer-email-input"]', 'organizer@example.com');
     await page.fill('[data-testid="poll-title-input"]', 'Fuzzy Meeting');
     
-    // Select "General blocks" mode
-    await page.click('text=General blocks');
+    // Select "Flexible Windows" mode
+    await page.click('text=Flexible Windows');
     
     // Enter custom label for first slot
     await page.fill('[data-testid="slot-label-0"]', 'Brunch');
@@ -51,12 +51,12 @@ test.describe('Fuzzy Scheduling', () => {
     await expect(page.locator('text=Vote Cast!')).toBeVisible();
     
     // 3. View Results
-    await page.click('[data-testid="view-results-btn"]');
+    await page.click('[data-testid="view-results-link"]');
     await expect(page).toHaveURL(/\/poll\/[a-zA-Z0-9]+\/results/);
     
     // Check matrix for the vote
     const matrix = page.locator('[data-testid="results-matrix"]');
     await expect(matrix).toContainText('Test Participant');
-    await expect(page.locator('[data-testid="total-yes-t1"]')).toHaveText('1');
+    await expect(page.locator('[data-testid^="total-yes-"]').first()).toHaveText('1');
   });
 });

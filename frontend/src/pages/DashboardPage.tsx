@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/firebase";
+import { subscribeToUserPolls } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity } from "lucide-react";
 import type { Poll } from "../types/index";
@@ -12,35 +11,18 @@ export default function DashboardPage() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    async function fetchPolls() {
-      if (!user || user.isAnonymous) {
-        setFetching(false);
-        return;
-      }
-
-      try {
-        const pollsRef = collection(db, "polls");
-        const q = query(
-          pollsRef,
-          where("organizerUid", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const fetchedPolls: Poll[] = [];
-        querySnapshot.forEach((doc) => {
-          fetchedPolls.push(doc.data() as Poll);
-        });
-        setPolls(fetchedPolls);
-      } catch (error) {
-        console.error("Error fetching polls:", error);
-      } finally {
-        setFetching(false);
-      }
+    if (loading || !user || user.isAnonymous) {
+      setFetching(false);
+      return;
     }
 
-    if (!loading) {
-      fetchPolls();
-    }
+    setFetching(true);
+    const unsubscribe = subscribeToUserPolls(user.uid, (fetchedPolls) => {
+      setPolls(fetchedPolls);
+      setFetching(false);
+    });
+
+    return () => unsubscribe();
   }, [user, loading]);
 
   if (loading || fetching) {
@@ -62,18 +44,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-neutral-900">Your Polls</h1>
-          <p className="text-neutral-500 mt-1">Manage and finalize your created polls</p>
-        </div>
-        <Link
-          to="/create"
-          className="btn-primary-green !px-6 !py-2.5 !text-base"
-        >
-          Create New Poll
-        </Link>
+    <div className="max-w-4xl mx-auto py-4 sm:py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Your Polls</h1>
+        <p className="text-neutral-500 mt-1">Manage and finalize your created polls</p>
       </div>
 
       {polls.length === 0 ? (
@@ -93,55 +67,59 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-4 sm:gap-6">
           {polls.map((poll) => (
             <div
               key={poll.pollId}
-              className={`event-card ${poll.status === "OPEN" ? "event-card-green" : "event-card-red"}`}
+              className="bg-white p-5 sm:p-7 rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-xl hover:shadow-brand-green/5 transition-all duration-300 group"
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className={`text-xl font-black ${poll.status === "OPEN" ? "text-brand-green-dark" : "text-brand-red-dark"}`}>{poll.title}</h3>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      poll.status === "OPEN" ? "bg-white text-brand-green-dark" : "bg-white text-brand-red"
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="text-xl sm:text-2xl font-black text-neutral-800 tracking-tight group-hover:text-brand-green transition-colors">{poll.title}</h3>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      poll.status === "OPEN" 
+                        ? "bg-brand-green-light text-brand-green-dark" 
+                        : "bg-red-50 text-red-600"
                     }`}>
                       {poll.status}
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600 font-medium">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={16} />
-                      <span>{new Date(poll.createdAt).toLocaleDateString()}</span>
+                  <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-sm text-neutral-500 font-medium">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={16} className="text-brand-green" />
+                      <span>{new Date(poll.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </div>
                     {poll.location && (
-                      <div className="flex items-center gap-1.5">
-                        <MapPin size={16} />
+                      <div className="flex items-center gap-2">
+                        <MapPin size={16} className="text-brand-green" />
                         <span>{poll.location}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-1.5">
-                      <Activity size={16} />
-                      <span>{poll.schedulingMode}</span>
+                    <div className="flex items-center gap-2">
+                      <Activity size={16} className="text-brand-green" />
+                      <span>{poll.schedulingMode === "EXACT" ? "Exact Time" : "General Blocks"}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full md:w-auto">
                   <Link
                     to={`/poll/${poll.pollId}`}
-                    className="px-4 py-2 bg-white/50 text-neutral-700 rounded-lg font-bold hover:bg-white transition-colors text-sm border border-black/5"
+                    className="flex-1 md:flex-none px-6 py-3 bg-neutral-50 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-100 transition-all text-sm border border-neutral-100 text-center"
                   >
                     View Poll
                   </Link>
                   <Link
                     to={`/poll/${poll.pollId}/results`}
-                    className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-1.5 text-sm shadow-sm ${
-                      poll.status === "OPEN" ? "bg-brand-green text-white hover:bg-brand-green-dark" : "bg-brand-red text-white hover:bg-brand-red-dark"
+                    className={`flex-1 md:flex-none px-6 py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-md shadow-brand-green/10 ${
+                      poll.status === "OPEN" 
+                        ? "bg-brand-green text-white hover:bg-brand-green-dark" 
+                        : "bg-brand-red text-white hover:bg-brand-red-dark"
                     }`}
                   >
                     <ExternalLink size={16} />
-                    Results & Finalize
+                    Results
                   </Link>
                 </div>
               </div>

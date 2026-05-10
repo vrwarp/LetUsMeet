@@ -24,6 +24,6 @@ describe('HomePage', () => {
     
     expect(screen.getByTestId('feature-frictionless')).toBeInTheDocument();
     expect(screen.getByTestId('feature-trinary')).toBeInTheDocument();
-    expect(screen.getByTestId('feature-sync')).toBeInTheDocument();
+    expect(screen.getByTestId('feature-realtime')).toBeInTheDocument();
   });
 });

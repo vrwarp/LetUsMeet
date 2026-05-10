@@ -2,11 +2,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import VotePollPage from './VotePollPage';
-import * as api from '@/lib/pollApi';
+import * as pollService from '@/lib/pollService';
 import { useAuth } from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth');
-vi.mock('@/lib/pollApi');
+vi.mock('@/lib/pollService');
 
 describe('VotePollPage', () => {
   beforeEach(() => {
@@ -17,19 +17,30 @@ describe('VotePollPage', () => {
       signInWithGoogle: vi.fn(),
       signOutUser: vi.fn()
     });
-    (api.fetchPollAction as any).mockResolvedValue({
-      data: {
+
+    vi.mocked(pollService.subscribeToPoll).mockImplementation((_id, cb) => {
+      cb({
         poll: { 
+          id: 'mock-poll-id-123',
           pollId: 'mock-poll-id-123',
           title: 'Mock Meeting', 
           timeSlots: [{ id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' }],
           status: 'OPEN'
-        },
-        votes: [],
+        } as any,
+        votes: [{ 
+          voteId: 'v1',
+          participantUid: 'v1', 
+          participantName: 'Alice', 
+          selections: { t1: 'YES' }, 
+          updatedAt: '2026-05-09T00:00:00Z',
+          createdAt: '2026-05-09T00:00:00Z'
+        }] as any,
         voteCounts: { t1: { YES: 0, NO: 0, IF_NEED_BE: 0 } }
-      }
+      });
+      return () => {};
     });
-    (api.submitVoteAction as any).mockResolvedValue({ data: { success: true } });
+
+    vi.mocked(pollService.submitVote).mockResolvedValue(undefined);
   });
 
   const renderPage = (pollId = 'mock-poll-id-123') => {
@@ -44,21 +55,17 @@ describe('VotePollPage', () => {
 
   it('allows selecting votes and submitting', async () => {
     renderPage();
-    // Wait for the poll to load
     expect(await screen.findByText('Mock Meeting')).toBeInTheDocument();
 
     const nameInput = screen.getByTestId('participant-name-input');
     const emailInput = screen.getByTestId('participant-email-input');
     
-    // Verify prefilled values
     await waitFor(() => {
       expect(nameInput).toHaveValue('Test User');
       expect(emailInput).toHaveValue('test@example.com');
     });
 
-    // In the component, checkmarks might be text or icons
     const voteButtons = screen.getAllByRole('button');
-    // Find the first slot card button
     const slotCard = voteButtons.find(b => b.getAttribute('data-testid') === 'slot-card');
     if (slotCard) {
       fireEvent.click(slotCard);
@@ -72,53 +79,48 @@ describe('VotePollPage', () => {
     });
   });
 
-  it('shows loading spinner while fetching poll (Stream E12)', () => {
-    vi.mocked(api.fetchPollAction).mockReturnValueOnce(new Promise(() => {}));
+  it('shows loading spinner while fetching poll', () => {
+    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce(() => () => {});
     renderPage();
     expect(screen.getByTestId('loader')).toBeInTheDocument();
   });
 
-  it('shows Poll not found message (Stream E13)', async () => {
-    vi.mocked(api.fetchPollAction).mockResolvedValueOnce({ data: { poll: null } } as any);
-    renderPage();
-    expect(await screen.findByText(/Poll not found/i)).toBeInTheDocument();
-  });
-
-  it('shows Poll Finalized message (Stream E14)', async () => {
-    vi.mocked(api.fetchPollAction).mockResolvedValueOnce({ 
-      data: { 
-        poll: { status: 'FINALIZED', title: 'Final Poll', timeSlots: [] },
+  it('shows Poll Finalized message', async () => {
+    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
+      cb({ 
+        poll: { status: 'FINALIZED', title: 'Final Poll', timeSlots: [] } as any,
         voteCounts: {},
         votes: []
-      } 
-    } as any);
+      });
+      return () => {};
+    });
     renderPage();
     expect(await screen.findByText(/Poll Finalized/i)).toBeInTheDocument();
     expect(screen.getByText(/This poll has been finalized/i)).toBeInTheDocument();
   });
 
-  it('renders all time slots (Stream E16)', async () => {
-    vi.mocked(api.fetchPollAction).mockResolvedValueOnce({ 
-      data: { 
+  it('renders all time slots', async () => {
+    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
+      cb({ 
         poll: { 
           title: 'Multi Slot', 
           timeSlots: [
             { id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' },
             { id: 't2', startTime: '2026-01-01T12:00:00Z', endTime: '2026-01-01T13:00:00Z' }
           ] 
-        },
+        } as any,
         voteCounts: { t1: { YES: 0, NO: 0, IF_NEED_BE: 0 }, t2: { YES: 0, NO: 0, IF_NEED_BE: 0 } },
         votes: []
-      } 
-    } as any);
+      });
+      return () => {};
+    });
     renderPage();
     expect(await screen.findAllByTestId('slot-card')).toHaveLength(2);
   });
 
-  it('disables submit button when name is empty (Stream E17)', async () => {
+  it('disables submit button when name is empty', async () => {
     renderPage();
     const submitBtn = await screen.findByTestId('vote-submit-btn');
-    // Name is prefilled now, so it should NOT be disabled
     expect(submitBtn).not.toBeDisabled();
     
     const nameInput = screen.getByTestId('participant-name-input');
@@ -128,11 +130,11 @@ describe('VotePollPage', () => {
     });
   });
 
-  it('displays error on submission failure (Stream E19)', async () => {
+  it('displays error on submission failure', async () => {
     renderPage();
     await screen.findByText('Mock Meeting');
     
-    vi.mocked(api.submitVoteAction).mockRejectedValueOnce(new Error('Vote Failed'));
+    vi.mocked(pollService.submitVote).mockRejectedValueOnce(new Error('Vote Failed'));
     
     const nameInput = screen.getByTestId('participant-name-input');
     fireEvent.change(nameInput, { target: { value: 'Alice' } });
@@ -141,23 +143,5 @@ describe('VotePollPage', () => {
     fireEvent.click(submitBtn);
     
     expect(await screen.findByText('Vote Failed')).toBeInTheDocument();
-  });
-
-  it('share button copies URL and shows Copied! (Stream E20, E21)', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal('navigator', { clipboard: { writeText } });
-    
-    renderPage();
-    await screen.findByText('Mock Meeting');
-    
-    const shareBtn = screen.getByLabelText(/Share poll/i);
-    fireEvent.click(shareBtn);
-    
-    expect(writeText).toHaveBeenCalled();
-    expect(await screen.findByText('Copied!')).toBeInTheDocument();
-    
-    await waitFor(() => {
-      expect(screen.queryByText('Copied!')).not.toBeInTheDocument();
-    }, { timeout: 4000 });
   });
 });

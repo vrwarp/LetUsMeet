@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { initializeFirestore, connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   projectId: "letusmeet-6f4e1",
@@ -15,12 +14,23 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const functions = getFunctions(app, "us-central1");
+let dbInstance;
+try {
+  dbInstance = initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true,
+  });
+} catch (e) {
+  dbInstance = getFirestore(app);
+}
 
-if (import.meta.env.DEV) {
+export const db = dbInstance;
+
+// Connect to emulators if in development OR if running on localhost (common for E2E tests)
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+if (import.meta.env.DEV || isLocalhost) {
   console.log("🔥 Connecting to Firebase Emulators...");
   connectAuthEmulator(auth, "http://127.0.0.1:9099");
   connectFirestoreEmulator(db, "127.0.0.1", 8081);
-  connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 }

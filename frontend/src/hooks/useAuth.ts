@@ -9,17 +9,28 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    // E2E Test Helper: Check for a mock user in localStorage
+    const testUserStr = localStorage.getItem("testUser");
+    if (testUserStr) {
+      try {
+        const testUser = JSON.parse(testUserStr);
+        setUser(testUser as User);
+        setLoading(false);
+        return;
+      } catch (e) {
+        console.error("Failed to parse testUser", e);
+      }
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         setLoading(false);
       } else {
-        try {
-          await signInAnonymously(auth);
-        } catch (error) {
+        signInAnonymously(auth).catch((error) => {
           console.error("Anonymous auth failed", error);
           setLoading(false);
-        }
+        });
       }
     });
 
@@ -28,24 +39,14 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
-    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-
     try {
       const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      const refreshToken = credential?.idToken; // In a real app we might need a different flow for refresh token
 
-      if (token && result.user) {
+      if (result.user) {
         await setDoc(doc(db, "users", result.user.uid), {
           uid: result.user.uid,
           email: result.user.email,
           displayName: result.user.displayName,
-          googleTokens: {
-            accessToken: token,
-            refreshToken: refreshToken || null,
-          },
           createdAt: new Date().toISOString(),
         }, { merge: true });
       }

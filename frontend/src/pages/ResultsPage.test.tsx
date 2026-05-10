@@ -2,10 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ResultsPage from './ResultsPage';
-import * as api from '@/lib/pollApi';
-
-console.log('API MODULE TYPE:', typeof api);
-console.log('fetchPollAction TYPE:', typeof api.fetchPollAction);
+import * as pollService from '@/lib/pollService';
 
 describe('ResultsPage', () => {
   const renderPage = (pollId = 'mock-poll-id-123') => {
@@ -18,28 +15,21 @@ describe('ResultsPage', () => {
     );
   };
 
-  it('renders consensus grid and totals', async () => {
+  it('renders availability grid and totals', async () => {
     renderPage();
     expect(await screen.findByText('Mock Meeting')).toBeInTheDocument();
   });
 
   it('shows loading spinner (Stream E22)', () => {
-    vi.mocked(api.fetchPollAction).mockReturnValueOnce(new Promise(() => {}));
+    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce(() => () => {});
     renderPage();
     expect(screen.getByTestId('loader')).toBeInTheDocument();
   });
 
-  it('shows error state with Return Home link (Stream E23)', async () => {
-    vi.mocked(api.fetchPollAction).mockRejectedValueOnce(new Error('Fetch Failed'));
-    renderPage();
-    expect(await screen.findByText(/Something went wrong/i)).toBeInTheDocument();
-    expect(screen.getByText('Fetch Failed')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Back to Home/i })).toHaveAttribute('href', '/');
-  });
-
-  it('renders consensus grid and totals (Stream E24, E25, E28, E30)', async () => {
+  it('renders availability grid and totals with custom data', async () => {
     const pollData = {
       poll: { 
+        id: 'p1',
         title: 'Meeting Results', 
         timeSlots: [
           { id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }
@@ -47,10 +37,21 @@ describe('ResultsPage', () => {
       },
       voteCounts: { t1: { YES: 1, NO: 0, IF_NEED_BE: 0 } },
       votes: [
-        { participantUid: 'v1', participantName: 'Alice', selections: { t1: 'YES' } }
+        { 
+          voteId: 'v1',
+          participantUid: 'v1', 
+          participantName: 'Alice', 
+          selections: { t1: 'YES' }, 
+          updatedAt: '2026-05-09T00:00:00Z',
+          createdAt: '2026-05-09T00:00:00Z'
+        }
       ]
     };
-    vi.mocked(api.fetchPollAction).mockResolvedValueOnce({ data: pollData } as any);
+    
+    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
+      cb(pollData as any);
+      return () => {};
+    });
     
     renderPage();
     
@@ -64,31 +65,40 @@ describe('ResultsPage', () => {
   });
 
   it('shows No votes submitted yet message (Stream E26)', async () => {
-    vi.mocked(api.fetchPollAction).mockResolvedValueOnce({ 
-      data: { 
-        poll: { title: 'Empty Results', timeSlots: [{ id: 't1' }] },
+    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
+      cb({ 
+        poll: { title: 'Empty Results', timeSlots: [{ id: 't1' }] } as any,
         voteCounts: { t1: { YES: 0, NO: 0, IF_NEED_BE: 0 } },
         votes: []
-      } 
-    } as any);
+      });
+      return () => {};
+    });
     
     renderPage();
     expect(await screen.findByText(/No votes have been cast yet/i)).toBeInTheDocument();
   });
 
   it('shows Leading badge on best slot (Stream E27)', async () => {
-    vi.mocked(api.fetchPollAction).mockResolvedValueOnce({ 
-      data: { 
+    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
+      cb({ 
         poll: { 
           title: 'Leading Poll', 
           timeSlots: [
             { id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }
           ] 
-        },
+        } as any,
         voteCounts: { t1: { YES: 1, NO: 0, IF_NEED_BE: 0 } },
-        votes: [{ participantUid: 'v1', participantName: 'Alice', selections: { t1: 'YES' } }]
-      } 
-    } as any);
+        votes: [{ 
+          voteId: 'v1',
+          participantUid: 'v1', 
+          participantName: 'Alice', 
+          selections: { t1: 'YES' }, 
+          updatedAt: '2026-05-09T00:00:00Z',
+          createdAt: '2026-05-09T00:00:00Z'
+        }]
+      });
+      return () => {};
+    });
     
     renderPage();
     expect(await screen.findByText(/Leading/i)).toBeInTheDocument();

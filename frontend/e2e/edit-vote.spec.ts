@@ -4,27 +4,39 @@ test.describe('Vote Editing and Multiple Responses', () => {
   test('allows a user to edit their vote and submit a second one', async ({ page }) => {
     // 1. Create a poll
     await page.goto('/create');
+    await page.waitForTimeout(2000);
+
     await page.getByTestId('organizer-name-input').fill('E2E Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@e2e.com');
     await page.getByTestId('poll-title-input').fill('E2E Edit Test Poll');
-    await page.getByTestId('add-slot-btn').click();
-    await page.getByTestId('create-submit-btn').click();
-    
+
+    const addSlotBtn = page.getByTestId('add-slot-btn');
+    await expect(addSlotBtn).toBeEnabled();
+    await addSlotBtn.click();
+
+    const submitBtn = page.getByTestId('create-submit-btn');
+    await expect(submitBtn).toBeEnabled();
+    await submitBtn.click();
+
     await page.waitForURL(/\/poll\/[^/]+$/);
+    await page.waitForTimeout(500);
+    await expect(page.locator('text=Loading poll details...')).not.toBeVisible();
     const pollUrl = page.url();
 
     // 2. Initial Vote
     await page.getByTestId('slot-card').nth(0).click(); // NO -> YES
     await page.getByTestId('participant-name-input').fill('E2E Voter');
     await page.getByTestId('vote-submit-btn').click();
-    
+
     // Wait for success screen
     await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
     // 3. Navigate away and come back (simulate "going directly to the poll")
     await page.goto('/');
     await page.goto(pollUrl);
-    
+    await page.waitForTimeout(2000);
+    await expect(page.locator('text=Loading poll details...')).not.toBeVisible();
+
     // Should see the editing banner
     await expect(page.getByText(/Editing your previous response/i)).toBeVisible();
     await expect(page.getByTestId('participant-name-input')).toHaveValue('E2E Voter');
@@ -33,10 +45,10 @@ test.describe('Vote Editing and Multiple Responses', () => {
     // 4. Update the vote
     await page.getByTestId('slot-card').nth(1).click(); // NO -> YES
     await page.getByTestId('vote-submit-btn').click();
-    
+
     // Wait for success (should say updated)
     await expect(page.locator('h2', { hasText: 'Vote Updated!' })).toBeVisible();
-    
+
     // Test "Back to poll" button logic
     await page.getByRole('button', { name: /Back to poll/i }).click();
     await expect(page.getByText(/Editing your previous response/i)).toBeVisible();
@@ -44,15 +56,15 @@ test.describe('Vote Editing and Multiple Responses', () => {
 
     // 5. Submit a second response
     await page.getByRole('button', { name: /Submit New Response/i }).click();
-    
+
     // Form should be cleared (except maybe prefilled name)
     await expect(page.getByText(/Submitting a new response/i)).toBeVisible();
     await expect(page.getByTestId('vote-submit-btn')).toContainText('Submit Your Vote');
-    
+
     await page.getByTestId('slot-card').nth(0).click(); // NO -> YES
     await page.getByTestId('participant-name-input').fill('E2E Voter Second');
     await page.getByTestId('vote-submit-btn').click();
-    
+
     await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
     await page.getByRole('button', { name: /Back to poll/i }).click();
 

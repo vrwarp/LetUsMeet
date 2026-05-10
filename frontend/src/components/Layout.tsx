@@ -1,26 +1,28 @@
 import { Outlet, Link } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import logoImg from "@/assets/logo-transparent.webp";
+import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
+import ScrollToTop from "./ScrollToTop";
 
 export default function Layout() {
   const { user, loading, signInWithGoogle, signOutUser } = useAuth();
 
   return (
     <div className="min-h-screen bg-neutral-50 text-brand-charcoal font-sans flex flex-col">
+      <ScrollToTop />
       <header className="bg-white border-b border-neutral-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
-            <img src={logoImg} alt="LetUsMeet" className="h-14 w-auto transition-transform group-hover:scale-105" />
+            <img src={logoImg} alt="LetUsMeet" className="h-10 sm:h-14 w-auto transition-transform group-hover:scale-105" />
           </Link>
           <nav className="flex items-center gap-4 sm:gap-6">
             <Link
               to="/create"
               data-testid="create-poll-btn"
-              className="flex items-center gap-2 text-sm font-bold bg-brand-green text-white px-5 py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95 hidden sm:flex"
+              className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white p-2 sm:px-5 sm:py-2.5 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-              <PlusCircle size={18} />
-              <span>Create Poll</span>
+              <PlusCircle size={20} />
+              <span className="hidden sm:inline">Create Poll</span>
             </Link>
 
             {!loading && (
@@ -46,7 +48,7 @@ export default function Layout() {
                 ) : (
                   <button
                     onClick={signInWithGoogle}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-neutral-500 hover:text-brand-green transition-colors px-3 py-2 rounded-full hover:bg-neutral-100"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 hover:text-brand-green transition-colors px-3 py-2 rounded-full hover:bg-neutral-100"
                   >
                     <LogIn size={18} />
                     <span>Sign in</span>
@@ -57,11 +59,11 @@ export default function Layout() {
           </nav>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl mx-auto px-4 py-8 w-full">
+      <main className="flex-1 max-w-5xl mx-auto px-4 py-4 sm:py-8 w-full">
         <Outlet />
       </main>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
-        <div className="max-w-5xl mx-auto px-4 text-center text-sm text-neutral-500 font-medium">
+        <div className="max-w-5xl mx-auto px-4 text-center text-sm text-neutral-600 font-medium">
           <p>© 2026 <span className="text-brand-green font-bold">LetUs</span><span className="text-brand-red font-bold">Meet</span>. Simple group scheduling.</p>
         </div>
       </footer>

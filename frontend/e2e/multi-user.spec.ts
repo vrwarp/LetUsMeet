@@ -7,13 +7,23 @@ test.describe('Multi-user Flows', () => {
     const organizerPage = await organizerContext.newPage();
     
     await organizerPage.goto('/create');
+    await organizerPage.waitForTimeout(2000);
+    
     await organizerPage.getByTestId('organizer-name-input').fill('Test Organizer');
     await organizerPage.getByTestId('organizer-email-input').fill('organizer@example.com');
     await organizerPage.getByTestId('poll-title-input').fill('Multi-user Sync');
-    await organizerPage.getByTestId('add-slot-btn').click(); // Add a second slot
-    await organizerPage.getByTestId('create-submit-btn').click();
+    
+    const addBtn = organizerPage.getByTestId('add-slot-btn');
+    await expect(addBtn).toBeEnabled();
+    await addBtn.click();
+    
+    const submitBtn = organizerPage.getByTestId('create-submit-btn');
+    await expect(submitBtn).toBeEnabled();
+    await submitBtn.click();
     
     await organizerPage.waitForURL(/\/poll\/[^/]+$/);
+    await organizerPage.waitForTimeout(2000);
+    await expect(organizerPage.locator('text=Loading poll details...')).not.toBeVisible({ timeout: 30000 });
     const pollUrl = organizerPage.url();
     
     // Organizer votes
@@ -28,6 +38,8 @@ test.describe('Multi-user Flows', () => {
     const p1Page = await p1Context.newPage();
     
     await p1Page.goto(pollUrl);
+    await p1Page.waitForTimeout(2000);
+    await expect(p1Page.locator('text=Loading poll details...')).not.toBeVisible({ timeout: 30000 });
     await expect(p1Page.getByTestId('poll-title')).toContainText('Multi-user Sync');
     
     const p1SlotCards = p1Page.getByTestId('slot-card');
@@ -44,6 +56,8 @@ test.describe('Multi-user Flows', () => {
     const p2Page = await p2Context.newPage();
     
     await p2Page.goto(pollUrl);
+    await p2Page.waitForTimeout(2000);
+    await expect(p2Page.locator('text=Loading poll details...')).not.toBeVisible({ timeout: 30000 });
     const p2SlotCards = p2Page.getByTestId('slot-card');
     await p2SlotCards.nth(1).click(); // YES
     
@@ -52,7 +66,7 @@ test.describe('Multi-user Flows', () => {
     await expect(p2Page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
     // 4. View Results
-    await p2Page.getByRole('link', { name: /See Consensus Results/i }).click();
+    await p2Page.getByTestId('view-results-link').click();
     await p2Page.waitForURL(/\/poll\/[^/]+\/results$/);
     
     // Verify matrix

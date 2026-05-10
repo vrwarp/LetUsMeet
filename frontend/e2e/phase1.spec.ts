@@ -54,7 +54,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
     await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
     // --- 4. View Results Page ---
-    await page.getByTestId('view-results-btn').click();
+    await page.getByTestId('view-results-link').click();
     await page.waitForURL(/\/poll\/[^/]+\/results$/);
 
     // Check results table
