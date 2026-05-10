@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy } from "lucide-react";
 import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
@@ -22,6 +22,7 @@ export default function ResultsPage() {
   const [pollError, setPollError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [showAddressCopied, setShowAddressCopied] = useState(false);
 
   useEffect(() => {
     if (!pollId) return;
@@ -140,6 +141,13 @@ export default function ResultsPage() {
     } finally {
       setIsClaiming(false);
     }
+  };
+
+  const handleCopyAddress = () => {
+    if (!poll?.location) return;
+    navigator.clipboard.writeText(poll.location);
+    setShowAddressCopied(true);
+    setTimeout(() => setShowAddressCopied(false), 2000);
   };
 
 
@@ -287,38 +295,74 @@ export default function ResultsPage() {
             <div className="flex-1 min-w-[300px]">
               <div className="flex items-center gap-3 mb-3">
                 <h1 className="text-3xl md:text-5xl font-black tracking-tight">{poll.title}</h1>
-                {poll.status === "FINALIZED" && (
-                  <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold border border-white/30 animate-in zoom-in duration-500">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                    CONFIRMED
-                  </div>
-                )}
               </div>
               <div className="flex flex-wrap items-center gap-4 text-white/80 font-medium">
                 {poll.location && (
-                  <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
-                    <MapPin className="w-4 h-4" />
-                    <span>{poll.location}</span>
-                  </div>
+                  <button 
+                    onClick={handleCopyAddress}
+                    className={`relative flex items-start gap-3 transition-all max-w-md group active:scale-[0.98] text-left px-4 py-3 rounded-2xl border overflow-hidden min-h-[72px] ${
+                      showAddressCopied 
+                        ? 'bg-brand-green border-brand-green shadow-lg shadow-brand-green/20' 
+                        : 'bg-black/10 hover:bg-black/20 backdrop-blur-md border-white/10'
+                    }`}
+                  >
+                    {/* Original Content */}
+                    <div className={`flex items-start gap-3 transition-all duration-300 ${showAddressCopied ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                      <div className="mt-1 p-2 bg-white/10 rounded-xl text-white group-hover:scale-110 transition-transform flex-shrink-0">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] uppercase tracking-wider font-black text-white/50 leading-none">Location</span>
+                          <Copy className="w-3 h-3 text-white/30 group-hover:text-white/60 transition-colors" />
+                        </div>
+                        <span className="text-sm font-bold leading-snug break-words">{poll.location}</span>
+                      </div>
+                    </div>
+
+                    {/* Success Content Overlay */}
+                    <div className={`absolute inset-0 flex items-center gap-3 px-4 py-3 transition-all duration-300 ${showAddressCopied ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
+                      <div className="p-2 bg-white rounded-xl text-brand-green shadow-sm">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase tracking-wider font-black text-white/80 leading-none mb-1">Success</span>
+                        <span className="text-sm font-bold leading-none text-white whitespace-nowrap">Address Copied to Clipboard!</span>
+                      </div>
+                    </div>
+                  </button>
                 )}
-                <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
+                <div className="flex items-start gap-3 bg-black/10 hover:bg-black/20 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 transition-all group">
                   {poll.status === "FINALIZED" && poll.finalizedSlotId ? (
                     <>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-[10px] font-black shadow-inner shadow-black/5">✓</div>
-                        <span className="text-xs font-bold">{voteCounts[poll.finalizedSlotId]?.YES || 0} yes</span>
+                      <div className="mt-1 p-2 bg-white/10 rounded-xl text-white group-hover:scale-110 transition-transform">
+                        <CheckCircle2 className="w-4 h-4" />
                       </div>
-                      {voteCounts[poll.finalizedSlotId]?.IF_NEED_BE > 0 && (
-                        <div className="flex items-center gap-1.5 border-l border-white/20 pl-2">
-                          <div className="w-5 h-5 rounded-md bg-white/10 flex items-center justify-center text-[10px] font-black shadow-inner shadow-black/5 text-white/80">?</div>
-                          <span className="text-xs font-bold">{voteCounts[poll.finalizedSlotId].IF_NEED_BE} if need be</span>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase tracking-wider font-black text-white/50 leading-none mb-1.5">Confirmed Participation</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-[10px] font-black">✓</div>
+                            <span className="text-sm font-bold leading-none">{voteCounts[poll.finalizedSlotId]?.YES || 0} yes</span>
+                          </div>
+                          {voteCounts[poll.finalizedSlotId]?.IF_NEED_BE > 0 && (
+                            <div className="flex items-center gap-1.5 border-l border-white/20 pl-3">
+                              <div className="w-5 h-5 rounded-md bg-white/10 flex items-center justify-center text-[10px] font-black text-white/80">?</div>
+                              <span className="text-sm font-bold leading-none">{voteCounts[poll.finalizedSlotId].IF_NEED_BE} if need be</span>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </>
                   ) : (
                     <>
-                      <Users className="w-4 h-4" />
-                      <span className="text-xs font-bold">{votes.length} participants</span>
+                      <div className="mt-1 p-2 bg-white/10 rounded-xl text-white group-hover:scale-110 transition-transform">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase tracking-wider font-black text-white/50 leading-none mb-1">Participants</span>
+                        <span className="text-sm font-bold leading-none">{votes.length} people joined</span>
+                      </div>
                     </>
                   )}
                 </div>
