@@ -20,9 +20,7 @@ module.exports = {
   ignorePatterns: [
     "/lib/**/*", // Ignore built files.
     "/generated/**/*", // Ignore generated files.
-    "/coverage/**/*", // Ignore coverage reports.
   ],
-
   plugins: [
     "@typescript-eslint",
     "import",
@@ -31,13 +29,5 @@ module.exports = {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
     "indent": ["error", 2],
-    "max-len": ["error", { "code": 120 }],
-    "object-curly-spacing": ["error", "always"],
-    "valid-jsdoc": 0,
-    "require-jsdoc": 0,
-    "@typescript-eslint/no-empty-function": 0,
-    "@typescript-eslint/no-explicit-any": "warn",
   },
-
-
 };

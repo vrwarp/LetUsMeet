@@ -1,5 +1,6 @@
 import { createPollSchema, finalizePollSchema, updatePollSchema } from "./validators.js";
-import { FinalizePollRequest, CreatePollRequest, Poll, TimeSlot, UpdatePollRequest } from "./types.js";
+import { FinalizePollRequest, ExactTimeSlot, CreatePollRequest, Poll, TimeSlot, UpdatePollRequest } from "./types.js";
+import { google } from "googleapis";
 import * as crypto from "crypto";
 import * as functions from "firebase-functions/v2";
 import { getFirestore } from "firebase-admin/firestore";
@@ -7,48 +8,45 @@ export const createPollHandler = async (request: functions.https.CallableRequest
   console.log("createPoll triggered", { data: request.data, auth: request.auth?.uid });
   try {
   // 1. Auth is optional
-    const organizerUid = request.auth?.uid;
+  const organizerUid = request.auth?.uid;
 
-    // 2. Parse & validate body
-    const validation = createPollSchema.safeParse(request.data);
-    if (!validation.success) {
-      throw new functions.https.HttpsError("invalid-argument", validation.error.message);
-    }
+  // 2. Parse & validate body
+  const validation = createPollSchema.safeParse(request.data);
+  if (!validation.success) {
+    throw new functions.https.HttpsError("invalid-argument", validation.error.message);
+  }
 
-    const {
-      title, description, location, schedulingMode,
-      timeSlots: rawSlots, organizerName, organizerEmail,
-    } = validation.data;
+  const { title, description, location, schedulingMode, timeSlots: rawSlots, organizerName, organizerEmail } = validation.data;
 
-    // 3. Generate sequential IDs for time slots
-    const timeSlots: TimeSlot[] = rawSlots.map((slot, index) => ({
-      ...slot,
-      id: `t${index + 1}`,
-    }));
+  // 3. Generate sequential IDs for time slots
+  const timeSlots: TimeSlot[] = rawSlots.map((slot, index) => ({
+    ...slot,
+    id: `t${index + 1}`,
+  }));
 
-    // 4. Generate admin token
-    const adminToken = crypto.randomUUID();
+  // 4. Generate admin token
+  const adminToken = crypto.randomUUID();
 
-    // 5. Create poll document
-    const pollRef = getFirestore().collection("polls").doc();
-    const poll: Poll = {
-      pollId: pollRef.id,
-      organizerUid: organizerUid || null,
-      organizerName,
-      organizerEmail,
-      adminToken,
-      title,
-      description: description || "",
-      location: location || "",
-      schedulingMode,
-      timeSlots,
-      status: "OPEN",
-      createdAt: new Date().toISOString(),
-    };
+  // 5. Create poll document
+  const pollRef = getFirestore().collection("polls").doc();
+  const poll: Poll = {
+    pollId: pollRef.id,
+    organizerUid: organizerUid || null,
+    organizerName,
+    organizerEmail,
+    adminToken,
+    title,
+    description: description || "",
+    location: location || "",
+    schedulingMode,
+    timeSlots,
+    status: "OPEN",
+    createdAt: new Date().toISOString(),
+  };
 
-    await pollRef.set(poll);
+  await pollRef.set(poll);
 
-    return { pollId: pollRef.id, adminToken };
+  return { pollId: pollRef.id, adminToken };
   } catch (error: any) {
     if (error instanceof functions.https.HttpsError) {
       throw error;
@@ -58,15 +56,12 @@ export const createPollHandler = async (request: functions.https.CallableRequest
   }
 };
 
-export const createPoll = functions.https.onCall<CreatePollRequest>(
-  { cors: true, invoker: "public" },
-  createPollHandler
-);
+export const createPoll = functions.https.onCall<CreatePollRequest>(createPollHandler);
 
 export const getPollHandler = async (request: functions.https.CallableRequest<{ pollId: string }>) => {
   const { pollId } = request.data;
   console.log(`getPoll triggered for pollId: ${pollId}`);
-
+  
   if (!pollId) {
     throw new functions.https.HttpsError("invalid-argument", "pollId is required.");
   }
@@ -80,15 +75,15 @@ export const getPollHandler = async (request: functions.https.CallableRequest<{ 
 
   // Fetch votes
   const votesSnapshot = await getFirestore().collection("polls").doc(pollId).collection("votes").get();
-  const votes = votesSnapshot.docs.map((doc) => doc.data());
+  const votes = votesSnapshot.docs.map(doc => doc.data());
 
   // Aggregate vote counts
   const voteCounts: Record<string, { YES: number, NO: number, IF_NEED_BE: number }> = {};
-  pollData.timeSlots.forEach((slot) => {
+  pollData.timeSlots.forEach(slot => {
     voteCounts[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0 };
   });
 
-  votes.forEach((vote) => {
+  votes.forEach(vote => {
     const selections = vote.selections || {};
     Object.entries(selections).forEach(([slotId, value]) => {
       if (voteCounts[slotId]) {
@@ -104,19 +99,13 @@ export const getPollHandler = async (request: functions.https.CallableRequest<{ 
   };
 };
 
-export const getPoll = functions.https.onCall<{ pollId: string }>(
-  { cors: true, invoker: "public" },
-  getPollHandler
-);
+export const getPoll = functions.https.onCall<{ pollId: string }>(getPollHandler);
 
 export const pingHandler = async () => {
   return { pong: true };
 };
 
-export const ping = functions.https.onCall(
-  { cors: true, invoker: "public" },
-  pingHandler
-);
+export const ping = functions.https.onCall(pingHandler);
 
 
 export const finalizePollHandler = async (request: functions.https.CallableRequest<FinalizePollRequest>) => {
@@ -148,7 +137,7 @@ export const finalizePollHandler = async (request: functions.https.CallableReque
   }
 
   // 3. Find selected time slot
-  const selectedSlot = pollData.timeSlots.find((s) => s.id === selectedTimeSlotId);
+  const selectedSlot = pollData.timeSlots.find(s => s.id === selectedTimeSlotId);
   if (!selectedSlot) {
     throw new functions.https.HttpsError("invalid-argument", "Selected time slot is invalid.");
   }
@@ -159,13 +148,68 @@ export const finalizePollHandler = async (request: functions.https.CallableReque
     finalizedSlotId: selectedTimeSlotId,
   });
 
-  return { success: true };
+  // 5. Calendar Integration (Only if EXACT scheduling)
+  let eventId = undefined;
+  if (pollData.schedulingMode === "EXACT") {
+    try {
+      const exactSlot = selectedSlot as ExactTimeSlot;
+
+      // Get User Tokens
+      const userDoc = await db.collection("users").doc(request.auth.uid).get();
+      const userData = userDoc.data();
+
+      if (userData?.googleTokens?.accessToken) {
+        // Fetch votes to get attendees
+        const votesSnapshot = await pollRef.collection("votes").get();
+        const attendees: { email: string }[] = [];
+        votesSnapshot.forEach(doc => {
+          const voteData = doc.data();
+          if (voteData.participantEmail) {
+            const userVote = voteData.selections?.[selectedTimeSlotId];
+            if (userVote === "YES" || userVote === "IF_NEED_BE") {
+              attendees.push({ email: voteData.participantEmail });
+            }
+          }
+        });
+
+        const oauth2Client = new google.auth.OAuth2("client_id", "client_secret", "redirect_uri");
+        oauth2Client.setCredentials({
+          access_token: userData.googleTokens.accessToken,
+          ...(userData.googleTokens.refreshToken ? { refresh_token: userData.googleTokens.refreshToken } : {}),
+        });
+
+        const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+        const event = {
+          summary: pollData.title,
+          location: pollData.location,
+          start: {
+            dateTime: exactSlot.startTime,
+          },
+          end: {
+            dateTime: exactSlot.endTime,
+          },
+          attendees: attendees,
+        };
+
+        const response = await calendar.events.insert({
+          calendarId: "primary",
+          sendUpdates: "all",
+          requestBody: event,
+        });
+
+        eventId = response.data.id;
+      }
+    } catch (error) {
+      console.error("Failed to create Google Calendar event:", error);
+      // We do not throw an error here, the poll is successfully finalized even if calendar sync fails.
+    }
+  }
+
+  return { success: true, eventId };
 };
 
-export const finalizePoll = functions.https.onCall<FinalizePollRequest>(
-  { cors: true, invoker: "public" },
-  finalizePollHandler
-);
+export const finalizePoll = functions.https.onCall<FinalizePollRequest>(finalizePollHandler);
 
 export const updatePollHandler = async (request: functions.https.CallableRequest<UpdatePollRequest>) => {
   console.log("updatePoll triggered", { data: request.data, auth: request.auth?.uid });
@@ -198,11 +242,11 @@ export const updatePollHandler = async (request: functions.https.CallableRequest
     // We need to keep existing IDs for slots that are being updated, and generate new ones for new slots.
     // However, the client should ideally provide IDs for existing ones.
     // The request payload for timeSlots is (CreateTimeSlotPayload & { id?: string })[]
-
+    
     // Find max existing ID to continue sequence if needed
     const existingIds = pollData.timeSlots
-      .map((s) => (s.id && typeof s.id === "string") ? parseInt(s.id.substring(1)) : NaN)
-      .filter((n) => !isNaN(n));
+      .map(s => (s.id && typeof s.id === 'string') ? parseInt(s.id.substring(1)) : NaN)
+      .filter(n => !isNaN(n));
     let nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
 
     const updatedTimeSlots: TimeSlot[] = rawSlots.map((slot) => {
@@ -234,7 +278,4 @@ export const updatePollHandler = async (request: functions.https.CallableRequest
   }
 };
 
-export const updatePoll = functions.https.onCall<UpdatePollRequest>(
-  { cors: true, invoker: "public" },
-  updatePollHandler
-);
+export const updatePoll = functions.https.onCall<UpdatePollRequest>(updatePollHandler);

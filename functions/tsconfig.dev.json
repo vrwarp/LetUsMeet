@@ -1,7 +1,5 @@
 {
   "include": [
-    ".eslintrc.cjs",
-    "vitest.config.ts",
-    "src"
+    ".eslintrc.js"
   ]
 }

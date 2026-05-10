@@ -1,9 +1,7 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail, Clock, X } from "lucide-react";
-import { createPollAction } from "@/lib/pollApi";
+import { createPollAction, getOrganizerCalendarAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
@@ -16,7 +14,7 @@ interface TimeSlotInput {
 }
 
 export default function CreatePollPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [organizerName, setOrganizerName] = useState("");
   const [organizerEmail, setOrganizerEmail] = useState("");
   const [title, setTitle] = useState("");
@@ -30,6 +28,7 @@ export default function CreatePollPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
   const { user } = useAuth();
+  const [busyTimes, setBusyTimes] = useState<{start: string, end: string}[]>([]);
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
@@ -43,6 +42,38 @@ export default function CreatePollPage() {
     }
   }, [user, hasPrefilled]);
 
+  useEffect(() => {
+    async function fetchBusyTimes() {
+      if (user && !user.isAnonymous && schedulingMode === "EXACT") {
+        try {
+          const dates = slots.map(s => s.date).filter(Boolean);
+          if (dates.length === 0) return;
+
+          const minDate = new Date(Math.min(...dates.map(d => new Date(d).getTime())));
+          const maxDate = new Date(Math.max(...dates.map(d => new Date(d).getTime())));
+
+          // Add some buffer
+          minDate.setHours(0, 0, 0, 0);
+          maxDate.setDate(maxDate.getDate() + 1);
+          maxDate.setHours(23, 59, 59, 999);
+
+          const result = await getOrganizerCalendarAction({
+            timeMin: minDate.toISOString(),
+            timeMax: maxDate.toISOString()
+          }) as any;
+
+          if (result?.data?.busyTimes) {
+            setBusyTimes(result.data.busyTimes);
+          }
+        } catch (err) {
+          console.error("Failed to fetch busy times:", err);
+        }
+      } else {
+        setBusyTimes([]);
+      }
+    }
+    fetchBusyTimes();
+  }, [user, slots, schedulingMode]);
 
   const handlePickerClick = (e: React.MouseEvent<HTMLInputElement>) => {
     const el = e.currentTarget;
@@ -135,7 +166,7 @@ export default function CreatePollPage() {
         localStorage.setItem(`adminToken_${result.data.pollId}`, result.data.adminToken);
       }
 
-      router.push(`/poll/${result.data.pollId}`);
+      navigate(`/poll/${result.data.pollId}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
       setError(err.message || "Something went wrong. Please try again.");
@@ -287,6 +318,18 @@ export default function CreatePollPage() {
           </div>
 
           <div className="flex flex-col gap-4">
+            {busyTimes.length > 0 && (
+              <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-sm border border-amber-200">
+                <p className="font-bold mb-1">Your Google Calendar Conflicts:</p>
+                <ul className="list-disc pl-5">
+                  {busyTimes.map((bt, i) => (
+                    <li key={i}>
+                      {new Date(bt.start).toLocaleDateString()} {new Date(bt.start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(bt.end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {slots.map((slot, index) => (
               <div key={index} className="flex flex-wrap items-center gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-100 group relative">
                 <label className="relative flex-1 min-w-[160px] group/date cursor-pointer">

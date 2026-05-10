@@ -23,10 +23,10 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npm run build --prefix functions && npx firebase emulators:start --only auth,firestore,functions\"",
     "build": "npm run build --prefix frontend",
-    "start": "npm run start --prefix frontend",
+    "start": "node node_modules/sirv-cli/bin.js frontend/dist --port $PORT --host 0.0.0.0 --single",
     "test": "npm run build --prefix frontend && npm run test:unit && npm run test:e2e",
-    "test:unit": "npm run test:unit --prefix frontend && npm run build --prefix functions && npx firebase emulators:exec --only firestore \"npm run test --prefix functions\"",
-    "test:coverage": "npm run test:coverage --prefix frontend && npm run build --prefix functions && npx firebase emulators:exec --only firestore \"npm run test:coverage --prefix functions\"",
+    "test:unit": "npm run build --prefix frontend && npm run test:unit --prefix frontend && npm run build --prefix functions && npx firebase emulators:exec --only firestore \"npm run test --prefix functions\"",
+    "test:coverage": "npm run test:coverage --prefix frontend && npm run test:coverage --prefix functions",
     "test:e2e": "npm run build --prefix functions && npx firebase emulators:exec --only auth,firestore,functions \"npm run test:e2e --prefix frontend\""
   },
   "dependencies": {

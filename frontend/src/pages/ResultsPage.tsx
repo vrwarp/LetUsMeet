@@ -1,19 +1,17 @@
-"use client";
-
-import { useEffect, useState, use } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3 } from "lucide-react";
 import { fetchPollAction, finalizePollAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
-import type { Poll, VoteValue } from "@/types/index";
+import type { Poll, VoteValue } from "../types/index";
 
 interface VoteResult {
   participantName: string;
   selections: Record<string, VoteValue>;
 }
 
-export default function ResultsPage({ params }: { params: Promise<{ pollId: string }> }) {
-  const { pollId } = use(params);
+export default function ResultsPage() {
+  const { pollId } = useParams<{ pollId: string }>();
   const [poll, setPoll] = useState<Poll | null>(null);
   const { user } = useAuth();
   const [finalizing, setFinalizing] = useState<string | null>(null);
@@ -54,7 +52,7 @@ export default function ResultsPage({ params }: { params: Promise<{ pollId: stri
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <Link 
-          href="/" 
+          to="/" 
           className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -62,7 +60,7 @@ export default function ResultsPage({ params }: { params: Promise<{ pollId: stri
         </Link>
         <div className="text-center py-20 bg-red-50 rounded-3xl border border-red-100">
           <p className="text-red-800 font-bold text-xl mb-2">Something went wrong</p>
-          <p data-testid="error-message" className="text-red-600">{pollError || "Poll not found."}</p>
+          <p className="text-red-600">{pollError || "Poll not found."}</p>
         </div>
       </div>
     );
@@ -111,7 +109,7 @@ export default function ResultsPage({ params }: { params: Promise<{ pollId: stri
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
       <Link 
-        href={`/poll/${pollId}`}
+        to={`/poll/${pollId}`}
         className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -162,12 +160,12 @@ export default function ResultsPage({ params }: { params: Promise<{ pollId: stri
                 </div>
               </div>
               {(() => {
-                const token = typeof window !== 'undefined' ? localStorage.getItem("adminToken_" + pollId) : null;
+                const token = localStorage.getItem("adminToken_" + pollId);
                 if (isOrganizer || token) {
                   const editUrl = `/poll/${pollId}/edit${token ? "?adminToken=" + token : ""}`;
                   return (
                     <Link
-                      href={editUrl}
+                      to={editUrl}
                       className="flex items-center justify-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white font-bold transition-all"
                     >
                       <Edit3 size={18} />

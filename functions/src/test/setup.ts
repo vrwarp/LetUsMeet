@@ -1,12 +1,12 @@
-import firebaseFunctionsTest from "firebase-functions-test";
-import { CallableRequest } from "firebase-functions/v2/https";
+import firebaseFunctionsTest from 'firebase-functions-test';
+import { CallableRequest } from 'firebase-functions/v2/https';
 
 /**
  * Shared test utilities for Firebase Cloud Functions.
  */
 
 export const testEnv = firebaseFunctionsTest({
-  projectId: "letusmeet-6f4e1",
+  projectId: 'letusmeet-6f4e1',
 });
 
 /**
@@ -18,7 +18,7 @@ export const makeAuthContext = (uid: string) => ({
     email: `${uid}@example.com`,
     email_verified: true,
   } as any,
-  rawToken: "mock-token",
+  rawToken: 'mock-token',
 });
 
 /**

@@ -1,8 +1,5 @@
-"use client";
-
-import { useState, useEffect, use } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { fetchPollAction, updatePollAction } from "@/lib/pollApi";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,10 +14,10 @@ interface TimeSlotInput {
   time?: string;     // for FUZZY
 }
 
-export default function EditPollPage({ params }: { params: Promise<{ pollId: string }> }) {
-  const { pollId } = use(params);
-  const searchParams = useSearchParams();
-  const router = useRouter();
+export default function EditPollPage() {
+  const { pollId } = useParams<{ pollId: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   
   const [title, setTitle] = useState("");
@@ -35,7 +32,7 @@ export default function EditPollPage({ params }: { params: Promise<{ pollId: str
   const [error, setError] = useState<string | null>(null);
   const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
 
-  const adminToken = searchParams.get("adminToken") || (typeof window !== 'undefined' ? localStorage.getItem(`adminToken_${pollId}`) : null);
+  const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
 
   useEffect(() => {
     async function loadPoll() {
@@ -163,7 +160,7 @@ export default function EditPollPage({ params }: { params: Promise<{ pollId: str
           })),
       });
 
-      router.push(`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`);
+      navigate(`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`);
     } catch (err: any) {
       console.error("Failed to update poll", err);
       setError(err.message || "Something went wrong. Please try again.");
@@ -184,7 +181,7 @@ export default function EditPollPage({ params }: { params: Promise<{ pollId: str
   return (
     <div className="max-w-2xl mx-auto py-8">
       <Link 
-        href={`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`}
+        to={`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`}
         className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

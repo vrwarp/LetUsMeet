@@ -32,22 +32,22 @@ describe("Firestore Security Rules", () => {
       const db = getAuthenticatedContext("user123").firestore();
       await assertSucceeds(setDoc(doc(db, "polls/p1"), {
         organizerUid: "user123",
-        title: "Test",
+        title: "Test"
       }));
     });
 
     it("should deny unauthenticated users from creating a poll", async () => {
       const db = getUnauthenticatedContext().firestore();
       await assertFails(setDoc(doc(db, "polls/p1"), {
-        organizerUid: "user123",
+        organizerUid: "user123"
       }));
     });
 
     it("should allow organizer to update their own poll", async () => {
       const db = getAuthenticatedContext("user123").firestore();
       const pollRef = doc(db, "polls/p1");
-
-      // Setup: Create poll as admin or same user (rules-unit-testing allows creating via admin context if needed,
+      
+      // Setup: Create poll as admin or same user (rules-unit-testing allows creating via admin context if needed, 
       // but here we just use the same user to create then update)
       await assertSucceeds(setDoc(pollRef, { organizerUid: "user123", title: "Old" }));
       await assertSucceeds(updateDoc(pollRef, { title: "New" }));
@@ -90,7 +90,7 @@ describe("Firestore Security Rules", () => {
       const voterDb = getAuthenticatedContext("voter1").firestore();
       await assertSucceeds(setDoc(doc(voterDb, "polls/p1/votes/voter1"), {
         participantUid: "voter1",
-        selections: {},
+        selections: {}
       }));
     });
 
@@ -100,7 +100,7 @@ describe("Firestore Security Rules", () => {
 
       const voterDb = getAuthenticatedContext("voter1").firestore();
       await assertFails(setDoc(doc(voterDb, "polls/p1/votes/voter1"), {
-        participantUid: "voter1",
+        participantUid: "voter1"
       }));
     });
 

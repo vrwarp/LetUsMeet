@@ -1,127 +1,131 @@
 # Technical Design Document: LetUsMeet
 
 ## 1. Introduction
-LetUsMeet is a web application designed to facilitate frictionless, intuitive group scheduling. Its core offering revolves around eliminating mandatory account creation for general participants while providing organizers with robust tools to manage polls. The application leverages a high-performance "Bento Grid" UI, a trinary voting system, and dual-mode scheduling (exact and fuzzy). 
-
-Following a pivot to a leaner architecture, the application has moved away from heavy third-party integrations (like Google Calendar API for event creation) in favor of a privacy-focused, internal scheduling engine. This Technical Design Document outlines the current serverless architecture implemented using Firebase App Hosting, Cloud Functions for Firebase v2, and Cloud Firestore.
+LetUsMeet is a web application designed to facilitate frictionless, intuitive group scheduling. Its core offering revolves around eliminating mandatory account creation for general participants while leveraging Google Calendar integration for power users (organizers). The application uses dual-mode scheduling (exact and fuzzy), a trinary voting system, and a bento grid UI. This Technical Design Document outlines the software architecture to implement the features specified in the PRD, relying on Firebase App Hosting, Cloud Functions for Firebase, Node.js, and Cloud Firestore.
 
 ## 2. Architecture Overview
-The application follows a serverless, event-driven architecture designed for high scalability and low maintenance.
+The application will follow a serverless architecture leveraging the Firebase ecosystem.
 
 *   **Frontend (Firebase App Hosting):**
-    *   **Framework:** Next.js (App Router) for hybrid rendering (SSR for SEO/initial load, CSR for interactivity).
-    *   **Design System:** Tailwind CSS v4, utilizing its new high-performance engine for complex grid layouts.
-    *   **Icons:** Lucide React for consistent, lightweight vector icons.
-    *   **State Management:** React Context API for application-wide state (e.g., Auth, Notifications) and localized React Hooks for component-level state.
-*   **Backend API (Cloud Functions for Firebase v2):**
-    *   **Language:** TypeScript, providing rigorous type checking for business logic.
-    *   **Interface:** HTTPS Callable Functions (2nd Gen) for automatic authentication context and seamless integration with the Firebase SDK.
-    *   **Middleware:** Zod-based validation layer for all incoming requests to ensure schema integrity.
+    *   A responsive Web App / Progressive Web App (PWA) built using a modern JavaScript framework (e.g., React or Next.js, as supported by App Hosting).
+    *   Responsible for rendering the Bento Grid UI, managing client-side routing, interacting with Firebase Authentication, and calling the backend API.
+*   **Backend API (Cloud Functions for Firebase):**
+    *   Written in Node.js using TypeScript for improved type safety and maintainability.
+    *   Provides business logic for poll creation, voting aggregation, and Google Calendar integration.
+    *   Secures sensitive operations (e.g., interacting with external APIs).
 *   **Database (Cloud Firestore):**
-    *   **Structure:** NoSQL document-oriented storage.
-    *   **Capabilities:** Real-time data synchronization to power live voting updates on the Bento Grid.
+    *   A NoSQL document database used to store application state, including Users, Polls, and Votes in real-time.
 *   **Authentication (Firebase Auth):**
-    *   **Anonymous Auth:** Enables "Zero-Friction" voting for participants.
-    *   **Google OAuth:** Provides persistent identity for organizers to track their polls across devices.
+    *   Handles "Zero-Friction Authentication" using Anonymous Authentication for participants.
+    *   Provides Google OAuth integration for organizers.
 
 ## 3. Data Model (Cloud Firestore)
 
-Firestore is structured into two primary top-level collections and one nested subcollection.
+Firestore will be structured with the following primary collections:
 
-### 3.1 `polls` Collection
-Stores the configuration for each scheduling event.
-*   `pollId` (String, Document ID): Unique identifier used in the shareable URL.
-*   `organizerUid` (String | null): Reference to the creator's UID (if authenticated).
-*   `organizerName` (String): The display name of the creator.
-*   `organizerEmail` (String): The contact email for the creator.
-*   `adminToken` (String): A UUID generated at creation, allowing anonymous organizers to edit their polls.
-*   `title` (String): The meeting or event title.
-*   `description` (String, optional): Additional context or notes.
-*   `location` (String, optional): Physical address or virtual link.
-*   `schedulingMode` (Enum: `"EXACT"`, `"FUZZY"`): Determines the rendering of time slots.
+### 3.1 `users` Collection
+Stores information about authenticated organizers. Anonymous users typically do not require an explicit document unless caching preferences.
+*   `uid` (String, Document ID): Firebase Auth UID.
+*   `email` (String): Organizer's email.
+*   `displayName` (String): Organizer's name.
+*   `googleTokens` (Map): Securely stored OAuth tokens (access and refresh) for Calendar integration. *(Note: Consider storing sensitive tokens securely, potentially encrypting them or utilizing Google Cloud Secret Manager if needed).*
+*   `createdAt` (Timestamp)
+
+### 3.2 `polls` Collection
+Stores the configuration for each scheduling poll.
+*   `pollId` (String, Document ID): Unique identifier (also used in the shareable URL).
+*   `organizerUid` (String): Reference to the creator's UID.
+*   `title` (String): Meeting title.
+*   `location` (String): Meeting location.
+*   `schedulingMode` (String): Enum (`"EXACT"`, `"FUZZY"`).
 *   `timeSlots` (Array of Maps):
-    *   **If `EXACT`**: `{ id: string, startTime: ISOString, endTime: ISOString }`
-    *   **If `FUZZY`**: `{ id: string, date: YYYY-MM-DD, label: string, time?: string }`
-*   `status` (Enum: `"OPEN"`, `"FINALIZED"`): Controls voting availability.
-*   `finalizedSlotId` (String, optional): The ID of the winning time slot.
-*   `createdAt` (ISOString): Timestamp of creation.
+    *   If `EXACT`: `{ id: "t1", startTime: Timestamp, endTime: Timestamp }`
+    *   If `FUZZY`: `{ id: "t1", date: String (YYYY-MM-DD), daypart: "Morning" | "Afternoon" | "Evening" }`
+*   `status` (String): Enum (`"OPEN"`, `"FINALIZED"`).
+*   `finalizedSlotId` (String, optional): The chosen time slot.
+*   `createdAt` (Timestamp)
 
-### 3.2 `votes` Collection (Subcollection under `polls`)
-Located at `/polls/{pollId}/votes` to ensure strong data locality and efficient security rules.
-*   `voteId` (String, Document ID): Unique ID for the specific vote.
-*   `participantUid` (String): The UID of the voter (from Firebase Auth).
-*   `participantName` (String): The name entered by the user during voting.
-*   `participantEmail` (String, optional): Optional contact info for the voter.
-*   `selections` (Map): Key-value pairs where the key is `timeSlotId` and the value is `VoteValue`.
-    *   `VoteValue` Enum: `"YES"`, `"NO"`, `"IF_NEED_BE"`.
-*   `createdAt` (ISOString): Original vote timestamp.
-*   `updatedAt` (ISOString): Timestamp of the last edit.
+### 3.3 `votes` Collection (Subcollection under `polls`)
+Structured as a subcollection `/polls/{pollId}/votes` to ensure strong locality and manageable security rules.
+*   `voteId` (String, Document ID): Typically derived from the participant's anonymous UID or a unique identifier.
+*   `participantName` (String): Name entered by the user.
+*   `participantEmail` (String, optional): Provided for final calendar invites.
+*   `selections` (Map): Key-value pairs where key is `timeSlotId` and value is the vote.
+    *   e.g., `{ "t1": "YES", "t2": "IF_NEED_BE", "t3": "NO" }`
+*   `createdAt` (Timestamp)
+*   `updatedAt` (Timestamp)
 
 ## 4. API Design (Cloud Functions & TypeScript)
 
-All business logic is encapsulated in 2nd-gen HTTPS Callable Functions.
+Cloud Functions (callable functions or HTTP endpoints) will expose the core logic.
 
-*   **`createPoll(data)`**: 
-    *   **Inputs**: Title, Location, Mode, TimeSlots, Organizer Details.
-    *   **Process**: Validates data via Zod, generates `adminToken`, and initializes the poll document.
-    *   **Returns**: `pollId` and `adminToken`.
-*   **`getPoll(pollId)`**:
-    *   **Process**: Fetches poll metadata, all associated vote documents, and calculates pre-aggregated counts for the UI.
-    *   **Returns**: Poll object, Votes array, and VoteCounts map.
-*   **`updatePoll(data)`**:
-    *   **Inputs**: `pollId`, `adminToken` (or Auth context), and updated fields.
-    *   **Security**: Verifies that the `adminToken` matches the document or `auth.uid` matches `organizerUid`.
-*   **`submitVote(data)`**:
-    *   **Inputs**: `pollId`, `participantName`, `selections`.
-    *   **Process**: Creates or updates a vote document in the subcollection. Prevents voting on finalized polls.
-*   **`deleteVote(data)`**:
-    *   **Security**: Ensures the `participantUid` of the document matches the caller's UID.
-*   **`finalizePoll(data)`**:
-    *   **Process**: Updates `status` to `"FINALIZED"` and records the `selectedTimeSlotId`.
+*   `createPoll(data)`: Validates input and creates a new document in the `polls` collection. Returns the unique `pollId`.
+*   `submitVote(pollId, participantData, selections)`: Validates the trinary votes against valid time slots for the poll and records the vote in the subcollection.
+*   `getOrganizerCalendar(dateRange)`: Authenticates the organizer and fetches their existing Google Calendar events for the specified range to power the visual overlay during poll creation.
+*   `finalizePoll(pollId, selectedTimeSlotId)`:
+    1.  Updates the poll status to `FINALIZED`.
+    2.  Uses the organizer's stored Google OAuth tokens to create a new event via the Google Calendar API (`/calendar/v3/events`).
+    3.  Iterates through the `votes` subcollection to gather participant emails and adds them as attendees to the generated Calendar event.
 
 ## 5. Security & Access Control (Firestore Rules)
 
-Rules are designed to balance open participation with data integrity.
-
-*   **Poll Access**:
-    *   `read`: Allowed for everyone with the `pollId`.
-    *   `create`: Allowed for anyone; data must pass structural validation.
-    *   `update`: Allowed if `request.auth.uid == resource.data.organizerUid`. (Note: `adminToken` updates are handled via backend Functions).
-*   **Vote Access**:
-    *   `read`: Allowed for everyone.
-    *   `write`: Allowed if `request.auth.uid == request.resource.data.participantUid`. This ensures users can only create/edit their own votes.
+Firebase Security Rules will enforce the authorization model:
+*   `polls`:
+    *   Read: Publicly readable (anyone with the URL needs to see poll options).
+    *   Create: Requires authentication (organizer).
+    *   Update/Delete: Only the `organizerUid` can modify or finalize the poll.
+*   `votes`:
+    *   Read: Publicly readable (participants need to see the current consensus).
+    *   Create: Allowed if the poll is `OPEN`. Requires an anonymous or real UID.
+    *   Update: Only the user who created the vote document can modify it.
+*   `users`:
+    *   Read/Write: Strictly limited to the user themselves (e.g., `request.auth.uid == userId`).
 
 ## 6. Frontend & UX Implementation Details
 
-*   **Bento Grid Architecture**: 
-    *   Uses CSS Grid with `auto-fit` and `minmax` patterns to create a layout that feels fluid and organic.
-    *   Cards represent different data points: Poll Info, Participant List, Time Slots, and Action Center.
-*   **Trinary Voting Mechanic**:
-    *   **States**: gray (default/No) -> green (Yes) -> yellow-dashed (If Need Be).
-    *   **Logic**: A simple state machine transitions through these states on click, stored locally in React state before submission.
-*   **Accessibility (a11y)**:
-    *   High-contrast color palettes.
-    *   Aria-labels for all interactive voting elements.
-    *   Pattern-based visual differences (e.g., solid vs. dashed borders) to support colorblind users.
+*   **Firebase App Hosting:** The Next.js/React app will be deployed using Firebase App Hosting for optimized delivery, routing, and PWA capabilities (Service Workers for caching).
+*   **Zero-Friction Auth Flow:** When a user lands on a poll URL, the app checks for an active Firebase session. If none exists, `signInAnonymously()` is called seamlessly in the background.
+*   **Bento Grid Architecture:** CSS Grid will be heavily utilized to compartmentalize information into rounded cards. Responsive breakpoints will ensure the grid collapses gracefully into a vertical scroll on mobile while remaining 100% ad-free.
+*   **Trinary Voting Mechanics:**
+    *   State management (e.g., React Context or Redux) will track clicks on time slot cards.
+    *   Click logic: Initial state (`NO`, gray) -> Click 1 (`YES`, solid green) -> Click 2 (`IF_NEED_BE`, dashed yellow) -> Click 3 (`NO`).
+*   **Fuzzy Scheduling Clarity:** The UI components rendering time slots will include conditional logic to render explicit time bounds (e.g., `8:00 AM - 12:00 PM`) when a `FUZZY` "Morning" slot is presented.
 
 ## 7. Development Phases Alignment
 
-### Phase 1: Foundational Engine (Completed)
-*   Baseline Firebase configuration (Hosting, Functions, Firestore).
-*   Core Trinary Voting logic and anonymous authentication flow.
-*   Exact scheduling implementation.
+This project will be developed iteratively in four major phases.
 
-### Phase 2: UX Refinement & Fuzzy Mode (Completed)
-*   Migration to Next.js App Router.
-*   Implementation of the "Bento Grid" design system with Tailwind CSS.
-*   Support for "Fuzzy" time slots (Labels + Dates).
+### Phase 1: The Core Engine (MVP)
+*   **Goal:** Establish the foundational infrastructure and basic polling capabilities to enable immediate usage without user accounts.
+*   **Tasks:**
+    *   Set up the Firebase project (App Hosting, Cloud Firestore, Authentication, Functions).
+    *   Implement Firestore security rules and define data structures for Polls and Votes.
+    *   Create the web frontend with exact scheduling options and a basic participant view.
+    *   Implement the core trinary voting mechanic using anonymous sessions.
+    *   Develop the unique URL generation system for sharing polls.
+    *   Deploy the MVP for initial testing.
 
-### Phase 3: Organizer Dashboard & Security (Current)
-*   Google OAuth integration for organizers.
-*   Admin dashboard for managing multiple active and finalized polls.
-*   Refined security rules and admin token management.
+### Phase 2: Fuzzy Scheduling & UX Polish
+*   **Goal:** Improve flexibility and the overall visual experience.
+*   **Tasks:**
+    *   Update backend and frontend data models to support "Fuzzy Scheduling" (Text + Date formatting).
+    *   Completely overhaul the user interface, migrating to the "Bento Grid" layout using modern CSS Grid and Flexbox techniques.
+    *   Ensure the application is fully responsive on all devices and ad-free.
+    *   Refine visual states for voting (e.g., colorblind-friendly indicators).
 
-### Phase 4: Performance & PWA Optimization (Upcoming)
-*   Service worker implementation for offline voting capabilities.
-*   Performance tuning for sub-second page loads on mobile networks.
-*   Automated notification system for poll finalization.
+### Phase 3: The Google Ecosystem Integration
+*   **Goal:** Empower organizers with advanced features, including Google Calendar integration.
+*   **Tasks:**
+    *   Enable Google OAuth in Firebase Auth for organizer account creation.
+    *   Build out the organizer dashboard to track created polls.
+    *   Develop Cloud Functions in TypeScript to securely interact with the Google Calendar API (`/calendar/v3/events`).
+    *   Implement the visual overlay for poll creation, fetching an organizer's busy times to prevent conflicts.
+    *   Automate standard `.ics` invites and Google Calendar generation upon poll finalization.
+
+### Phase 4: Progressive Web App (PWA) Optimization
+*   **Goal:** Maximize app performance, reliability, and edge-case management.
+*   **Tasks:**
+    *   Configure service workers to cache essential assets (the App Shell).
+    *   Implement offline support so participants can view the grid and queue votes even on poor connections.
+    *   Optimize Firebase App Hosting deployment for sub-3-second load times.
+    *   Add features for organizers to duplicate past polls and set default availability profiles.

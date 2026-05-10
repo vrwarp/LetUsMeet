@@ -25,12 +25,12 @@ export const createPollSchema = z.object({
   if (data.schedulingMode === "EXACT") {
     const result = z.array(exactTimeSlotSchema).safeParse(data.timeSlots);
     if (!result.success) {
-      result.error.issues.forEach((issue) => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
+      result.error.issues.forEach(issue => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
     }
   } else {
     const result = z.array(fuzzyTimeSlotSchema).safeParse(data.timeSlots);
     if (!result.success) {
-      result.error.issues.forEach((issue) => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
+      result.error.issues.forEach(issue => ctx.addIssue({ ...issue, path: ["timeSlots", ...issue.path] }));
     }
   }
 });
@@ -62,3 +62,9 @@ export const finalizePollSchema = z.object({
   selectedTimeSlotId: z.string().min(1),
 });
 
+export const getOrganizerCalendarSchema = z.object({
+  timeMin: z.string().datetime(),
+  timeMax: z.string().datetime(),
+}).refine((data) => new Date(data.timeMax) > new Date(data.timeMin), {
+  message: "timeMax must be after timeMin",
+});
