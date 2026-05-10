@@ -231,7 +231,7 @@ export default function VotePollPage() {
               data-testid="view-results-btn"
               className="w-full bg-brand-green text-white font-bold py-4 rounded-2xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 text-center"
             >
-              See Consensus Results
+              View Group Availability
             </Link>
             <button 
               onClick={() => {
@@ -243,7 +243,7 @@ export default function VotePollPage() {
             </button>
           </div>
         </div>
-        <p className="mt-8 text-neutral-500">Consensus matrix updated</p>
+        <p className="mt-8 text-neutral-500">Availability updated</p>
       </div>
     );
   }
@@ -290,19 +290,29 @@ export default function VotePollPage() {
           <h1 data-testid="poll-title" className="text-3xl md:text-5xl font-black text-neutral-800 tracking-tight leading-tight">
             {poll.title}
           </h1>
-          <div className="relative">
-            <button 
-              onClick={handleShare}
-              aria-label="Share poll" 
-              className="p-3 bg-neutral-100 rounded-2xl hover:bg-neutral-200 transition-colors text-neutral-600"
+          <div className="flex items-center gap-2">
+            <Link 
+              to={`/poll/${pollId}/results`}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-neutral-600 font-bold text-sm hover:bg-neutral-50 transition-colors shadow-sm"
             >
-              <Share2 className="w-5 h-5" />
-            </button>
-            {showCopied && (
-              <div className="absolute top-full mt-2 right-0 bg-neutral-800 text-white text-xs py-2 px-3 rounded-xl shadow-xl z-20 animate-in fade-in slide-in-from-top-1">
-                Copied!
-              </div>
-            )}
+              <History className="w-4 h-4 text-brand-green" />
+              <span className="hidden sm:inline">View Results</span>
+              <span className="sm:hidden">Results</span>
+            </Link>
+            <div className="relative">
+              <button 
+                onClick={handleShare}
+                aria-label="Share poll" 
+                className="p-3 bg-neutral-100 rounded-2xl hover:bg-neutral-200 transition-colors text-neutral-600"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+              {showCopied && (
+                <div className="absolute top-full mt-2 right-0 bg-neutral-800 text-white text-xs py-2 px-3 rounded-xl shadow-xl z-20 animate-in fade-in slide-in-from-top-1">
+                  Copied!
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -395,44 +405,44 @@ export default function VotePollPage() {
       </div>
 
       {userVotes.length > 0 && (
-        <div className="mb-10 p-6 bg-indigo-50 border border-indigo-100 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                <History className="w-6 h-6" />
+        <div className="mb-10 p-5 bg-indigo-50 border border-indigo-100 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex-shrink-0 flex items-center justify-center text-white shadow-lg shadow-indigo-200 mt-1">
+                <History className="w-5 h-5" />
               </div>
-              <div>
-                <h2 className="font-bold text-neutral-800 text-lg">
+              <div className="flex-1">
+                <h2 className="font-bold text-neutral-800 text-base leading-snug">
                   {userVotes.length === 1 
                     ? "You've already submitted a response" 
                     : `You've submitted ${userVotes.length} responses`}
                 </h2>
-                <p className="text-neutral-600 text-sm">
+                <p className="text-neutral-500 text-xs mt-1 font-medium">
                   {editingVoteId 
-                    ? "Editing your previous response. You can update it or submit a new one." 
-                    : "Submitting a new response. You can also edit your previous ones."}
+                    ? "Editing your response. You can update it or start fresh." 
+                    : "You can edit your previous response or submit a new one."}
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col xs:flex-row items-center gap-2 w-full sm:w-auto">
               {editingVoteId ? (
                 <button
                   type="button"
                   onClick={() => initializeEmptyForm(poll!)}
-                  className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 border border-indigo-200 rounded-xl font-bold hover:bg-neutral-50 transition-all shadow-sm"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 whitespace-nowrap"
                 >
-                  <Plus size={18} />
-                  Submit New Response
+                  <Plus size={16} />
+                  Submit New
                 </button>
               ) : (
                 userVotes.length > 0 && (
                   <button
                     type="button"
                     onClick={() => loadVoteIntoForm(userVotes[0])}
-                    className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 border border-indigo-200 rounded-xl font-bold hover:bg-neutral-50 transition-all shadow-sm"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 whitespace-nowrap"
                   >
-                    <Edit3 size={18} />
-                    Edit Previous Response
+                    <Edit3 size={16} />
+                    Edit Response
                   </button>
                 )
               )}
@@ -440,21 +450,21 @@ export default function VotePollPage() {
           </div>
           
           {userVotes.length > 1 && (
-            <div className="mt-6 pt-6 border-t border-indigo-100">
-              <p className="text-sm font-bold text-neutral-500 uppercase tracking-wider mb-3">Switch between your responses:</p>
+            <div className="mt-5 pt-5 border-t border-indigo-100">
+              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-3">Switch between your responses:</p>
               <div className="flex flex-wrap gap-2">
                 {userVotes.map((v) => (
                   <button
                     key={v.voteId}
                     type="button"
                     onClick={() => loadVoteIntoForm(v)}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       editingVoteId === v.voteId 
                         ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" 
-                        : "bg-white text-neutral-600 border border-neutral-200 hover:border-indigo-300"
+                        : "bg-white text-neutral-500 border border-neutral-200 hover:border-indigo-300"
                     }`}
                   >
-                    {v.participantName || "Anonymous"} ({new Date(v.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} on {new Date(v.updatedAt).toLocaleDateString([], { month: 'numeric', day: 'numeric' })})
+                    {v.participantName || "Anonymous"} ({new Date(v.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})
                   </button>
                 ))}
               </div>

@@ -41,7 +41,7 @@ export default function ResultsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Calculating consensus...</p>
+        <p className="text-neutral-500 font-medium">Tallying the results...</p>
       </div>
     );
   }
@@ -211,13 +211,18 @@ export default function ResultsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
-      <Link 
-        to={`/poll/${pollId}`}
-        className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Poll
-      </Link>
+      {(() => {
+        const token = new URLSearchParams(window.location.search).get("adminToken");
+        return (
+          <Link 
+            to={`/poll/${pollId}${token ? `?adminToken=${token}` : ""}`}
+            className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Poll
+          </Link>
+        );
+      })()}
 
       {(() => {
         const token = localStorage.getItem("adminToken_" + pollId) || new URLSearchParams(window.location.search).get("adminToken");
@@ -286,7 +291,7 @@ export default function ResultsPage() {
                           const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
                           return `${dateStr} - ${(slot as any).label}${timeStr}`;
                         }
-                      })() : 'No consensus yet'}
+                      })() : 'No results yet'}
                     </p>
                   </div>
                 </div>
@@ -315,7 +320,7 @@ export default function ResultsPage() {
           <div className="flex items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-2">
               <Info className="w-5 h-5 text-brand-green" />
-              <h2 className="text-xl font-bold text-neutral-800 tracking-tight">Participation Matrix</h2>
+              <h2 className="text-xl font-bold text-neutral-800 tracking-tight">Availability Grid</h2>
             </div>
             <button
               onClick={() => setIsMaximized(true)}
@@ -343,7 +348,7 @@ export default function ResultsPage() {
           <div className="flex items-center justify-between mb-6 text-white">
             <div>
               <h2 className="text-2xl font-black tracking-tight">{poll.title}</h2>
-              <p className="text-white/60 font-medium">Participation Matrix</p>
+              <p className="text-white/60 font-medium">Availability Grid</p>
             </div>
             <button
               onClick={() => setIsMaximized(false)}

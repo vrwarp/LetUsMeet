@@ -15,7 +15,7 @@ describe('ResultsPage', () => {
     );
   };
 
-  it('renders consensus grid and totals', async () => {
+  it('renders availability grid and totals', async () => {
     renderPage();
     expect(await screen.findByText('Mock Meeting')).toBeInTheDocument();
   });
@@ -26,7 +26,7 @@ describe('ResultsPage', () => {
     expect(screen.getByTestId('loader')).toBeInTheDocument();
   });
 
-  it('renders consensus grid and totals with custom data', async () => {
+  it('renders availability grid and totals with custom data', async () => {
     const pollData = {
       poll: { 
         id: 'p1',
