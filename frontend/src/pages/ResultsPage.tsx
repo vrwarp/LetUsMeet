@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3 } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, Minimize2, X } from "lucide-react";
 import { subscribeToPoll, finalizePoll, claimPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
@@ -20,6 +20,7 @@ export default function ResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     if (!pollId) return;
@@ -119,6 +120,94 @@ export default function ResultsPage() {
 
 
   const isOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
+
+  const renderMatrixTable = () => (
+    <div className="overflow-x-auto rounded-2xl border border-neutral-100 bg-white">
+      <table data-testid="results-matrix" className="w-full border-collapse min-w-[600px]">
+        <thead>
+          <tr className="bg-neutral-50 border-b border-neutral-100">
+            <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Participants</th>
+            {sortedSlots.map(slot => (
+              <th key={slot.id} className="p-4 text-center min-w-[140px]">
+                {poll.schedulingMode === "EXACT" ? (
+                  <>
+                    <div className="text-sm font-bold text-neutral-800">
+                      {new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                    </div>
+                    <div className="text-xs text-neutral-500 font-medium">
+                      {new Date((slot as any).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-sm font-bold text-neutral-800">
+                      {new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                    </div>
+                    <div className="text-xs text-neutral-500 font-medium">
+                      {(slot as any).label}
+                      {(slot as any).time && <span className="block text-[10px] opacity-70">@ {(slot as any).time}</span>}
+                    </div>
+                  </>
+                )}
+
+                {isOrganizer && poll.status === "OPEN" && (
+                  <button
+                    onClick={() => handleFinalize(slot.id)}
+                    disabled={!!finalizing}
+                    className="mt-2 text-xs font-bold bg-brand-green-light/50 text-brand-green-dark hover:bg-brand-green-light px-3 py-1.5 rounded-full transition-colors w-full shadow-sm hover:shadow active:scale-95 border border-brand-green/10"
+                  >
+                    {finalizing === slot.id ? "..." : "Finalize"}
+                  </button>
+                )}
+                {poll.status === "FINALIZED" && poll.finalizedSlotId === slot.id && (
+                  <div className="mt-2 text-xs font-bold bg-brand-green-light text-brand-green-dark px-3 py-1 rounded-full flex items-center justify-center gap-1 shadow-sm border border-brand-green/20">
+                    <CalendarCheck className="w-3 h-3" /> Selected
+                  </div>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {votes.map((vote, idx) => (
+            <tr key={idx} data-testid={`participant-row-${idx}`} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
+              <td data-testid="participant-name" className="p-4 font-bold text-neutral-800 sticky left-0 bg-white z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                {vote.participantName}
+              </td>
+              {sortedSlots.map(slot => (
+                <td key={slot.id} className="p-4 text-center">
+                  <div data-testid={`vote-cell-${idx}-${slot.id}`} className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-lg font-bold shadow-sm ${
+                    vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark border border-brand-green/10" :
+                    vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-100 text-amber-700 border border-amber-200" :
+                    "bg-red-50 text-red-400 border border-red-100"
+                  }`}>
+                    {vote.selections[slot.id] === "YES" ? "✓" : vote.selections[slot.id] === "IF_NEED_BE" ? "?" : "×"}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+          {votes.length === 0 && (
+            <tr>
+              <td colSpan={sortedSlots.length + 1} className="p-12 text-center text-neutral-400 font-medium italic">
+                No votes have been cast yet.
+              </td>
+            </tr>
+          )}
+        </tbody>
+        <tfoot className="bg-neutral-50/80 border-t-2 border-neutral-100 font-black">
+          <tr>
+            <td className="p-5 text-neutral-600 sticky left-0 bg-neutral-50/80 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase tracking-wider text-xs">Total Yes</td>
+            {sortedSlots.map(slot => (
+              <td key={slot.id} data-testid={`total-yes-${slot.id}`} className="p-5 text-center text-xl text-brand-green">
+                {voteCounts[slot.id]?.YES || 0}
+              </td>
+            ))}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
@@ -223,98 +312,61 @@ export default function ResultsPage() {
         </div>
 
         <div className="p-8">
-          <div className="flex items-center gap-2 mb-6">
-            <Info className="w-5 h-5 text-brand-green" />
-            <h2 className="text-xl font-bold text-neutral-800">Participation Matrix</h2>
+          <div className="flex items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-brand-green" />
+              <h2 className="text-xl font-bold text-neutral-800 tracking-tight">Participation Matrix</h2>
+            </div>
+            <button
+              onClick={() => setIsMaximized(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl font-bold text-sm transition-all active:scale-95 sm:hidden"
+            >
+              <Maximize2 size={16} />
+              Full Screen
+            </button>
+            <button
+              onClick={() => setIsMaximized(true)}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-xl font-bold text-sm transition-all active:scale-95"
+            >
+              <Maximize2 size={16} />
+              Maximize
+            </button>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-neutral-100">
-            <table data-testid="results-matrix" className="w-full border-collapse">
-              <thead>
-                <tr className="bg-neutral-50 border-b border-neutral-100">
-                  <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10">Participants</th>
-                  {sortedSlots.map(slot => (
-                    <th key={slot.id} className="p-4 text-center min-w-[120px]">
-                      {poll.schedulingMode === "EXACT" ? (
-                        <>
-                          <div className="text-sm font-bold text-neutral-800">
-                            {new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                          </div>
-                          <div className="text-xs text-neutral-500 font-medium">
-                            {new Date((slot as any).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-sm font-bold text-neutral-800">
-                            {new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                          </div>
-                          <div className="text-xs text-neutral-500 font-medium">
-                            {(slot as any).label}
-                            {(slot as any).time && <span className="block text-[10px] opacity-70">@ {(slot as any).time}</span>}
-                          </div>
-                        </>
-                      )}
-
-                      {isOrganizer && poll.status === "OPEN" && (
-                        <button
-                          onClick={() => handleFinalize(slot.id)}
-                          disabled={finalizing === slot.id}
-                          className="mt-2 text-xs font-bold bg-brand-green-light/50 text-brand-green-dark hover:bg-brand-green-light px-3 py-1 rounded-full transition-colors w-full"
-                        >
-                          {finalizing === slot.id ? "Finalizing..." : "Finalize Here"}
-                        </button>
-                      )}
-                      {poll.status === "FINALIZED" && poll.finalizedSlotId === slot.id && (
-                        <div className="mt-2 text-xs font-bold bg-brand-green-light text-brand-green-dark px-3 py-1 rounded-full flex items-center justify-center gap-1">
-                          <CalendarCheck className="w-3 h-3" /> Selected
-                        </div>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {votes.map((vote, idx) => (
-                  <tr key={idx} data-testid={`participant-row-${idx}`} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
-                    <td data-testid="participant-name" className="p-4 font-medium text-neutral-700 sticky left-0 bg-white z-10 border-r border-neutral-50 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
-                      {vote.participantName}
-                    </td>
-                    {sortedSlots.map(slot => (
-                      <td key={slot.id} className="p-4 text-center">
-                        <div data-testid={`vote-cell-${idx}-${slot.id}`} className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${
-                          vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark" :
-                          vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-100 text-amber-700" :
-                          "bg-red-50 text-red-400"
-                        }`}>
-                          {vote.selections[slot.id] === "YES" ? "✓" : vote.selections[slot.id] === "IF_NEED_BE" ? "?" : "×"}
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {votes.length === 0 && (
-                  <tr>
-                    <td colSpan={sortedSlots.length + 1} className="p-12 text-center text-neutral-500 italic">
-                      No votes have been cast yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-              <tfoot className="bg-neutral-50/50 border-t-2 border-neutral-100 font-bold">
-                <tr>
-                  <td className="p-4 text-neutral-600 sticky left-0 bg-neutral-50/50 z-10 border-r border-neutral-50">Total Yes</td>
-                  {sortedSlots.map(slot => (
-                    <td key={slot.id} data-testid={`total-yes-${slot.id}`} className="p-4 text-center text-brand-green">
-                      {voteCounts[slot.id]?.YES || 0}
-                    </td>
-                  ))}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          {renderMatrixTable()}
         </div>
       </div>
+
+      {/* Maximized Overlay */}
+      {isMaximized && (
+        <div className="fixed inset-0 z-[100] bg-brand-charcoal/95 backdrop-blur-sm p-4 md:p-8 flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between mb-6 text-white">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">{poll.title}</h2>
+              <p className="text-white/60 font-medium">Participation Matrix</p>
+            </div>
+            <button
+              onClick={() => setIsMaximized(false)}
+              className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all active:scale-90"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto rounded-3xl bg-white shadow-2xl">
+            <div className="p-2 min-w-full inline-block align-middle">
+              {renderMatrixTable()}
+            </div>
+          </div>
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setIsMaximized(false)}
+              className="px-8 py-3 bg-white text-brand-charcoal font-black rounded-2xl shadow-xl hover:bg-neutral-100 transition-all active:scale-95"
+            >
+              Close Full Screen
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
