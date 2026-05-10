@@ -284,7 +284,7 @@ export default function VotePollPage() {
   const adminUrl = `${window.location.origin}/poll/${pollId}?adminToken=${poll.adminToken}`;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+    <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 md:py-12">
       <div className="mb-10">
         <div className="flex items-center justify-between gap-4 mb-6">
           <h1 data-testid="poll-title" className="text-3xl md:text-5xl font-black text-neutral-800 tracking-tight leading-tight">

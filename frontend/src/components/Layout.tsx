@@ -11,9 +11,9 @@ export default function Layout() {
     <div className="min-h-screen bg-neutral-50 text-brand-charcoal font-sans flex flex-col">
       <ScrollToTop />
       <header className="bg-white border-b border-neutral-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
-            <img src={logoImg} alt="LetUsMeet" className="h-14 w-auto transition-transform group-hover:scale-105" />
+            <img src={logoImg} alt="LetUsMeet" className="h-10 sm:h-14 w-auto transition-transform group-hover:scale-105" />
           </Link>
           <nav className="flex items-center gap-4 sm:gap-6">
             <Link
@@ -59,7 +59,7 @@ export default function Layout() {
           </nav>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl mx-auto px-4 py-8 w-full">
+      <main className="flex-1 max-w-5xl mx-auto px-4 py-4 sm:py-8 w-full">
         <Outlet />
       </main>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">

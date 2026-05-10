@@ -4,25 +4,25 @@ import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
   return (
-    <div className="relative flex flex-col items-center text-center py-20 gap-24 overflow-hidden bg-[#FAFAFA]">
+    <div className="relative flex flex-col items-center text-center py-10 sm:py-20 gap-16 sm:gap-24 overflow-hidden bg-[#FAFAFA]">
       {/* Decorative Background Blobs */}
       <div className="absolute top-0 -left-20 w-[600px] h-[600px] bg-brand-green/10 blur-[140px] rounded-full -z-10 animate-pulse"></div>
       <div className="absolute bottom-0 -right-20 w-[600px] h-[600px] bg-brand-red/5 blur-[140px] rounded-full -z-10 animate-pulse" style={{ animationDelay: '1.5s' }}></div>
 
-      <section className="max-w-5xl flex flex-col items-center gap-12 relative px-6 w-full">
-        <div className="space-y-6">
-          <h1 className="text-7xl sm:text-9xl font-display font-black tracking-tighter leading-[1.1] text-brand-charcoal">
+      <section className="max-w-5xl flex flex-col items-center gap-8 sm:gap-12 relative px-6 w-full">
+        <div className="space-y-4 sm:space-y-6">
+          <h1 className="text-6xl sm:text-9xl font-display font-black tracking-tighter leading-[1.1] text-brand-charcoal">
             Let everyone <br />
             <span className="text-brand-gradient">meet.</span>
           </h1>
-          <p className="text-2xl font-medium text-brand-charcoal/40 tracking-tight max-w-2xl mx-auto">
+          <p className="text-xl sm:text-2xl font-medium text-brand-charcoal/40 tracking-tight max-w-2xl mx-auto">
             The simplest way to coordinate with groups, <br className="hidden sm:block" /> friends, and teams.
           </p>
         </div>
 
         <Link
           to="/create"
-          className="group flex flex-col items-center gap-10 w-full sm:w-auto transition-all"
+          className="group flex flex-col items-center gap-6 sm:gap-10 w-full sm:w-auto transition-all"
           data-testid="create-poll-link-group"
         >
           <div className="relative">
@@ -30,7 +30,7 @@ export default function HomePage() {
             <img
               src={heroImg}
               alt="LetUsMeet Hero"
-              className="relative h-56 sm:h-72 w-auto animate-bounce-subtle transition-transform group-hover:scale-105 duration-700"
+              className="relative h-40 sm:h-72 w-auto animate-bounce-subtle transition-transform group-hover:scale-105 duration-700"
             />
           </div>
 
