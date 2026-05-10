@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, Minimize2, X } from "lucide-react";
-import { subscribeToPoll, finalizePoll, claimPoll } from "@/lib/pollService";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2 } from "lucide-react";
+import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 
@@ -15,6 +15,7 @@ export default function ResultsPage() {
   const [poll, setPoll] = useState<Poll | null>(null);
   const { user } = useAuth();
   const [finalizing, setFinalizing] = useState<string | null>(null);
+  const [unfinalizing, setUnfinalizing] = useState(false);
   const [votes, setVotes] = useState<VoteResult[]>([]);
   const [voteCounts, setVoteCounts] = useState<Record<string, Record<VoteValue, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +65,7 @@ export default function ResultsPage() {
     );
   }
 
-  const sortedSlots = [...poll.timeSlots].sort((a, b) => {
+  let sortedSlots = [...poll.timeSlots].sort((a, b) => {
     if (poll.schedulingMode === "EXACT") {
       return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
     } else {
@@ -80,6 +81,14 @@ export default function ResultsPage() {
     }
   });
 
+  if (poll.status === "FINALIZED" && poll.finalizedSlotId) {
+    const finalizedIdx = sortedSlots.findIndex(s => s.id === poll.finalizedSlotId);
+    if (finalizedIdx > -1) {
+      const [finalizedSlot] = sortedSlots.splice(finalizedIdx, 1);
+      sortedSlots = [finalizedSlot, ...sortedSlots];
+    }
+  }
+
   const bestSlotId = Object.entries(voteCounts).reduce((best, [id, counts]) => {
     const currentScore = (counts.YES || 0) * 2 + (counts.IF_NEED_BE || 0);
     const bestScore = best ? (voteCounts[best].YES || 0) * 2 + (voteCounts[best].IF_NEED_BE || 0) : -1;
@@ -92,12 +101,27 @@ export default function ResultsPage() {
     try {
       const token = localStorage.getItem("adminToken_" + pollId) || undefined;
       await finalizePoll(pollId, slotId, token);
-      alert("Poll finalized successfully!");
     } catch (err) {
       console.error("Failed to finalize poll:", err);
       alert("Failed to finalize poll.");
     } finally {
       setFinalizing(null);
+    }
+  };
+
+  const handleUnfinalize = async () => {
+    if (!pollId || unfinalizing) return;
+    if (!confirm("Are you sure you want to unselect this date? This will reopen the poll for voting.")) return;
+    
+    setUnfinalizing(true);
+    try {
+      const token = localStorage.getItem("adminToken_" + pollId) || undefined;
+      await unfinalizePoll(pollId, token);
+    } catch (err) {
+      console.error("Failed to unfinalize poll:", err);
+      alert("Failed to unselect date.");
+    } finally {
+      setUnfinalizing(false);
     }
   };
 
@@ -128,7 +152,7 @@ export default function ResultsPage() {
           <tr className="bg-neutral-50 border-b border-neutral-100">
             <th className="p-4 text-left font-semibold text-neutral-600 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Participants</th>
             {sortedSlots.map(slot => (
-              <th key={slot.id} className="p-4 text-center min-w-[140px]">
+              <th key={slot.id} className={`p-4 text-center min-w-[140px] transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/50 border-x-2 border-brand-green/20' : ''}`}>
                 {poll.schedulingMode === "EXACT" ? (
                   <>
                     <div className="text-sm font-bold text-neutral-800">
@@ -175,7 +199,7 @@ export default function ResultsPage() {
                 {vote.participantName}
               </td>
               {sortedSlots.map(slot => (
-                <td key={slot.id} className="p-4 text-center">
+                <td key={slot.id} className={`p-4 text-center transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/20 border-x-2 border-brand-green/10' : ''}`}>
                   <div data-testid={`vote-cell-${idx}-${slot.id}`} className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-lg font-bold shadow-sm ${
                     vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark border border-brand-green/10" :
                     vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-100 text-amber-700 border border-amber-200" :
@@ -199,7 +223,7 @@ export default function ResultsPage() {
           <tr>
             <td className="p-5 text-neutral-600 sticky left-0 bg-neutral-50/80 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase tracking-wider text-xs">Total Yes</td>
             {sortedSlots.map(slot => (
-              <td key={slot.id} data-testid={`total-yes-${slot.id}`} className="p-5 text-center text-xl text-brand-green">
+              <td key={slot.id} data-testid={`total-yes-${slot.id}`} className={`p-5 text-center text-xl text-brand-green transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/50 border-x-2 border-brand-green/20' : ''}`}>
                 {voteCounts[slot.id]?.YES || 0}
               </td>
             ))}
@@ -253,35 +277,77 @@ export default function ResultsPage() {
         return null;
       })()}
 
-      <div className="bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12">
-        <div className="bg-brand-gradient px-8 py-10 text-white">
+      <div className={`bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12 transition-all duration-500 ${poll.status === "FINALIZED" ? "ring-4 ring-brand-green/20" : ""}`}>
+        <div className={`px-8 py-10 text-white transition-all duration-700 ${
+          poll.status === "FINALIZED" 
+            ? "bg-gradient-to-br from-brand-green-dark via-brand-green to-emerald-500" 
+            : "bg-brand-gradient"
+        }`}>
           <div className="flex flex-wrap items-center justify-between gap-6">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-3">{poll.title}</h1>
-              <div className="flex flex-wrap items-center gap-4 text-indigo-100">
+            <div className="flex-1 min-w-[300px]">
+              <div className="flex items-center gap-3 mb-3">
+                <h1 className="text-3xl md:text-5xl font-black tracking-tight">{poll.title}</h1>
+                {poll.status === "FINALIZED" && (
+                  <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold border border-white/30 animate-in zoom-in duration-500">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                    CONFIRMED
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-4 text-white/80 font-medium">
                 {poll.location && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
                     <MapPin className="w-4 h-4" />
                     <span>{poll.location}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1.5">
-                  <Users className="w-4 h-4" />
-                  <span>{votes.length} participants</span>
+                <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
+                  {poll.status === "FINALIZED" && poll.finalizedSlotId ? (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-[10px] font-black shadow-inner shadow-black/5">✓</div>
+                        <span className="text-xs font-bold">{voteCounts[poll.finalizedSlotId]?.YES || 0} yes</span>
+                      </div>
+                      {voteCounts[poll.finalizedSlotId]?.IF_NEED_BE > 0 && (
+                        <div className="flex items-center gap-1.5 border-l border-white/20 pl-2">
+                          <div className="w-5 h-5 rounded-md bg-white/10 flex items-center justify-center text-[10px] font-black shadow-inner shadow-black/5 text-white/80">?</div>
+                          <span className="text-xs font-bold">{voteCounts[poll.finalizedSlotId].IF_NEED_BE} if need be</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-4 h-4" />
+                      <span className="text-xs font-bold">{votes.length} participants</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-4">
-              <div className="event-card event-card-green !bg-white/10 !border-white/40 !backdrop-blur-xl !shadow-none !p-4 !hover:scale-100">
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 bg-brand-green text-white rounded-xl shadow-lg shadow-brand-green/30">
-                    <Trophy className="w-6 h-6" />
+            <div className="flex flex-col gap-4 w-full md:w-auto">
+              <div className={`event-card !bg-white/10 !border-white/40 !backdrop-blur-xl !shadow-none !p-5 !hover:scale-100 transition-all duration-500 ${
+                poll.status === "FINALIZED" ? "!bg-white/20 !border-white/60 ring-2 ring-white/20 shadow-lg shadow-black/10" : ""
+              }`}>
+                <div className="flex items-center gap-5">
+                  <div className={`p-3 rounded-2xl shadow-lg transition-all duration-500 ${
+                    poll.status === "FINALIZED" 
+                      ? "bg-white text-brand-green shadow-brand-green/20" 
+                      : "bg-brand-green text-white shadow-brand-green/30"
+                  }`}>
+                    {poll.status === "FINALIZED" ? <CalendarCheck className="w-7 h-7" /> : <Trophy className="w-7 h-7" />}
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/70">Top Selection</p>
-                    <p className="text-lg font-black text-white">
-                      {bestSlotId ? (() => {
-                        const slot = poll.timeSlots.find(s => s.id === bestSlotId)!;
+                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/70 mb-0.5">
+                      {poll.status === "FINALIZED" ? "CONFIRMED DATE" : "TOP SELECTION"}
+                    </p>
+                    <p className="text-xl font-black text-white leading-tight">
+                      {(() => {
+                        const targetSlotId = poll.status === "FINALIZED" ? poll.finalizedSlotId : bestSlotId;
+                        if (!targetSlotId) return 'No results yet';
+                        
+                        const slot = poll.timeSlots.find(s => s.id === targetSlotId)!;
+                        if (!slot) return 'No results yet';
+
                         if ("startTime" in slot) {
                           return new Date(slot.startTime).toLocaleDateString(undefined, {
                             weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
@@ -289,28 +355,47 @@ export default function ResultsPage() {
                         } else {
                           const dateStr = new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
                           const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
-                          return `${dateStr} - ${(slot as any).label}${timeStr}`;
+                          const label = (slot as any).label ? ` - ${(slot as any).label}` : "";
+                          return `${dateStr}${label}${timeStr}`;
                         }
-                      })() : 'No results yet'}
+                      })()}
                     </p>
                   </div>
                 </div>
               </div>
               {(() => {
                 const token = localStorage.getItem("adminToken_" + pollId);
-                if (isOrganizer || token) {
-                  const editUrl = `/poll/${pollId}/edit${token ? "?adminToken=" + token : ""}`;
+                const isAdmin = isOrganizer || token;
+                
+                if (!isAdmin) return null;
+
+                if (poll.status === "FINALIZED") {
                   return (
-                    <Link
-                      to={editUrl}
-                      className="flex items-center justify-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white font-bold transition-all"
+                    <button
+                      onClick={handleUnfinalize}
+                      disabled={unfinalizing}
+                      className="flex items-center justify-center gap-2 px-6 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white font-bold transition-all active:scale-95 disabled:opacity-50"
                     >
-                      <Edit3 size={18} />
-                      Edit Poll
-                    </Link>
+                      {unfinalizing ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <RotateCcw size={18} />
+                      )}
+                      Unselect Date
+                    </button>
                   );
                 }
-                return null;
+
+                const editUrl = `/poll/${pollId}/edit${token ? "?adminToken=" + token : ""}`;
+                return (
+                  <Link
+                    to={editUrl}
+                    className="flex items-center justify-center gap-2 px-6 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white font-bold transition-all active:scale-95"
+                  >
+                    <Edit3 size={18} />
+                    Edit Poll
+                  </Link>
+                );
               })()}
             </div>
           </div>

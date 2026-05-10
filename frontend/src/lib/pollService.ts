@@ -84,6 +84,19 @@ export async function finalizePoll(pollId: string, selectedTimeSlotId: string, _
 }
 
 /**
+ * Reopens a poll and removes the selected time slot.
+ */
+export async function unfinalizePoll(pollId: string, _adminToken?: string) {
+  const pollRef = doc(db, "polls", pollId);
+  
+  // Security rules will verify adminToken or organizerUid
+  await updateDoc(pollRef, {
+    status: "OPEN",
+    finalizedSlotId: null,
+  });
+}
+
+/**
  * Updates an existing poll in Firestore.
  */
 export async function updatePoll(pollId: string, data: Partial<Poll>) {
