@@ -114,9 +114,7 @@ export default function EditPollPage() {
       }
     }
     
-    if (slots.length > 1) {
-      setSlots(slots.filter((_, i) => i !== index));
-    }
+    setSlots(slots.filter((_, i) => i !== index));
   };
 
   const updateSlot = (index: number, field: keyof TimeSlotInput, value: string) => {
@@ -364,8 +362,7 @@ export default function EditPollPage() {
                       <button
                         type="button"
                         onClick={() => removeSlot(index)}
-                        disabled={slots.length === 1}
-                        className="p-2.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all sm:opacity-0 sm:group-hover:opacity-100 disabled:hidden flex-shrink-0"
+                        className="p-2.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -394,7 +391,7 @@ export default function EditPollPage() {
 
         <button
           type="submit"
-          disabled={isSubmitting || !title}
+          disabled={isSubmitting || !title || slots.length === 0}
           className="w-full py-4 bg-brand-green text-white rounded-xl font-bold text-xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isSubmitting ? (

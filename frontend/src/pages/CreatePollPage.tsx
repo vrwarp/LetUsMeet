@@ -31,6 +31,7 @@ export default function CreatePollPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [pendingGeneratedSlots, setPendingGeneratedSlots] = useState<TimeSlotInput[] | null>(null);
   const { user } = useAuth();
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
@@ -122,6 +123,7 @@ export default function CreatePollPage() {
     setIsGenerating(true);
     setAiError(null);
     setAiReasoning(null);
+    setPendingGeneratedSlots(null);
 
     try {
       const extractTimeSlots = httpsCallable(functions, "extractTimeSlots");
@@ -139,9 +141,13 @@ export default function CreatePollPage() {
           endTime: slot.end_time,
         }));
 
-        setSlots((prev) => [...prev, ...generatedSlots]);
+        if (slots.length > 0) {
+          setPendingGeneratedSlots(generatedSlots);
+        } else {
+          setSlots(generatedSlots);
+        }
         setAiReasoning(data.reasoning);
-        setAiQuery(""); 
+        // We no longer clear aiQuery here as per user request
       } else {
         setAiError("Could not understand the time slots from your query. Please try again.");
       }
@@ -151,6 +157,17 @@ export default function CreatePollPage() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleApplyPendingSlots = (mode: 'REPLACE' | 'APPEND') => {
+    if (!pendingGeneratedSlots) return;
+    if (mode === 'REPLACE') {
+      setSlots(pendingGeneratedSlots);
+    } else {
+      setSlots([...slots, ...pendingGeneratedSlots]);
+    }
+    setPendingGeneratedSlots(null);
+    setAiReasoning(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -351,16 +368,19 @@ export default function CreatePollPage() {
                     Describe your availability in plain text (e.g., "Next Tuesday and Thursday from 2pm to 4pm").
                   </p>
                   
-                  <div className="flex gap-2">
-                    <input
+                  <div className="flex gap-2 items-end">
+                    <textarea
                       id="ai-query"
-                      type="text"
                       placeholder="Type your availability here..."
-                      className="flex-1 px-4 py-2 text-sm rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white"
+                      className="flex-1 px-4 py-2.5 text-sm rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white resize-none min-h-[40px] max-h-[200px]"
                       value={aiQuery}
-                      onChange={(e) => setAiQuery(e.target.value)}
+                      onChange={(e) => {
+                        setAiQuery(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                      }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
+                        if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleGenerateSlots();
                         }
@@ -370,7 +390,7 @@ export default function CreatePollPage() {
                       type="button"
                       onClick={handleGenerateSlots}
                       disabled={isGenerating || !aiQuery.trim()}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                      className="px-4 h-[40px] bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
                     >
                       {isGenerating ? <Loader2 size={16} className="animate-spin" /> : "Generate"}
                     </button>
@@ -383,10 +403,66 @@ export default function CreatePollPage() {
                   )}
 
                   {aiReasoning && (
-                    <p className="text-xs text-indigo-800 bg-indigo-100/50 p-3 rounded-lg border border-indigo-200/50 leading-relaxed italic">
+                    <div className="text-xs text-indigo-800 bg-indigo-100/50 p-3 rounded-lg border border-indigo-200/50 leading-relaxed italic relative">
                       <span className="font-bold not-italic">AI Reasoning: </span>
                       {aiReasoning}
-                    </p>
+                      {!pendingGeneratedSlots && (
+                        <button 
+                          onClick={() => setAiReasoning(null)}
+                          className="absolute top-2 right-2 text-indigo-400 hover:text-indigo-600 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {pendingGeneratedSlots && (
+                    <div className="mt-2 p-4 bg-white border border-indigo-200 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-indigo-900">Proposed slots ({pendingGeneratedSlots.length}):</span>
+                        <button 
+                          onClick={() => {
+                            setPendingGeneratedSlots(null);
+                            setAiReasoning(null);
+                          }}
+                          className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      
+                      <div className="flex flex-col gap-2 mb-4">
+                        {pendingGeneratedSlots.slice(0, 3).map((slot, i) => (
+                          <div key={i} className="text-xs text-indigo-700 bg-indigo-50/50 px-3 py-2 rounded-lg border border-indigo-100/50 flex items-center justify-between">
+                            <span className="font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Unknown date"}</span>
+                            <span>{slot.startTime} - {slot.endTime}</span>
+                          </div>
+                        ))}
+                        {pendingGeneratedSlots.length > 3 && (
+                          <div className="text-[10px] text-center text-indigo-400 font-bold uppercase tracking-wider mt-1">
+                            + {pendingGeneratedSlots.length - 3} more slots
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPendingSlots('REPLACE')}
+                          className="flex-1 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm active:scale-[0.98]"
+                        >
+                          Replace Existing
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPendingSlots('APPEND')}
+                          className="flex-1 py-2 bg-white text-indigo-600 border border-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors active:scale-[0.98]"
+                        >
+                          Append to Current
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -526,9 +602,8 @@ export default function CreatePollPage() {
                     <button
                       type="button"
                       onClick={() => removeSlot(index)}
-                      disabled={slots.length === 1}
                       aria-label="Remove time slot"
-                      className="p-2.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all sm:opacity-0 sm:group-hover:opacity-100 disabled:hidden flex-shrink-0"
+                      className="p-2.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0"
                     >
                       <Trash2 size={18} />
                     </button>
