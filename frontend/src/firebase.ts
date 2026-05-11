@@ -4,13 +4,13 @@ import { initializeFirestore, connectFirestoreEmulator, getFirestore } from "fir
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 const firebaseConfig = {
-  projectId: "letusmeet-6f4e1",
-  appId: "1:976624737612:web:07ec0031febed7525143e9",
-  storageBucket: "letusmeet-6f4e1.firebasestorage.app",
-  apiKey: "AIzaSyCyJLyVaBjTdrIYpeDTYjQwTex8ZenCgPM",
-  authDomain: "letusmeet-6f4e1.firebaseapp.com",
-  messagingSenderId: "976624737612",
-  measurementId: "G-LQV7KN20WJ",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
