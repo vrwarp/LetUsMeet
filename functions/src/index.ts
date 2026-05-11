@@ -1,6 +1,6 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineJsonSecret } from "firebase-functions/params";
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {defineJsonSecret} from "firebase-functions/params";
+import {GoogleGenAI, ThinkingLevel} from "@google/genai";
 
 // Declare a structured JSON secret to hold all app-wide configuration values.
 // This helps stay within the Cloud Secret Manager free tier.
@@ -14,7 +14,7 @@ const appConfig = defineJsonSecret("LETUSMEET_CONFIG");
  * structured JSON with reasoning and time slots.
  */
 export const extractTimeSlots = onCall(
-  { secrets: [appConfig] },
+  {secrets: [appConfig]},
   async (request) => {
     // 1. Validate Input
     const userQuery = request.data.query;
@@ -33,7 +33,7 @@ export const extractTimeSlots = onCall(
     // 3. Prepare dynamic context for the prompt
     const now = new Date();
     const currentDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
-    const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
+    const dayOfWeek = now.toLocaleDateString("en-US", {weekday: "long"});
 
     // 4. Configure the model and prompt
     const modelName = "gemma-4-26b-a4b-it"; // Alternative "gemma-4-31b-it";
