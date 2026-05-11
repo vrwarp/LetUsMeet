@@ -76,8 +76,8 @@ export default function CreatePollPage() {
     } else {
       setSlots([...slots, { 
         date: lastSlot?.date || defaultDate, 
-        label: lastSlot?.label || "General", 
-        time: lastSlot?.time || "09:00" 
+        label: "", 
+        time: "" 
       }]);
     }
   };

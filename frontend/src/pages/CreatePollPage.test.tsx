@@ -131,4 +131,25 @@ describe('CreatePollPage', () => {
     
     expect(await screen.findByText('API Error')).toBeInTheDocument();
   });
+
+  it('does not pre-populate label and time in fuzzy mode', async () => {
+    render(
+      <MemoryRouter>
+        <CreatePollPage />
+      </MemoryRouter>
+    );
+    
+    // Switch to FUZZY mode
+    const fuzzyBtn = screen.getByText(/Flexible Windows/i);
+    fireEvent.click(fuzzyBtn);
+    
+    const addBtn = screen.getByTestId('add-slot-btn');
+    fireEvent.click(addBtn);
+    
+    const labelInput = screen.getByTestId('slot-label-0');
+    const timeInput = screen.getByTestId('slot-time-0');
+    
+    expect(labelInput).toHaveValue('');
+    expect(timeInput).toHaveValue('');
+  });
 });

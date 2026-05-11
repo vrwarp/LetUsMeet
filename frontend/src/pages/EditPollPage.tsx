@@ -95,10 +95,20 @@ export default function EditPollPage() {
 
   const addSlot = () => {
     const lastSlot = slots[slots.length - 1];
+    const defaultDate = new Date().toISOString().split('T')[0];
+
     if (schedulingMode === "EXACT") {
-      setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], startTime: "09:00", endTime: "10:00" }]);
+      setSlots([...slots, { 
+        date: lastSlot?.date || defaultDate, 
+        startTime: lastSlot?.startTime || "09:00", 
+        endTime: lastSlot?.endTime || "10:00" 
+      }]);
     } else {
-      setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], label: "General", time: "09:00" }]);
+      setSlots([...slots, { 
+        date: lastSlot?.date || defaultDate, 
+        label: "", 
+        time: "" 
+      }]);
     }
   };
 
