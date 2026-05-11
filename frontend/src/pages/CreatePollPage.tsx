@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail, Clock, X } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail, Clock, X, Sparkles } from "lucide-react";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase";
 import { createPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
@@ -25,6 +27,10 @@ export default function CreatePollPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
+  const [aiQuery, setAiQuery] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiReasoning, setAiReasoning] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const { user } = useAuth();
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
@@ -108,6 +114,43 @@ export default function CreatePollPage() {
       newSlots[index] = { ...oldSlot, [field]: value };
     }
     setSlots(newSlots);
+  };
+  
+  const handleGenerateSlots = async () => {
+    if (!aiQuery.trim()) return;
+
+    setIsGenerating(true);
+    setAiError(null);
+    setAiReasoning(null);
+
+    try {
+      const extractTimeSlots = httpsCallable(functions, "extractTimeSlots");
+      const result = await extractTimeSlots({ query: aiQuery });
+      
+      const data = result.data as { 
+        reasoning: string; 
+        time_slots: Array<{ date: string; start_time: string; end_time: string }> 
+      };
+
+      if (data && data.time_slots && data.time_slots.length > 0) {
+        const generatedSlots: TimeSlotInput[] = data.time_slots.map((slot) => ({
+          date: slot.date,
+          startTime: slot.start_time,
+          endTime: slot.end_time,
+        }));
+
+        setSlots((prev) => [...prev, ...generatedSlots]);
+        setAiReasoning(data.reasoning);
+        setAiQuery(""); 
+      } else {
+        setAiError("Could not understand the time slots from your query. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("AI Generation Error:", err);
+      setAiError(err.message || "Failed to generate slots. Please try manually.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -293,6 +336,62 @@ export default function CreatePollPage() {
               Propose Time Slots
             </label>
           </div>
+
+          {schedulingMode === "EXACT" && (
+            <div className="mb-6 bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 shadow-inner">
+              <div className="flex items-start gap-3">
+                <div className="mt-1 bg-indigo-100 p-1.5 rounded-lg text-indigo-600 flex-shrink-0">
+                  <Sparkles size={16} />
+                </div>
+                <div className="flex-1 flex flex-col gap-3">
+                  <label htmlFor="ai-query" className="text-sm font-bold text-indigo-900">
+                    Auto-Generate with AI ✨
+                  </label>
+                  <p className="text-xs text-indigo-700 -mt-2">
+                    Describe your availability in plain text (e.g., "Next Tuesday and Thursday from 2pm to 4pm").
+                  </p>
+                  
+                  <div className="flex gap-2">
+                    <input
+                      id="ai-query"
+                      type="text"
+                      placeholder="Type your availability here..."
+                      className="flex-1 px-4 py-2 text-sm rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white"
+                      value={aiQuery}
+                      onChange={(e) => setAiQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleGenerateSlots();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGenerateSlots}
+                      disabled={isGenerating || !aiQuery.trim()}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                    >
+                      {isGenerating ? <Loader2 size={16} className="animate-spin" /> : "Generate"}
+                    </button>
+                  </div>
+
+                  {aiError && (
+                    <p className="text-xs text-red-500 font-medium bg-red-50 p-2 rounded border border-red-100">
+                      {aiError}
+                    </p>
+                  )}
+
+                  {aiReasoning && (
+                    <p className="text-xs text-indigo-800 bg-indigo-100/50 p-3 rounded-lg border border-indigo-200/50 leading-relaxed italic">
+                      <span className="font-bold not-italic">AI Reasoning: </span>
+                      {aiReasoning}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col gap-4">
             {slots.map((slot, index) => (

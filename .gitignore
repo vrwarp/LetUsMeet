@@ -100,3 +100,7 @@ dist-ssr
 playwright-report/
 test-results/
 
+# Functions
+functions/lib/
+functions/typings/
+
