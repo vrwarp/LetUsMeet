@@ -98,7 +98,7 @@ export default function EditPollPage() {
     if (schedulingMode === "EXACT") {
       setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], startTime: "09:00", endTime: "10:00" }]);
     } else {
-      setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], label: "General", startTime: "", endTime: "" }]);
+      setSlots([...slots, { date: lastSlot?.date || new Date().toISOString().split('T')[0], label: "General", time: "09:00" }]);
     }
   };
 
@@ -139,8 +139,8 @@ export default function EditPollPage() {
         timeSlots: schedulingMode === "EXACT"
           ? slots.map(slot => ({
             id: slot.id,
-            startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
-            endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
+            startTime: new Date(`${slot.date}T${slot.startTime || "09:00"}`).toISOString(),
+            endTime: new Date(`${slot.date}T${slot.endTime || "10:00"}`).toISOString(),
           })) as any[]
           : slots.map(slot => ({
             id: slot.id,
@@ -381,7 +381,7 @@ export default function EditPollPage() {
               className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-medium mt-2"
             >
               <Plus size={18} />
-              Add another option
+              Add time slot
             </button>
           </div>
         </div>

@@ -7,8 +7,8 @@ import { useEffect } from "react";
 
 interface TimeSlotInput {
   date: string;
-  startTime: string; // for EXACT
-  endTime: string;   // for EXACT
+  startTime?: string; // for EXACT
+  endTime?: string;   // for EXACT
   label?: string;    // for FUZZY
   time?: string;     // for FUZZY
 }
@@ -21,9 +21,7 @@ export default function CreatePollPage() {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [schedulingMode, setSchedulingMode] = useState<"EXACT" | "FUZZY">("EXACT");
-  const [slots, setSlots] = useState<TimeSlotInput[]>([
-    { date: new Date().toISOString().split('T')[0], startTime: "09:00", endTime: "10:00" }
-  ]);
+  const [slots, setSlots] = useState<TimeSlotInput[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
@@ -60,13 +58,25 @@ export default function CreatePollPage() {
 
   const addSlot = () => {
     const lastSlot = slots[slots.length - 1];
-    setSlots([...slots, { ...lastSlot }]);
+    const defaultDate = new Date().toISOString().split('T')[0];
+    
+    if (schedulingMode === "EXACT") {
+      setSlots([...slots, { 
+        date: lastSlot?.date || defaultDate, 
+        startTime: lastSlot?.startTime || "09:00", 
+        endTime: lastSlot?.endTime || "10:00" 
+      }]);
+    } else {
+      setSlots([...slots, { 
+        date: lastSlot?.date || defaultDate, 
+        label: lastSlot?.label || "General", 
+        time: lastSlot?.time || "09:00" 
+      }]);
+    }
   };
 
   const removeSlot = (index: number) => {
-    if (slots.length > 1) {
-      setSlots(slots.filter((_, i) => i !== index));
-    }
+    setSlots(slots.filter((_, i) => i !== index));
   };
 
   const updateSlot = (index: number, field: keyof TimeSlotInput, value: string) => {
@@ -116,8 +126,8 @@ export default function CreatePollPage() {
         description,
         timeSlots: schedulingMode === "EXACT"
           ? slots.map(slot => ({
-            startTime: new Date(`${slot.date}T${slot.startTime}`).toISOString(),
-            endTime: new Date(`${slot.date}T${slot.endTime}`).toISOString(),
+            startTime: new Date(`${slot.date}T${slot.startTime || "09:00"}`).toISOString(),
+            endTime: new Date(`${slot.date}T${slot.endTime || "10:00"}`).toISOString(),
           })) as any[]
           : slots.map(slot => ({
             date: slot.date,
@@ -435,7 +445,7 @@ export default function CreatePollPage() {
               className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-medium mt-2"
             >
               <Plus size={18} />
-              Add another option
+              Add time slot
             </button>
           </div>
         </div>
@@ -450,7 +460,7 @@ export default function CreatePollPage() {
         <button
           type="submit"
           data-testid="create-submit-btn"
-          disabled={isSubmitting || !title || !organizerName || !organizerEmail}
+          disabled={isSubmitting || !title || !organizerName || !organizerEmail || slots.length === 0}
           className="btn-primary-green w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           {isSubmitting ? (

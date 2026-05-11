@@ -15,8 +15,9 @@ test.describe('Navigation Flows', () => {
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill('Nav Test Poll');
+    await page.getByTestId('add-slot-btn').click();
     await page.getByTestId('create-submit-btn').click();
-    
+
     await page.waitForURL(/\/poll\/[^/]+$/);
     const pollUrl = page.url();
     await expect(page.getByTestId('poll-title')).toContainText('Nav Test Poll');

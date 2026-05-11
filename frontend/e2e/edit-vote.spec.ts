@@ -13,6 +13,7 @@ test.describe('Vote Editing and Multiple Responses', () => {
     const addSlotBtn = page.getByTestId('add-slot-btn');
     await expect(addSlotBtn).toBeEnabled();
     await addSlotBtn.click();
+    await addSlotBtn.click();
 
     const submitBtn = page.getByTestId('create-submit-btn');
     await expect(submitBtn).toBeEnabled();

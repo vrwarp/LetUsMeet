@@ -13,6 +13,9 @@ test.describe('Fuzzy Scheduling', () => {
     // Select "Flexible Windows" mode
     await page.click('text=Flexible Windows');
     
+    // Add first slot
+    await page.click('[data-testid="add-slot-btn"]');
+    
     // Enter custom label for first slot
     await page.fill('[data-testid="slot-label-0"]', 'Brunch');
     await page.fill('[data-testid="slot-time-0"]', '11:00');

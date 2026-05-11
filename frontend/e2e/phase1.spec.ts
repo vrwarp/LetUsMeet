@@ -3,14 +3,14 @@ import { test, expect } from '@playwright/test';
 test.describe('Phase 1 Critical User Journeys', () => {
   // We use a single test to preserve the state (the created poll ID) across the flow,
   // or we could split them and pass the ID, but a single e2e journey test is often simpler.
-  
+
   test('Create a poll, vote on it, and view results', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
-    
+
     // --- 1. Home Page ---
     await page.goto('/');
     await expect(page).toHaveTitle(/LetUsMeet/);
-    
+
     // Navigate to create page
     await page.getByTestId('create-poll-btn').click();
     await expect(page).toHaveURL(/\/create/);
@@ -21,10 +21,11 @@ test.describe('Phase 1 Critical User Journeys', () => {
     const pollTitle = `Playwright E2E Poll ${Date.now()}`;
     await page.getByTestId('poll-title-input').fill(pollTitle);
     await page.getByTestId('poll-location-input').fill('E2E Test Location');
-    
-    // Fill first slot
+
+    // Fill slots
     await page.getByTestId('add-slot-btn').click();
-    
+    await page.getByTestId('add-slot-btn').click();
+
     // Submit the form
     await page.getByTestId('create-submit-btn').click();
 
@@ -35,11 +36,11 @@ test.describe('Phase 1 Critical User Journeys', () => {
 
     // --- 3. Vote Poll Page ---
     await expect(page.getByTestId('poll-title')).toContainText(pollTitle);
-    
+
     // Cycle vote on the first slot (clicks from NO -> YES)
     const slotCards = page.getByTestId('slot-card');
     await expect(slotCards).toHaveCount(2); // we added one
-    
+
     await slotCards.nth(0).click(); // NO -> YES
     await slotCards.nth(0).click(); // YES -> IF_NEED_BE
 
@@ -47,7 +48,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
 
     // Fill name
     await page.getByTestId('participant-name-input').fill('E2E Tester');
-    
+
     // Submit vote
     await page.getByTestId('vote-submit-btn').click();
 

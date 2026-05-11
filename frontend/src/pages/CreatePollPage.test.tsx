@@ -40,6 +40,9 @@ describe('CreatePollPage', () => {
     const locationInput = screen.getByTestId('poll-location-input');
     await user.type(locationInput, 'Cafe');
     
+    const addSlotBtn = screen.getByTestId('add-slot-btn');
+    await user.click(addSlotBtn);
+
     const startTimeInput = screen.getByTestId('slot-start-0');
     const endTimeInput = screen.getByTestId('slot-end-0');
     
@@ -80,7 +83,11 @@ describe('CreatePollPage', () => {
     
     const titleInput = await screen.findByTestId('poll-title-input');
     await userEvent.type(titleInput, 'Title');
-    // name and email are prefilled, so button should be enabled once title is typed
+
+    const addSlotBtn = screen.getByTestId('add-slot-btn');
+    fireEvent.click(addSlotBtn);
+
+    // name and email are prefilled, and we added a slot, so button should be enabled once title is typed
     expect(submitBtn).not.toBeDisabled();
   });
 
@@ -92,6 +99,9 @@ describe('CreatePollPage', () => {
     );
     
     const addBtn = screen.getByTestId('add-slot-btn');
+    fireEvent.click(addBtn);
+    expect(screen.getAllByTestId(/slot-start-/)).toHaveLength(1);
+    
     fireEvent.click(addBtn);
     expect(screen.getAllByTestId(/slot-start-/)).toHaveLength(2);
     
@@ -113,6 +123,9 @@ describe('CreatePollPage', () => {
     await userEvent.type(titleInput, 'Title');
     // name and email are prefilled
     
+    const addSlotBtn = screen.getByTestId('add-slot-btn');
+    fireEvent.click(addSlotBtn);
+
     const submitBtn = screen.getByTestId('create-submit-btn');
     fireEvent.click(submitBtn);
     

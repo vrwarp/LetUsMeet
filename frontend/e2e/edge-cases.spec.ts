@@ -36,6 +36,7 @@ test.describe('Error & Edge Cases', () => {
     await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     const pollTitle = `Edge Case Poll ${Date.now()}`;
     await page.getByTestId('poll-title-input').fill(pollTitle);
+    await page.getByTestId('add-slot-btn').click();
     const createBtn = page.getByTestId('create-submit-btn');
     await expect(createBtn).toBeEnabled();
     await createBtn.click();
