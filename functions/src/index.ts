@@ -1,6 +1,8 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineJsonSecret } from "firebase-functions/params";
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {defineJsonSecret} from "firebase-functions/params";
+import {GoogleGenAI, ThinkingLevel} from "@google/genai";
+import {getTimeSlotsPrompt} from "./prompts/timeSlots";
+import {getFuzzySlotsPrompt} from "./prompts/fuzzySlots";
 
 // Declare a structured JSON secret to hold all app-wide configuration values.
 // This helps stay within the Cloud Secret Manager free tier.
@@ -14,7 +16,7 @@ const appConfig = defineJsonSecret("LETUSMEET_CONFIG");
  * structured JSON with reasoning and time slots.
  */
 export const extractTimeSlots = onCall(
-  { secrets: [appConfig] },
+  {secrets: [appConfig]},
   async (request) => {
     // 1. Validate Input
     const userQuery = request.data.query;
@@ -33,7 +35,7 @@ export const extractTimeSlots = onCall(
     // 3. Prepare dynamic context for the prompt
     const now = new Date();
     const currentDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
-    const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
+    const dayOfWeek = now.toLocaleDateString("en-US", {weekday: "long"});
 
     // 4. Configure the model and prompt
     const modelName = "gemma-4-26b-a4b-it"; // Alternative "gemma-4-31b-it";
@@ -43,30 +45,7 @@ export const extractTimeSlots = onCall(
       },
       systemInstruction: [
         {
-          text: `You are an expert time-slot extraction engine for a scheduling application. Your sole purpose is to convert natural language time queries into a strict, structured JSON format.
-
-RULES:
-1. Output ONLY valid JSON. No conversational filler, no markdown formatting outside of the JSON block.
-2. You must first provide a 'reasoning' string at the root level explaining your date math and exclusions.
-3. Format dates strictly as YYYY-MM-DD.
-4. Format times strictly in 24-hour format as HH:MM.
-5. All relative dates (e.g., 'next week', 'tomorrow') must be calculated relative to the CURRENT_DATE provided below.
-6. Strictly obey exclusions (e.g., 'except Wednesday', 'not weekends').
-
-EXPECTED OUTPUT SCHEMA:
-{
-  "reasoning": "Step-by-step logic calculating the correct dates and applying exclusions.",
-  "time_slots": [
-    {
-      "date": "YYYY-MM-DD",
-      "start_time": "HH:MM",
-      "end_time": "HH:MM"
-    }
-  ]
-}
-
----
-CURRENT_DATE: ${currentDate} (${dayOfWeek})`,
+          text: getTimeSlotsPrompt(currentDate, dayOfWeek),
         },
       ],
       responseMimeType: "application/json",
@@ -122,7 +101,7 @@ CURRENT_DATE: ${currentDate} (${dayOfWeek})`,
  * structured JSON with labels and inferred times.
  */
 export const extractFuzzySlots = onCall(
-  { secrets: [appConfig] },
+  {secrets: [appConfig]},
   async (request) => {
     // 1. Validate Input
     const userQuery = request.data.query;
@@ -141,7 +120,7 @@ export const extractFuzzySlots = onCall(
     // 3. Prepare dynamic context for the prompt
     const now = new Date();
     const currentDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
-    const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
+    const dayOfWeek = now.toLocaleDateString("en-US", {weekday: "long"});
 
     // 4. Configure the model and prompt
     const modelName = "gemma-4-26b-a4b-it";
@@ -151,31 +130,7 @@ export const extractFuzzySlots = onCall(
       },
       systemInstruction: [
         {
-          text: `You are an expert AI scheduling assistant for a scheduling application. Your task is to parse a user's natural language availability and convert it into structured JSON for flexible 'fuzzy' scheduling blocks.
-
-RULES:
-1. Output ONLY valid JSON. No conversational filler, no markdown formatting outside of the JSON block.
-2. Provide a 'reasoning' string at the root level explaining your date math and interpretation of the user's intent.
-3. Format dates strictly as YYYY-MM-DD relative to CURRENT_DATE.
-4. Labels should be concise, prioritizing single word but no more than a few words.
-5. Labels are flexible. They can be used to describe time of day (e.g. morning), activity (e.g. hiking), or any other descriptor that makes sense for the user's query.
-6. Inferred Time: Inferred time is optional and should only be used if the request explicitly asks for or implies an hour of the day. Otherwise, leave the time as an empty string "".
-7. Deduplication: If the user says 'Evenings next week', generate a distinct slot for each day, all with the label 'Evening'.
-
-EXPECTED OUTPUT SCHEMA:
-{
-  "reasoning": "Step-by-step logic calculating dates and inferring labels.",
-  "fuzzy_slots": [
-    {
-      "date": "YYYY-MM-DD",
-      "label": "Short Label",
-      "time": "HH:MM"
-    }
-  ]
-}
-
----
-CURRENT_DATE: ${currentDate} (${dayOfWeek})`,
+          text: getFuzzySlotsPrompt(currentDate, dayOfWeek),
         },
       ],
       responseMimeType: "application/json",
