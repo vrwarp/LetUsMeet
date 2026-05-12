@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle, Clock, X, ShieldCheck } from "lucide-react";
 import { subscribeToPoll, updatePoll, claimPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
-import { ShieldCheck } from "lucide-react";
 import type { Poll, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {
