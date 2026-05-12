@@ -355,46 +355,42 @@ export default function CreatePollPage() {
           </div>
 
           {schedulingMode === "EXACT" && (
-            <div className="mb-6 bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 shadow-inner">
-              <div className="flex items-start gap-3">
-                <div className="mt-1 bg-indigo-100 p-1.5 rounded-lg text-indigo-600 flex-shrink-0">
-                  <Sparkles size={16} />
+            <div className="mb-6 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 shadow-inner">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-indigo-100 p-1.5 rounded-lg text-indigo-600 flex-shrink-0">
+                  <Sparkles size={14} />
                 </div>
-                <div className="flex-1 flex flex-col gap-3">
-                  <label htmlFor="ai-query" className="text-sm font-bold text-indigo-900">
-                    Auto-Generate with AI ✨
-                  </label>
-                  <p className="text-xs text-indigo-700 -mt-2">
-                    Describe your availability in plain text (e.g., "Next Tuesday and Thursday from 2pm to 4pm").
-                  </p>
-                  
-                  <div className="flex gap-2 items-end">
-                    <textarea
-                      id="ai-query"
-                      placeholder="Type your availability here..."
-                      className="flex-1 px-4 py-2.5 text-sm rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white resize-none min-h-[40px] max-h-[200px]"
-                      value={aiQuery}
-                      onChange={(e) => {
-                        setAiQuery(e.target.value);
-                        e.target.style.height = 'auto';
-                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleGenerateSlots();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleGenerateSlots}
-                      disabled={isGenerating || !aiQuery.trim()}
-                      className="px-4 h-[40px] bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
-                    >
-                      {isGenerating ? <Loader2 size={16} className="animate-spin" /> : "Generate"}
-                    </button>
-                  </div>
+                <label htmlFor="ai-query" className="text-sm font-bold text-indigo-900">
+                  Auto-Generate with AI ✨
+                </label>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] text-indigo-700 leading-tight">
+                  Describe your availability in plain text (e.g., "Next Tuesday and Thursday from 2pm to 4pm").
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                  <textarea
+                    id="ai-query"
+                    placeholder="Type your availability here..."
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white resize-none min-h-[60px] sm:min-h-[38px] max-h-[200px]"
+                    value={aiQuery}
+                    onChange={(e) => {
+                      setAiQuery(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGenerateSlots}
+                    disabled={isGenerating || !aiQuery.trim()}
+                    className="px-4 h-[38px] bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+                  >
+                    {isGenerating ? <Loader2 size={14} className="animate-spin" /> : "Generate"}
+                  </button>
+                </div>
 
                   {aiError && (
                     <p className="text-xs text-red-500 font-medium bg-red-50 p-2 rounded border border-red-100">
@@ -403,23 +399,23 @@ export default function CreatePollPage() {
                   )}
 
                   {aiReasoning && (
-                    <div className="text-xs text-indigo-800 bg-indigo-100/50 p-3 rounded-lg border border-indigo-200/50 leading-relaxed italic relative">
+                    <div className="text-[11px] text-indigo-800 bg-indigo-100/50 p-2 pr-7 rounded-lg border border-indigo-200/50 leading-relaxed italic relative">
                       <span className="font-bold not-italic">AI Reasoning: </span>
                       {aiReasoning}
                       {!pendingGeneratedSlots && (
                         <button 
                           onClick={() => setAiReasoning(null)}
-                          className="absolute top-2 right-2 text-indigo-400 hover:text-indigo-600 transition-colors"
+                          className="absolute top-1.5 right-1.5 text-indigo-400 hover:text-indigo-600 transition-colors"
                         >
-                          <X size={14} />
+                          <X size={12} />
                         </button>
                       )}
                     </div>
                   )}
 
                   {pendingGeneratedSlots && (
-                    <div className="mt-2 p-4 bg-white border border-indigo-200 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-2">
-                      <div className="flex items-center justify-between mb-3">
+                    <div className="mt-2 p-3 bg-white border border-indigo-200 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-bold text-indigo-900">Proposed slots ({pendingGeneratedSlots.length}):</span>
                         <button 
                           onClick={() => {
@@ -428,7 +424,7 @@ export default function CreatePollPage() {
                           }}
                           className="text-neutral-400 hover:text-neutral-600 transition-colors"
                         >
-                          <X size={16} />
+                          <X size={14} />
                         </button>
                       </div>
                       
@@ -446,62 +442,69 @@ export default function CreatePollPage() {
                         )}
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <button
                           type="button"
                           onClick={() => handleApplyPendingSlots('REPLACE')}
-                          className="flex-1 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm active:scale-[0.98]"
+                          className="flex-1 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm active:scale-[0.98]"
                         >
                           Replace Existing
                         </button>
                         <button
                           type="button"
                           onClick={() => handleApplyPendingSlots('APPEND')}
-                          className="flex-1 py-2 bg-white text-indigo-600 border border-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors active:scale-[0.98]"
+                          className="flex-1 py-2.5 bg-white text-indigo-600 border border-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors active:scale-[0.98]"
                         >
                           Append to Current
                         </button>
                       </div>
                     </div>
                   )}
-                </div>
               </div>
             </div>
           )}
 
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {slots.map((slot, index) => (
               <div key={index} className="relative group">
-                <div className="flex flex-col sm:grid sm:grid-cols-[150px_1fr_40px] sm:items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm">
-                  {/* Date Picker Column */}
-                  <label className="relative group/date cursor-pointer">
-                    <div className="flex items-center px-4 py-2.5 text-neutral-700 font-medium bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                      <CalendarIcon size={16} className="text-indigo-400 mr-2 flex-shrink-0" />
-                      <span className="truncate text-sm font-bold">
-                        {slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}
-                      </span>
-                    </div>
-                    <input
-                      type="date"
-                      required
-                      aria-label="Date"
-                      data-testid={`slot-date-${index}`}
-                      onClick={handlePickerClick}
-                      onBlur={handleBlur}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                      value={slot.date}
-                      onChange={(e) => updateSlot(index, "date", e.target.value)}
-                    />
-                  </label>
+                <div className="flex flex-col gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="relative group/date cursor-pointer flex-1">
+                      <div className="flex items-center px-3 py-2 text-neutral-700 font-medium bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
+                        <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                        <span className="truncate text-xs font-bold">
+                          {slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        required
+                        aria-label="Date"
+                        data-testid={`slot-date-${index}`}
+                        onClick={handlePickerClick}
+                        onBlur={handleBlur}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                        value={slot.date}
+                        onChange={(e) => updateSlot(index, "date", e.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeSlot(index)}
+                      aria-label="Remove time slot"
+                      className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
 
-                  {/* Main Inputs Column */}
-                  <div className="flex-1">
+                  <div className="w-full">
                     {schedulingMode === "EXACT" ? (
-                      <div className="flex items-center gap-3">
-                        <label className="relative group/start cursor-pointer flex-1 sm:flex-none">
-                          <div className="flex items-center px-4 py-2.5 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-indigo-500 group-focus-within/start:ring-2 group-focus-within/start:ring-indigo-500/20 transition-all w-full sm:w-32 shadow-sm">
-                            <Clock size={16} className="text-indigo-400 mr-2 flex-shrink-0" />
-                            <span>{slot.startTime || "09:00"}</span>
+                      <div className="flex items-center gap-2">
+                        <label className="relative group/start cursor-pointer flex-1">
+                          <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-indigo-500 group-focus-within/start:ring-2 group-focus-within/start:ring-indigo-500/20 transition-all w-full shadow-sm">
+                            <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                            <span className="text-sm">{slot.startTime || "09:00"}</span>
                           </div>
                           <input
                             type="time"
@@ -515,11 +518,11 @@ export default function CreatePollPage() {
                             onChange={(e) => updateSlot(index, "startTime", e.target.value)}
                           />
                         </label>
-                        <span className="text-neutral-600 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
-                        <label className="relative group/end cursor-pointer flex-1 sm:flex-none">
-                          <div className="flex items-center px-4 py-2.5 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full sm:w-32 shadow-sm">
-                            <Clock size={16} className="text-indigo-400 mr-2 flex-shrink-0" />
-                            <span>{slot.endTime || "10:00"}</span>
+                        <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
+                        <label className="relative group/end cursor-pointer flex-1">
+                          <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full shadow-sm">
+                            <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                            <span className="text-sm">{slot.endTime || "10:00"}</span>
                           </div>
                           <input
                             type="time"
@@ -535,46 +538,22 @@ export default function CreatePollPage() {
                         </label>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex flex-col lg:flex-row gap-3">
-                          <div className="flex-1 relative">
-                            <input
-                              type="text"
-                              placeholder="Label (e.g., Dinner)"
-                              data-testid={`slot-label-${index}`}
-                              className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none bg-white transition-all font-bold text-neutral-700 placeholder:text-neutral-300 shadow-sm"
-                              value={slot.label || ""}
-                              onChange={(e) => updateSlot(index, "label", e.target.value)}
-                            />
-                          </div>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Label (e.g. Morning)"
+                            className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
+                            value={slot.label}
+                            onChange={(e) => updateSlot(index, "label", e.target.value)}
+                          />
                           <label className="relative group/time cursor-pointer flex-shrink-0">
-                            <div className="flex items-center px-4 py-2.5 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-full lg:w-32 shadow-sm hover:border-neutral-300">
+                            <div className="flex items-center px-3 py-2 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-24 shadow-sm hover:border-neutral-300">
                               <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
-                              <span className="truncate text-base">{slot.time || "--:--"}</span>
+                              <span className="truncate text-sm">{slot.time || "--:--"}</span>
                             </div>
-                            <div className="absolute -top-2 left-2 bg-neutral-100 px-1.5 py-0.5 rounded-md border border-neutral-200 text-[8px] font-black uppercase tracking-widest text-neutral-400 shadow-sm z-20 group-hover/time:bg-indigo-50 group-hover/time:border-indigo-200 group-hover/time:text-indigo-500 transition-colors">
-                              Approx
-                            </div>
-                            {slot.time && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  updateSlot(index, "time", "");
-                                }}
-                                className="absolute inset-y-0 right-2 flex items-center justify-center p-1 text-neutral-300 hover:text-red-500 z-30 transition-all sm:opacity-0 sm:group-hover/time:opacity-100"
-                                aria-label="Clear time"
-                              >
-                                <X size={14} strokeWidth={3} />
-                              </button>
-                            )}
                             <input
                               type="time"
-                              aria-label="Approximate time"
-                              data-testid={`slot-time-${index}`}
-                              onClick={handlePickerClick}
-                              onBlur={handleBlur}
                               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                               value={slot.time || ""}
                               onChange={(e) => updateSlot(index, "time", e.target.value)}
@@ -596,18 +575,6 @@ export default function CreatePollPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Actions Column */}
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => removeSlot(index)}
-                      aria-label="Remove time slot"
-                      className="p-2.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
                 </div>
               </div>
             ))}
@@ -616,9 +583,9 @@ export default function CreatePollPage() {
               type="button"
               onClick={addSlot}
               data-testid="add-slot-btn"
-              className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-medium mt-2"
+              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px]"
             >
-              <Plus size={18} />
+              <Plus size={20} />
               Add time slot
             </button>
           </div>
