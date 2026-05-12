@@ -130,48 +130,46 @@ export default function CreatePollPage() {
 
     while (attempts <= maxRetries) {
       try {
-        const extractTimeSlots = httpsCallable(functions, "extractTimeSlots");
-        const result = await extractTimeSlots({ query: aiQuery });
-        
-        const data = result.data as { 
-          reasoning: string; 
-          time_slots: Array<{ date: string; start_time: string; end_time: string }> 
-        };
+        if (schedulingMode === "EXACT") {
+          const extractTimeSlots = httpsCallable(functions, "extractTimeSlots");
+          const result = await extractTimeSlots({ query: aiQuery });
+          const data = result.data as { reasoning: string; time_slots: any[] };
 
-        if (data && data.time_slots && data.time_slots.length > 0) {
-          const generatedSlots: TimeSlotInput[] = data.time_slots.map((slot) => ({
-            date: slot.date,
-            startTime: slot.start_time,
-            endTime: slot.end_time,
-            label: "",
-            time: ""
-          }));
-          
-          setAiReasoning(data.reasoning);
-          setPendingGeneratedSlots(generatedSlots);
+          if (data?.time_slots?.length > 0) {
+            setPendingGeneratedSlots(data.time_slots.map((s) => ({
+              date: s.date, startTime: s.start_time, endTime: s.end_time, label: "", time: ""
+            })));
+            setAiReasoning(data.reasoning);
+          } else {
+            setAiError("Could not understand the time slots from your query.");
+          }
         } else {
-          setAiError("Could not understand the time slots from your query. Please try again.");
+          const extractFuzzySlots = httpsCallable(functions, "extractFuzzySlots");
+          const result = await extractFuzzySlots({ query: aiQuery });
+          const data = result.data as { reasoning: string; fuzzy_slots: any[] };
+
+          if (data?.fuzzy_slots?.length > 0) {
+            setPendingGeneratedSlots(data.fuzzy_slots.map((s) => ({
+              date: s.date, label: s.label, time: s.time || "", startTime: "", endTime: ""
+            })));
+            setAiReasoning(data.reasoning);
+          } else {
+            setAiError("Could not understand the flexible windows from your query.");
+          }
         }
-        break; // Success! Exit the loop.
+        break;
       } catch (error: any) {
         console.error("AI Generation Error:", error);
-        
-        // Retry logic for internal errors (HTTP 500 etc)
         const retryableCodes = ['internal', 'unavailable', 'deadline-exceeded'];
         if (retryableCodes.includes(error.code) && attempts < maxRetries) {
           attempts++;
-          // Wait 1s then 2s before retrying
           await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
           continue;
         }
-
-        setAiError(
-          error.message || "Failed to generate time slots. Please check your input and try again."
-        );
-        break; // Permanent error or out of retries.
+        setAiError(error.message || "Failed to generate time slots. Please check your input and try again.");
+        break;
       }
     }
-    
     setIsGenerating(false);
   };
 
@@ -335,7 +333,8 @@ export default function CreatePollPage() {
               type="button"
               onClick={() => {
                 setSchedulingMode("EXACT");
-                // Optionally reset slots or keep date
+                setPendingGeneratedSlots(null);
+                setAiReasoning(null);
               }}
               className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] ${schedulingMode === "EXACT"
                 ? "border-brand-green bg-brand-green-light/20 shadow-md shadow-brand-green/5"
@@ -349,6 +348,8 @@ export default function CreatePollPage() {
               type="button"
               onClick={() => {
                 setSchedulingMode("FUZZY");
+                setPendingGeneratedSlots(null);
+                setAiReasoning(null);
               }}
               className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] ${schedulingMode === "FUZZY"
                 ? "border-brand-green bg-brand-green-light/20 shadow-md shadow-brand-green/5"
@@ -370,8 +371,7 @@ export default function CreatePollPage() {
             </label>
           </div>
 
-          {schedulingMode === "EXACT" && (
-            <div className="mb-6 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 shadow-inner">
+          <div className="mb-6 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 shadow-inner">
               <div className="flex items-center gap-2 mb-2">
                 <div className="bg-indigo-100 p-1.5 rounded-lg text-indigo-600 flex-shrink-0">
                   <Sparkles size={14} />
@@ -383,7 +383,10 @@ export default function CreatePollPage() {
 
               <div className="flex flex-col gap-2">
                 <p className="text-[11px] text-indigo-700 leading-tight">
-                  Describe your availability in plain text (e.g., "Next Tuesday and Thursday from 2pm to 4pm").
+                  Describe your availability in plain text (e.g., {schedulingMode === "EXACT" 
+                    ? '"Next Tuesday and Thursday from 2pm to 4pm"' 
+                    : '"Next weekend evenings and Monday morning"'}
+                  ).
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
@@ -398,7 +401,7 @@ export default function CreatePollPage() {
                     type="button"
                     onClick={handleGenerateSlots}
                     disabled={isGenerating || !aiQuery.trim()}
-                    className="px-4 h-[38px] bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+                    className="w-full sm:w-[100px] h-[38px] bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap flex-shrink-0"
                   >
                     {isGenerating ? <Loader2 size={14} className="animate-spin" /> : "Generate"}
                   </button>
@@ -440,18 +443,25 @@ export default function CreatePollPage() {
                         </button>
                       </div>
                       
-                      <div className="flex flex-col gap-2 mb-4">
-                        {pendingGeneratedSlots.slice(0, 3).map((slot, i) => (
+                      <div className="flex flex-col gap-2 mb-4 max-h-[300px] overflow-y-auto pr-1">
+                        {pendingGeneratedSlots.map((slot, i) => (
                           <div key={i} className="text-xs text-indigo-700 bg-indigo-50/50 px-3 py-2 rounded-lg border border-indigo-100/50 flex items-center justify-between">
-                            <span className="font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Unknown date"}</span>
-                            <span>{slot.startTime} - {slot.endTime}</span>
+                            <span className="font-bold">
+                              {slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Unknown date"}
+                            </span>
+
+                            {schedulingMode === "EXACT" ? (
+                              <span>{slot.startTime} - {slot.endTime}</span>
+                            ) : (
+                              <span className="flex items-center gap-2">
+                                <span className="bg-white px-2 py-1 rounded border border-indigo-100 uppercase tracking-wide text-[10px] font-bold text-neutral-600">
+                                  {slot.label}
+                                </span>
+                                {slot.time && <span className="opacity-75">~ {slot.time}</span>}
+                              </span>
+                            )}
                           </div>
                         ))}
-                        {pendingGeneratedSlots.length > 3 && (
-                          <div className="text-[10px] text-center text-indigo-400 font-bold uppercase tracking-wider mt-1">
-                            + {pendingGeneratedSlots.length - 3} more slots
-                          </div>
-                        )}
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
@@ -474,7 +484,6 @@ export default function CreatePollPage() {
                   )}
               </div>
             </div>
-          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {slots.map((slot, index) => (
