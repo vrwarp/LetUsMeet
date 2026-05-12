@@ -6,7 +6,8 @@
     "node": "22"
   },
   "workspaces": [
-    "frontend"
+    "frontend",
+    "functions"
   ],
   "description": "",
   "homepage": "https://github.com/vrwarp/LetUsMeet#readme",

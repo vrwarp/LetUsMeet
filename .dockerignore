@@ -1,6 +1,8 @@
 node_modules
 frontend/node_modules
+functions/node_modules
 frontend/dist
+functions/lib
 frontend/playwright-report
 test-results
 .git

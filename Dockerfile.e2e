@@ -7,18 +7,19 @@ RUN apt-get update && apt-get install -y openjdk-21-jre-headless && rm -rf /var/
 # Set working directory
 WORKDIR /app
 
-# Copy package files for root and frontend
+# Copy package files for root and all workspaces
 COPY package.json package-lock.json ./
-COPY frontend/package.json frontend/package-lock.json ./frontend/
+COPY frontend/package.json ./frontend/
+COPY functions/package.json ./functions/
 
-# Install dependencies
+# Install dependencies (will install for all workspaces using root lockfile)
 RUN npm ci
 
 # Copy the rest of the application
 COPY . .
 
-# Build the frontend
+# Build the application (root build script builds both frontend and functions)
 RUN npm run build
 
 # Default command: run E2E tests using Firebase emulators
-CMD ["npx", "firebase", "emulators:exec", "--only", "auth,firestore,hosting", "npm run test:e2e --prefix frontend"]
+CMD ["npx", "firebase", "emulators:exec", "--only", "auth,firestore,functions,hosting", "npm run test:e2e --prefix frontend"]
