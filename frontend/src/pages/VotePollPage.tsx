@@ -541,14 +541,14 @@ export default function VotePollPage() {
           <button
             type="submit"
             data-testid="vote-submit-btn"
-            disabled={!participantName.trim() || isSubmitting}
+            disabled={!participantName.trim() || isSubmitting || isAuthLoading}
             className={`flex-1 disabled:bg-neutral-200 disabled:cursor-not-allowed group !py-6 !text-2xl font-black rounded-3xl transition-all flex items-center justify-center gap-4 ${
               editingVoteId 
                 ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100" 
                 : "bg-brand-green text-white hover:bg-brand-green-dark shadow-xl shadow-brand-green/20"
             }`}
           >
-            {isSubmitting ? (
+            {isSubmitting || isAuthLoading ? (
               <Loader2 className="w-8 h-8 animate-spin" />
             ) : (
               <>

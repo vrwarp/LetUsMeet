@@ -15,10 +15,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const useEmulator = import.meta.env.DEV || isLocalhost;
+
 let dbInstance;
 try {
   dbInstance = initializeFirestore(app, {
     experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: useEmulator, // Only force in dev/test for stability
   });
 } catch (e) {
   dbInstance = getFirestore(app);
@@ -28,10 +34,7 @@ export const db = dbInstance;
 export const functions = getFunctions(app);
 
 // Connect to emulators if in development OR if running on localhost (common for E2E tests)
-const isLocalhost = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-if (import.meta.env.DEV || isLocalhost) {
+if (useEmulator) {
   console.log("🔥 Connecting to Firebase Emulators...");
   connectAuthEmulator(auth, "http://127.0.0.1:9099");
   connectFirestoreEmulator(db, "127.0.0.1", 8081);
