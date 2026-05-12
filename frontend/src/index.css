@@ -56,15 +56,23 @@
     @apply bg-neutral-50 text-brand-charcoal;
   }
 
-  input[type="text"], input[type="email"], input[type="number"], textarea, select {
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  textarea,
+  select {
     @apply border border-neutral-300 rounded-2xl px-5 py-3.5 transition-all duration-300 outline-none bg-white font-medium text-brand-charcoal placeholder:text-neutral-400;
   }
 
-  input:focus, textarea:focus, select:focus {
+  input:focus,
+  textarea:focus,
+  select:focus {
     @apply border-brand-green ring-[6px] ring-brand-green/15 shadow-lg shadow-brand-green/5;
   }
 
-  input.error, textarea.error, select.error {
+  input.error,
+  textarea.error,
+  select.error {
     @apply border-brand-red ring-[6px] ring-brand-red/15 shadow-lg shadow-brand-red/5;
   }
 
@@ -131,5 +139,26 @@
 
   .selectable-item-active {
     @apply bg-brand-green-light/40 border-2 border-brand-green text-brand-green-dark;
+  }
+
+  .scheduling-mode-exact {
+    background-image: var(--exact-bg);
+    background-position: left 180px top -45px;
+    background-repeat: no-repeat;
+    background-size: 120px;
+  }
+
+  .scheduling-mode-fuzzy {
+    background-image: var(--fuzzy-bg);
+    background-position: left 200px top -10px;
+    background-repeat: no-repeat;
+    background-size: 110px;
+  }
+
+  @media (max-width: 600px) {
+    .scheduling-mode-exact,
+    .scheduling-mode-fuzzy {
+      background-image: none !important;
+    }
   }
 }

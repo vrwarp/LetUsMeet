@@ -15,6 +15,9 @@ interface TimeSlotInput {
   time?: string;     // for FUZZY
 }
 
+import timeExactLettuce from "../assets/time-exact-lettuce.webp";
+import timeFuzzyMeat from "../assets/time-fuzzy-meat.webp";
+
 export default function CreatePollPage() {
   const navigate = useNavigate();
   const [organizerName, setOrganizerName] = useState("");
@@ -336,13 +339,18 @@ export default function CreatePollPage() {
                 setPendingGeneratedSlots(null);
                 setAiReasoning(null);
               }}
-              className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] ${schedulingMode === "EXACT"
+              className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden scheduling-mode-exact ${schedulingMode === "EXACT"
                 ? "border-brand-green bg-brand-green-light/20 shadow-md shadow-brand-green/5"
                 : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
+              style={{
+                '--exact-bg': `url(${timeExactLettuce})`,
+              } as React.CSSProperties}
             >
-              <span className={`font-bold text-lg ${schedulingMode === "EXACT" ? "text-brand-green-dark" : "text-neutral-700"}`}>Exact Times</span>
-              <span className="text-sm text-neutral-500 leading-snug">Schedule by the minute.</span>
+              <div className="relative z-10 flex flex-col gap-1">
+                <span className={`font-bold text-lg ${schedulingMode === "EXACT" ? "text-brand-green-dark" : "text-neutral-700"}`}>Exact Times</span>
+                <span className="text-sm text-neutral-500 leading-snug">Schedule by the minute.</span>
+              </div>
             </button>
             <button
               type="button"
@@ -351,13 +359,18 @@ export default function CreatePollPage() {
                 setPendingGeneratedSlots(null);
                 setAiReasoning(null);
               }}
-              className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] ${schedulingMode === "FUZZY"
+              className={`p-6 rounded-2xl border-2 transition-all text-left flex flex-col gap-1 hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden scheduling-mode-fuzzy ${schedulingMode === "FUZZY"
                 ? "border-brand-green bg-brand-green-light/20 shadow-md shadow-brand-green/5"
                 : "border-neutral-100 bg-white hover:border-neutral-200"
                 }`}
+              style={{
+                '--fuzzy-bg': `url(${timeFuzzyMeat})`,
+              } as React.CSSProperties}
             >
-              <span className={`font-bold text-lg ${schedulingMode === "FUZZY" ? "text-brand-green-dark" : "text-neutral-700"}`}>Flexible Windows</span>
-              <span className="text-sm text-neutral-500 leading-snug">Schedule by the block.</span>
+              <div className="relative z-10 flex flex-col gap-1">
+                <span className={`font-bold text-lg ${schedulingMode === "FUZZY" ? "text-brand-green-dark" : "text-neutral-700"}`}>Flexible Windows</span>
+                <span className="text-sm text-neutral-500 leading-snug">Schedule by the block.</span>
+              </div>
             </button>
           </div>
         </div>
