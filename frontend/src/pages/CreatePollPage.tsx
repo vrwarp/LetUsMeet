@@ -125,38 +125,54 @@ export default function CreatePollPage() {
     setAiReasoning(null);
     setPendingGeneratedSlots(null);
 
-    try {
-      const extractTimeSlots = httpsCallable(functions, "extractTimeSlots");
-      const result = await extractTimeSlots({ query: aiQuery });
-      
-      const data = result.data as { 
-        reasoning: string; 
-        time_slots: Array<{ date: string; start_time: string; end_time: string }> 
-      };
+    const maxRetries = 2;
+    let attempts = 0;
 
-      if (data && data.time_slots && data.time_slots.length > 0) {
-        const generatedSlots: TimeSlotInput[] = data.time_slots.map((slot) => ({
-          date: slot.date,
-          startTime: slot.start_time,
-          endTime: slot.end_time,
-        }));
+    while (attempts <= maxRetries) {
+      try {
+        const extractTimeSlots = httpsCallable(functions, "extractTimeSlots");
+        const result = await extractTimeSlots({ query: aiQuery });
+        
+        const data = result.data as { 
+          reasoning: string; 
+          time_slots: Array<{ date: string; start_time: string; end_time: string }> 
+        };
 
-        if (slots.length > 0) {
+        if (data && data.time_slots && data.time_slots.length > 0) {
+          const generatedSlots: TimeSlotInput[] = data.time_slots.map((slot) => ({
+            date: slot.date,
+            startTime: slot.start_time,
+            endTime: slot.end_time,
+            label: "",
+            time: ""
+          }));
+          
+          setAiReasoning(data.reasoning);
           setPendingGeneratedSlots(generatedSlots);
         } else {
-          setSlots(generatedSlots);
+          setAiError("Could not understand the time slots from your query. Please try again.");
         }
-        setAiReasoning(data.reasoning);
-        // We no longer clear aiQuery here as per user request
-      } else {
-        setAiError("Could not understand the time slots from your query. Please try again.");
+        break; // Success! Exit the loop.
+      } catch (error: any) {
+        console.error("AI Generation Error:", error);
+        
+        // Retry logic for internal errors (HTTP 500 etc)
+        const retryableCodes = ['internal', 'unavailable', 'deadline-exceeded'];
+        if (retryableCodes.includes(error.code) && attempts < maxRetries) {
+          attempts++;
+          // Wait 1s then 2s before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+          continue;
+        }
+
+        setAiError(
+          error.message || "Failed to generate time slots. Please check your input and try again."
+        );
+        break; // Permanent error or out of retries.
       }
-    } catch (err: any) {
-      console.error("AI Generation Error:", err);
-      setAiError(err.message || "Failed to generate slots. Please try manually.");
-    } finally {
-      setIsGenerating(false);
     }
+    
+    setIsGenerating(false);
   };
 
   const handleApplyPendingSlots = (mode: 'REPLACE' | 'APPEND') => {
@@ -327,7 +343,7 @@ export default function CreatePollPage() {
                 }`}
             >
               <span className={`font-bold text-lg ${schedulingMode === "EXACT" ? "text-brand-green-dark" : "text-neutral-700"}`}>Exact Times</span>
-              <span className="text-sm text-neutral-500 leading-snug">Pinpoint specific slots for a structured meeting or call.</span>
+              <span className="text-sm text-neutral-500 leading-snug">Schedule by the minute.</span>
             </button>
             <button
               type="button"
@@ -340,7 +356,7 @@ export default function CreatePollPage() {
                 }`}
             >
               <span className={`font-bold text-lg ${schedulingMode === "FUZZY" ? "text-brand-green-dark" : "text-neutral-700"}`}>Flexible Windows</span>
-              <span className="text-sm text-neutral-500 leading-snug">Check general availability for casual meetups or social events.</span>
+              <span className="text-sm text-neutral-500 leading-snug">Schedule by the block.</span>
             </button>
           </div>
         </div>
@@ -374,13 +390,9 @@ export default function CreatePollPage() {
                   <textarea
                     id="ai-query"
                     placeholder="Type your availability here..."
-                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white resize-none min-h-[60px] sm:min-h-[38px] max-h-[200px]"
+                    className="flex-1 px-3 py-[8px] text-sm leading-5 rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white resize-none h-[68px] min-h-[38px] [field-sizing:content] [@supports(field-sizing:content)]:h-auto"
                     value={aiQuery}
-                    onChange={(e) => {
-                      setAiQuery(e.target.value);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
-                    }}
+                    onChange={(e) => setAiQuery(e.target.value)}
                   />
                   <button
                     type="button"
@@ -393,7 +405,7 @@ export default function CreatePollPage() {
                 </div>
 
                   {aiError && (
-                    <p className="text-xs text-red-500 font-medium bg-red-50 p-2 rounded border border-red-100">
+                    <p className="mt-2 text-xs text-red-500 font-medium bg-red-50 p-2 rounded border border-red-100">
                       {aiError}
                     </p>
                   )}
@@ -468,35 +480,63 @@ export default function CreatePollPage() {
             {slots.map((slot, index) => (
               <div key={index} className="relative group">
                 <div className="flex flex-col gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="relative group/date cursor-pointer flex-1">
-                      <div className="flex items-center px-3 py-2 text-neutral-700 font-medium bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                        <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
-                        <span className="truncate text-xs font-bold">
-                          {slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}
-                        </span>
-                      </div>
-                      <input
-                        type="date"
-                        required
-                        aria-label="Date"
-                        data-testid={`slot-date-${index}`}
-                        onClick={handlePickerClick}
-                        onBlur={handleBlur}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                        value={slot.date}
-                        onChange={(e) => updateSlot(index, "date", e.target.value)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeSlot(index)}
-                      aria-label="Remove time slot"
-                      className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <label className="relative group/date cursor-pointer flex-1 min-w-0">
+                        <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
+                          <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                          <span className="truncate text-sm font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
+                        </div>
+                        <input
+                          type="date"
+                          required
+                          data-testid={`slot-date-${index}`}
+                          onClick={handlePickerClick}
+                          onBlur={handleBlur}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                          value={slot.date}
+                          onChange={(e) => updateSlot(index, "date", e.target.value)}
+                        />
+                      </label>
+
+                      {schedulingMode === "FUZZY" ? (
+                        <label className="relative group/time cursor-pointer flex-shrink-0">
+                          <div className="flex items-center px-3 h-10 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-[110px] shadow-sm hover:border-neutral-300">
+                            <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
+                            <span className="truncate text-sm">{slot.time || "--:--"}</span>
+                            {slot.time && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  updateSlot(index, "time", "");
+                                }}
+                                className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="time"
+                            onClick={handlePickerClick}
+                            onBlur={handleBlur}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                            value={slot.time || ""}
+                            onChange={(e) => updateSlot(index, "time", e.target.value)}
+                          />
+                        </label>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(index)}
+                          aria-label="Remove time slot"
+                          className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
 
                   <div className="w-full">
                     {schedulingMode === "EXACT" ? (
@@ -543,22 +583,18 @@ export default function CreatePollPage() {
                           <input
                             type="text"
                             placeholder="Label (e.g. Morning)"
-                            className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
+                            className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
                             value={slot.label}
                             onChange={(e) => updateSlot(index, "label", e.target.value)}
                           />
-                          <label className="relative group/time cursor-pointer flex-shrink-0">
-                            <div className="flex items-center px-3 py-2 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-24 shadow-sm hover:border-neutral-300">
-                              <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
-                              <span className="truncate text-sm">{slot.time || "--:--"}</span>
-                            </div>
-                            <input
-                              type="time"
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                              value={slot.time || ""}
-                              onChange={(e) => updateSlot(index, "time", e.target.value)}
-                            />
-                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeSlot(index)}
+                            aria-label="Remove time slot"
+                            className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {["Morning", "Afternoon", "Evening"].map(suggestion => (

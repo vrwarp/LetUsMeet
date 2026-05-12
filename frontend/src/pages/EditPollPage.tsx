@@ -304,97 +304,124 @@ export default function EditPollPage() {
               
               return (
                 <div key={index} className="relative group">
-                  <div className="flex flex-col gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
-                    {hasVotes && (
-                      <div className="absolute -top-2 -left-2 bg-amber-100 text-amber-700 p-1.5 rounded-full shadow-sm z-20 border border-amber-200" title="This slot already has votes. Deleting it will remove them.">
-                        <AlertTriangle size={12} />
+                    <div className="flex flex-col gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
+                      {hasVotes && (
+                        <div className="absolute -top-2 -left-2 bg-amber-100 text-amber-700 p-1.5 rounded-full shadow-sm z-20 border border-amber-200" title="This slot already has votes. Deleting it will remove them.">
+                          <AlertTriangle size={12} />
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <label className="relative group/date cursor-pointer flex-1 min-w-0">
+                          <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
+                            <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                            <span className="truncate text-sm">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
+                          </div>
+                          <input
+                            type="date"
+                            required
+                            onClick={handlePickerClick}
+                            onBlur={handleBlur}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                            value={slot.date}
+                            onChange={(e) => updateSlot(index, "date", e.target.value)}
+                          />
+                        </label>
+
+                        {schedulingMode === "FUZZY" ? (
+                          <label className="relative group/time cursor-pointer flex-shrink-0">
+                            <div className="flex items-center px-3 h-10 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-[110px] shadow-sm hover:border-neutral-300">
+                              <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
+                              <span className="truncate text-sm">{slot.time || "--:--"}</span>
+                              {slot.time && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    updateSlot(index, "time", "");
+                                  }}
+                                  className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
+                                >
+                                  <X size={12} />
+                                </button>
+                               )}
+                            </div>
+                            <input
+                              type="time"
+                              onClick={handlePickerClick}
+                              onBlur={handleBlur}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                              value={slot.time || ""}
+                              onChange={(e) => updateSlot(index, "time", e.target.value)}
+                            />
+                          </label>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => removeSlot(index)}
+                            aria-label="Remove time slot"
+                            className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
-                    )}
 
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="relative group/date cursor-pointer flex-1">
-                        <div className="flex items-center px-3 py-2 text-neutral-700 font-medium bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                          <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
-                          <span className="truncate text-xs font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
-                        </div>
-                        <input
-                          type="date"
-                          required
-                          onClick={handlePickerClick}
-                          onBlur={handleBlur}
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                          value={slot.date}
-                          onChange={(e) => updateSlot(index, "date", e.target.value)}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => removeSlot(index)}
-                        aria-label="Remove time slot"
-                        className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    <div className="w-full">
-                      {schedulingMode === "EXACT" ? (
-                        <div className="flex items-center gap-2">
-                          <label className="relative group/start cursor-pointer flex-1">
-                            <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-indigo-500 group-focus-within/start:ring-2 group-focus-within/start:ring-indigo-500/20 transition-all w-full shadow-sm">
-                              <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
-                              <span className="text-sm">{slot.startTime || "09:00"}</span>
-                            </div>
-                            <input
-                              type="time"
-                              required
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                              value={slot.startTime}
-                              onChange={(e) => updateSlot(index, "startTime", e.target.value)}
-                            />
-                          </label>
-                          <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
-                          <label className="relative group/end cursor-pointer flex-1">
-                            <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full shadow-sm">
-                              <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
-                              <span className="text-sm">{slot.endTime || "10:00"}</span>
-                            </div>
-                            <input
-                              type="time"
-                              required
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                              value={slot.endTime}
-                              onChange={(e) => updateSlot(index, "endTime", e.target.value)}
-                            />
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-2">
+                      <div className="w-full">
+                        {schedulingMode === "EXACT" ? (
                           <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              placeholder="Label"
-                              className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
-                              value={slot.label}
-                              onChange={(e) => updateSlot(index, "label", e.target.value)}
-                            />
-                            <label className="relative group/time cursor-pointer flex-shrink-0">
-                              <div className="flex items-center px-3 py-2 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-24 shadow-sm hover:border-neutral-300">
-                                <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
-                                <span className="truncate text-sm">{slot.time || "--:--"}</span>
+                            <label className="relative group/start cursor-pointer flex-1">
+                              <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-indigo-500 group-focus-within/start:ring-2 group-focus-within/start:ring-indigo-500/20 transition-all w-full shadow-sm">
+                                <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                                <span className="text-sm">{slot.startTime || "09:00"}</span>
                               </div>
                               <input
                                 type="time"
+                                required
                                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                value={slot.time || ""}
-                                onChange={(e) => updateSlot(index, "time", e.target.value)}
+                                value={slot.startTime}
+                                onChange={(e) => updateSlot(index, "startTime", e.target.value)}
+                              />
+                            </label>
+                            <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
+                            <label className="relative group/end cursor-pointer flex-1">
+                              <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full shadow-sm">
+                                <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                                <span className="text-sm">{slot.endTime || "10:00"}</span>
+                              </div>
+                              <input
+                                type="time"
+                                required
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                                value={slot.endTime}
+                                onChange={(e) => updateSlot(index, "endTime", e.target.value)}
                               />
                             </label>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Label"
+                                className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
+                                value={slot.label}
+                                onChange={(e) => updateSlot(index, "label", e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeSlot(index)}
+                                aria-label="Remove time slot"
+                                className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
                 </div>
               );
             })}
