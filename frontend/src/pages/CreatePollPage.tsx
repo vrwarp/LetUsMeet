@@ -541,6 +541,7 @@ export default function CreatePollPage() {
                           </div>
                           <input
                             type="time"
+                            data-testid={`slot-time-${index}`}
                             onClick={handlePickerClick}
                             onBlur={handleBlur}
                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
@@ -604,6 +605,7 @@ export default function CreatePollPage() {
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
+                            data-testid={`slot-label-${index}`}
                             placeholder="Label (e.g. Morning)"
                             className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
                             value={slot.label}
@@ -641,7 +643,7 @@ export default function CreatePollPage() {
               type="button"
               onClick={addSlot}
               data-testid="add-slot-btn"
-              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px]"
+              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px]"
             >
               <Plus size={20} />
               Add time slot
