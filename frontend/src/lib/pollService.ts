@@ -1,7 +1,6 @@
 import { 
   collection, 
   doc, 
-  addDoc, 
   setDoc, 
   updateDoc, 
   onSnapshot, 
@@ -9,7 +8,8 @@ import {
   getDoc,
   query,
   where,
-  orderBy
+  orderBy,
+  writeBatch
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import type { Poll, Vote } from "../types/index";
@@ -35,22 +35,28 @@ export async function createPoll(data: Omit<Poll, "id" | "pollId" | "status" | "
   const organizerUid = auth.currentUser?.uid || null;
   const adminToken = generateId();
   
-  const pollRef = collection(db, "polls");
+  const pollRef = doc(collection(db, "polls"));
   const slotsWithIds = data.timeSlots.map(slot => ({
     ...slot,
     id: (slot as any).id || generateId()
   }));
 
-  const docRef = await addDoc(pollRef, {
+  const batch = writeBatch(db);
+
+  batch.set(pollRef, {
     ...data,
     timeSlots: slotsWithIds,
     organizerUid,
-    adminToken, // Used for later edits if not signed in
     status: "OPEN",
     createdAt: new Date().toISOString(),
   });
 
-  return { pollId: docRef.id, adminToken };
+  const adminRef = doc(db, "polls", pollRef.id, "private", "admin");
+  batch.set(adminRef, { adminToken });
+
+  await batch.commit();
+
+  return { pollId: pollRef.id, adminToken };
 }
 
 /**
@@ -134,13 +140,19 @@ export async function claimPoll(pollId: string, _adminToken: string, uid?: strin
   const organizerUid = uid || auth.currentUser?.uid;
   if (!organizerUid) throw new Error("Must be signed in to claim a poll");
   
+  const batch = writeBatch(db);
   const pollRef = doc(db, "polls", pollId);
-  // Security rules verify the update based on existing adminToken
-  await updateDoc(pollRef, {
+  const claimRef = doc(db, "polls", pollId, "claims", organizerUid);
+
+  // Security rules verify the adminToken matches via get() in the rules
+  batch.update(pollRef, {
     organizerUid: organizerUid,
-    adminToken: _adminToken, // Required by security rules to authorize the update
     updatedAt: new Date().toISOString()
   });
+
+  batch.set(claimRef, { adminToken: _adminToken });
+
+  await batch.commit();
 }
 
 /**

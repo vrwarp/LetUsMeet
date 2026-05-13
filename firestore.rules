@@ -3,10 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Function to check if the user is the organizer or has the admin token
+    // Function to check if the user is the organizer
     function isOrganizer(pollData) {
-      return (request.auth != null && request.auth.uid == pollData.organizerUid) 
-             || (request.resource.data.adminToken == pollData.adminToken);
+      return request.auth != null && request.auth.uid == pollData.organizerUid;
     }
 
     match /polls/{pollId} {
@@ -16,13 +15,40 @@ service cloud.firestore {
       // Anyone can create a poll
       allow create: if request.auth != null
                     && request.resource.data.status == "OPEN"
-                    && request.resource.data.title.size() > 0;
+                    && request.resource.data.title.size() > 0
+                    && !('adminToken' in request.resource.data);
       
-      // Only the organizer (by UID or adminToken) can update
-      allow update: if isOrganizer(resource.data)
-                    && request.resource.data.createdAt == resource.data.createdAt; // Prevent changing creation date
+      // Only the organizer (by UID) or a user actively claiming the poll can update
+      allow update: if request.auth != null
+                    && request.resource.data.createdAt == resource.data.createdAt // Prevent changing creation date
+                    && !('adminToken' in request.resource.data)
+                    && (
+                         request.auth.uid == resource.data.organizerUid ||
+                         (request.resource.data.organizerUid == request.auth.uid &&
+                          existsAfter(/databases/$(database)/documents/polls/$(pollId)/claims/$(request.auth.uid)))
+                       );
       
       allow delete: if false; // Better to set status to DELETED if needed
+
+      match /private/admin {
+        // Only the backend or rule evaluator needs to read this
+        allow read: if false;
+        // Allowed to create when creating the poll
+        allow create: if request.auth != null
+                      && request.auth.uid == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.organizerUid;
+      }
+
+      match /claims/{uid} {
+        allow read: if false;
+        // Allowed to create a claim if the token matches the private admin token, or old fallback
+        allow create: if request.auth != null
+                      && request.auth.uid == uid
+                      && (
+                        (exists(/databases/$(database)/documents/polls/$(pollId)/private/admin) && request.resource.data.adminToken == get(/databases/$(database)/documents/polls/$(pollId)/private/admin).data.adminToken)
+                        ||
+                        (request.resource.data.adminToken == get(/databases/$(database)/documents/polls/$(pollId)).data.adminToken)
+                      );
+      }
 
       match /votes/{voteId} {
         // Votes are public to read (excluding private data)
