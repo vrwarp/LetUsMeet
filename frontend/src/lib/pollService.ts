@@ -54,7 +54,12 @@ export async function createPoll(data: Omit<Poll, "id" | "pollId" | "status" | "
   const adminRef = doc(db, "polls", pollRef.id, "private", "admin");
   batch.set(adminRef, { adminToken });
 
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error) {
+    console.error("BATCH COMMIT FAILED:", error);
+    throw error;
+  }
 
   return { pollId: pollRef.id, adminToken };
 }

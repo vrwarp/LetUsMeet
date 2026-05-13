@@ -4,13 +4,13 @@ import { initializeFirestore, connectFirestoreEmulator, getFirestore } from "fir
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 const firebaseConfig = {
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-project",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "demo-app-id",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo-bucket",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "fake-api-key-for-testing",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-domain",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "demo-sender",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "demo-measurement",
 };
 
 const app = initializeApp(firebaseConfig);

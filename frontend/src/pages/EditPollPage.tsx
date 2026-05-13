@@ -205,7 +205,7 @@ export default function EditPollPage() {
       {(() => {
         if (!poll) return null;
         const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
-        if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken && adminToken === poll.adminToken) {
+        if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken) {
           return (
             <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
               <div className="flex items-center gap-4">

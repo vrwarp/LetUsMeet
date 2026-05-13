@@ -360,7 +360,7 @@ export default function ResultsPage() {
         const token = localStorage.getItem("adminToken_" + pollId) || new URLSearchParams(window.location.search).get("adminToken");
         const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
         
-        if (user && !user.isAnonymous && !isActuallyOrganizer && token && token === poll.adminToken) {
+        if (user && !user.isAnonymous && !isActuallyOrganizer && token) {
           return (
             <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
               <div className="flex items-center gap-4">

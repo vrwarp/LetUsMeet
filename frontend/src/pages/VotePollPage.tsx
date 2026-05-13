@@ -280,8 +280,9 @@ export default function VotePollPage() {
   };
 
   const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
-  const isOwner = adminToken === poll.adminToken;
-  const adminUrl = `${window.location.origin}/poll/${pollId}?adminToken=${poll.adminToken}`;
+  const isActuallyOrganizer = user && poll.organizerUid === user.uid;
+  const isOwner = isActuallyOrganizer || !!adminToken;
+  const adminUrl = `${window.location.origin}/poll/${pollId}?adminToken=${adminToken || ""}`;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 md:py-12">
@@ -381,7 +382,7 @@ export default function VotePollPage() {
 
         {(() => {
           const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
-          if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken && adminToken === poll.adminToken) {
+          if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken) {
             return (
               <div className="mt-8 bg-brand-green-light/30 border border-brand-green-light rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
                 <div className="flex items-center gap-4">
