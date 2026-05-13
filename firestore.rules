@@ -24,8 +24,8 @@ service cloud.firestore {
                     && !('adminToken' in request.resource.data)
                     && (
                          request.auth.uid == resource.data.organizerUid ||
-                         (request.resource.data.organizerUid == request.auth.uid &&
-                          existsAfter(/databases/$(database)/documents/polls/$(pollId)/claims/$(request.auth.uid)))
+                         (request.resource.data.organizerUid != null &&
+                          existsAfter(/databases/$(database)/documents/polls/$(pollId)/claims/$(request.resource.data.organizerUid)))
                        );
       
       allow delete: if false; // Better to set status to DELETED if needed
@@ -42,7 +42,6 @@ service cloud.firestore {
         allow read: if false;
         // Allowed to create a claim if the token matches the private admin token, or old fallback
         allow create: if request.auth != null
-                      && request.auth.uid == uid
                       && (
                         (exists(/databases/$(database)/documents/polls/$(pollId)/private/admin) && request.resource.data.adminToken == get(/databases/$(database)/documents/polls/$(pollId)/private/admin).data.adminToken)
                         ||
