@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
 import { subscribeToPoll, submitVote, deleteVote, claimPoll } from "@/lib/pollService";
@@ -257,21 +257,23 @@ export default function VotePollPage() {
     );
   }
 
-  const sortedSlots = [...poll.timeSlots].sort((a, b) => {
-    if (poll.schedulingMode === "EXACT") {
-      return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
-    } else {
-      const dateA = (a as any).date;
-      const dateB = (b as any).date;
-      if (dateA !== dateB) return dateA.localeCompare(dateB);
-      
-      const timeA = (a as any).time || "";
-      const timeB = (b as any).time || "";
-      if (timeA !== timeB) return timeA.localeCompare(timeB);
-      
-      return ((a as any).label || "").localeCompare((b as any).label || "");
-    }
-  });
+  const sortedSlots = useMemo(() => {
+    return [...poll.timeSlots].sort((a, b) => {
+      if (poll.schedulingMode === "EXACT") {
+        return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
+      } else {
+        const dateA = (a as any).date;
+        const dateB = (b as any).date;
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+        const timeA = (a as any).time || "";
+        const timeB = (b as any).time || "";
+        if (timeA !== timeB) return timeA.localeCompare(timeB);
+
+        return ((a as any).label || "").localeCompare((b as any).label || "");
+      }
+    });
+  }, [poll.timeSlots, poll.schedulingMode]);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
