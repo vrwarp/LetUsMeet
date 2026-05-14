@@ -1,4 +1,4 @@
-import { Check, AlertCircle } from "lucide-react";
+import { Check, AlertCircle, X } from "lucide-react";
 import type { VoteValue, TimeSlot } from "../types/index";
 import { cycleVote } from "@/lib/voteUtils";
 
@@ -53,6 +53,24 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
     }
   };
 
+  const getLabelText = () => {
+    switch (value) {
+      case "YES": return "Yes";
+      case "IF_NEED_BE": return "If need be";
+      case "NO": return "No";
+      default: return "";
+    }
+  };
+
+  const getLabelColor = () => {
+    switch (value) {
+      case "YES": return "text-brand-green-dark";
+      case "IF_NEED_BE": return "text-amber-900";
+      case "NO": return "text-neutral-500";
+      default: return "";
+    }
+  };
+
   return (
     <button
       type="button"
@@ -76,24 +94,41 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-5 w-full">
-        {/* YES Icon State */}
-        <div className={`transition-all duration-300 rounded-full p-1.5 flex items-center justify-center ${
-          value === 'YES' 
-            ? 'bg-brand-green text-white shadow-md scale-110' 
-            : 'bg-black/5 text-black/15'
-        }`}>
-          <Check size={18} strokeWidth={4} aria-hidden="true" />
+      <div className="mt-4 flex items-center justify-center gap-3 w-full bg-neutral-50/50 rounded-xl py-2.5 px-4 border border-neutral-100 shadow-inner">
+        <div className="flex items-center gap-4">
+          {/* NO Icon State */}
+          <div className={`transition-all duration-300 ${
+            value === 'NO' 
+              ? 'text-neutral-700 scale-110' 
+              : 'text-neutral-200'
+          }`}>
+            <X size={18} strokeWidth={4} aria-hidden="true" />
+          </div>
+
+          {/* YES Icon State */}
+          <div className={`transition-all duration-300 ${
+            value === 'YES' 
+              ? 'text-brand-green scale-110' 
+              : 'text-neutral-200'
+          }`}>
+            <Check size={18} strokeWidth={4} aria-hidden="true" />
+          </div>
+
+          {/* IF_NEED_BE Icon State */}
+          <div className={`transition-all duration-300 ${
+            value === 'IF_NEED_BE'
+              ? 'text-amber-600 scale-110'
+              : 'text-neutral-200'
+          }`}>
+            <AlertCircle size={18} strokeWidth={3} aria-hidden="true" />
+          </div>
         </div>
 
-        {/* IF_NEED_BE Icon State */}
-        <div className={`transition-all duration-300 flex items-center justify-center ${
-          value === 'IF_NEED_BE'
-            ? 'text-amber-600 scale-125 drop-shadow-sm'
-            : 'text-black/10'
-        }`}>
-          <AlertCircle size={24} strokeWidth={3} aria-hidden="true" />
-        </div>
+        <div className="w-[1.5px] h-4 bg-neutral-200 mx-1" />
+
+        <span className={`text-xs font-black uppercase tracking-wide min-w-[70px] text-left ${getLabelColor()}`}>
+          {getLabelText()}
+        </span>
       </div>
     </button>
   );
