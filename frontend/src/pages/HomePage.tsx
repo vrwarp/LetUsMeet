@@ -15,7 +15,7 @@ export default function HomePage() {
             Let everyone <br />
             <span className="text-brand-gradient">meet.</span>
           </h1>
-          <p className="text-xl sm:text-2xl font-medium text-brand-charcoal/60 tracking-tight max-w-2xl mx-auto">
+          <p className="text-xl sm:text-2xl font-medium text-brand-charcoal/75 tracking-tight max-w-2xl mx-auto">
             The simplest way to coordinate with groups, <br className="hidden sm:block" /> friends, and teams.
           </p>
         </div>
@@ -48,8 +48,8 @@ export default function HomePage() {
               <CheckCircle2 className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />
             </div>
             <div className="space-y-0.5 md:space-y-2">
-              <h3 className="font-display text-sm md:text-xl font-bold text-brand-charcoal tracking-tight">Zero Friction</h3>
-              <p className="text-brand-charcoal/50 text-xs md:text-base leading-relaxed">
+              <h2 className="font-display text-sm md:text-xl font-bold text-brand-charcoal tracking-tight">Zero Friction</h2>
+              <p className="text-brand-charcoal/70 text-xs md:text-base leading-relaxed">
                 Vote in one click. <br /> No logins or apps required.
               </p>
             </div>
@@ -60,8 +60,8 @@ export default function HomePage() {
               <Clock className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />
             </div>
             <div className="space-y-0.5 md:space-y-2">
-              <h3 className="font-display text-sm md:text-xl font-bold text-brand-charcoal tracking-tight">Trinary Voting</h3>
-              <p className="text-brand-charcoal/50 text-xs md:text-base leading-relaxed">
+              <h2 className="font-display text-sm md:text-xl font-bold text-brand-charcoal tracking-tight">Trinary Voting</h2>
+              <p className="text-brand-charcoal/70 text-xs md:text-base leading-relaxed">
                 Yes, No, and <span className="whitespace-nowrap">If-need-be.</span> <br /> Flexible options for everyone.
               </p>
             </div>
@@ -69,11 +69,11 @@ export default function HomePage() {
 
           <div data-testid="feature-realtime" className="group flex flex-row md:flex-col items-center gap-4 md:gap-6 text-left md:text-center p-4 md:px-12 transition-all">
             <div className="shrink-0 w-12 h-12 md:w-16 md:h-16 bg-brand-green/5 rounded-xl md:rounded-2xl flex items-center justify-center text-brand-green">
-              <Zap className="w-6 h-6 md:w-8 md:h-8 opacity-80" strokeWidth={1.5} fill="currentColor" />
+              <Zap className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} fill="currentColor" />
             </div>
             <div className="space-y-0.5 md:space-y-2">
-              <h3 className="font-display text-sm md:text-xl font-bold text-brand-charcoal tracking-tight">Realtime Sync</h3>
-              <p className="text-brand-charcoal/50 text-xs md:text-base leading-relaxed">
+              <h2 className="font-display text-sm md:text-xl font-bold text-brand-charcoal tracking-tight">Realtime Sync</h2>
+              <p className="text-brand-charcoal/70 text-xs md:text-base leading-relaxed">
                 Watch updates happen instantly. <br /> No refreshing required.
               </p>
             </div>
