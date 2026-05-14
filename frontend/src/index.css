@@ -155,10 +155,15 @@
     background-size: 110px;
   }
 
-  @media (max-width: 600px) {
-    .scheduling-mode-exact,
+  @media (max-width: 639px) {
+    .scheduling-mode-exact {
+      background-position: right -15px top -40px;
+      background-size: 130px;
+    }
+
     .scheduling-mode-fuzzy {
-      background-image: none !important;
+      background-position: right -10px bottom -15px;
+      background-size: 120px;
     }
   }
 }
