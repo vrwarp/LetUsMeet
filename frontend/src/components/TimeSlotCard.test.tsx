@@ -40,26 +40,26 @@ describe('TimeSlotCard', () => {
     expect(onChange).toHaveBeenCalledWith('YES');
   });
 
-  it('displays YES state styling and always shows both icons', () => {
+  it('displays YES state styling and always shows all three icons', () => {
     render(<TimeSlotCard {...defaultProps} value="YES" />);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-brand-green-light/40');
-    expect(button.querySelectorAll('svg').length).toBe(2);
+    expect(button.querySelectorAll('svg').length).toBe(3);
   });
 
-  it('displays IF_NEED_BE state styling and always shows both icons', () => {
+  it('displays IF_NEED_BE state styling and always shows all three icons', () => {
     render(<TimeSlotCard {...defaultProps} value="IF_NEED_BE" />);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-amber-100/50');
     expect(button).toHaveClass('border-dashed');
-    expect(button.querySelectorAll('svg').length).toBe(2);
+    expect(button.querySelectorAll('svg').length).toBe(3);
   });
 
-  it('displays NO state styling and always shows both icons', () => {
+  it('displays NO state styling and always shows all three icons', () => {
     render(<TimeSlotCard {...defaultProps} value="NO" />);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-white');
-    expect(button.querySelectorAll('svg').length).toBe(2);
+    expect(button.querySelectorAll('svg').length).toBe(3);
   });
 
   it('does NOT call onChange when disabled', () => {
