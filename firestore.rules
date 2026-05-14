@@ -21,16 +21,16 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.status == "OPEN"
                     && request.resource.data.title.size() > 0
-                    && !("adminToken" in request.resource.data);
+                    && !("adminToken" in request.resource.data)
+                    && request.resource.data.organizerUid == request.auth.uid;
       
-      // Organizer (by UID) OR holder of a valid admin grant can update
       allow update: if request.auth != null 
                     && (
                       request.auth.uid == resource.data.organizerUid
                       || hasAdminGrant(pollId)
                     )
                     && request.resource.data.createdAt == resource.data.createdAt
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['adminToken']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['adminToken', 'organizerUid']);
       
       allow delete: if false;
 
@@ -57,8 +57,14 @@ service cloud.firestore {
         // Votes are public to read (excluding private data)
         allow read: if true;
         
-        // Anyone can create/update their own vote if the poll is open
-        allow create, update: if request.auth != null
+        // Anyone can create their own vote if the poll is open
+        allow create: if request.auth != null
+          && request.resource.data.participantUid == request.auth.uid
+          && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
+
+        // Only the original voter can update their own vote
+        allow update: if request.auth != null
+          && resource.data.participantUid == request.auth.uid
           && request.resource.data.participantUid == request.auth.uid
           && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
           
@@ -66,12 +72,18 @@ service cloud.firestore {
 
         // Private data subcollection (e.g. emails)
         match /private/data {
-          // Only the poll organizer or the voter themselves can read the private data
+          // Only the poll organizer, managers, or the voter themselves can read the private data
           allow read: if request.auth != null 
                       && (request.auth.uid == get(/databases/$(database)/documents/polls/$(pollId)).data.organizerUid
-                          || request.auth.uid == resource.data.participantUid);
+                          || request.auth.uid == resource.data.participantUid
+                          || hasAdminGrant(pollId));
           
-          allow create, update: if request.auth != null
+          allow create: if request.auth != null
+                      && request.auth.uid == request.resource.data.participantUid
+                      && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
+
+          allow update: if request.auth != null
+                      && resource.data.participantUid == request.auth.uid
                       && request.auth.uid == request.resource.data.participantUid
                       && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
         }

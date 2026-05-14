@@ -160,7 +160,7 @@ export default function ResultsPage() {
     setIsClaiming(true);
     try {
       await claimPoll(pollId, token);
-      // No need to alert, the poll organizerUid change will trigger a re-render via subscription
+      // Re-render via subscription as managers list changes
     } catch (err) {
       console.error("Failed to claim poll:", err);
       alert("Failed to claim poll. Please try again.");
