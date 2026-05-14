@@ -26,6 +26,9 @@ describe('Claim Poll Feature', () => {
       signInWithGoogle: vi.fn(),
       signOutUser: vi.fn(),
     });
+
+    // Default mock ensureAdminGrant
+    vi.mocked(pollService.ensureAdminGrant).mockResolvedValue(true);
   });
 
   const mockPollWithDifferentOwner = () => {
@@ -36,7 +39,6 @@ describe('Claim Poll Feature', () => {
           pollId: pollId,
           title: 'Unclaimed Poll',
           organizerUid: 'someone-else',
-          adminToken: adminToken,
           status: 'OPEN',
           schedulingMode: 'EXACT',
           timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }],
@@ -80,7 +82,7 @@ describe('Claim Poll Feature', () => {
     const claimButton = await screen.findByText(/Add to My Dashboard/i);
     fireEvent.click(claimButton);
 
-    expect(claimSpy).toHaveBeenCalledWith(pollId, adminToken, 'my-uid');
+    expect(claimSpy).toHaveBeenCalledWith(pollId, adminToken);
   });
 
   it('offers to claim poll on VotePollPage when adminToken is present in URL', async () => {
@@ -121,7 +123,6 @@ describe('Claim Poll Feature', () => {
           pollId: pollId,
           title: 'My Poll',
           organizerUid: 'my-uid',
-          adminToken: adminToken,
           status: 'OPEN',
           schedulingMode: 'EXACT',
           timeSlots: [],

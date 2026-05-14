@@ -4,32 +4,26 @@ import type { User } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase";
 
+let isSigningIn = false;
+
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // E2E Test Helper: Check for a mock user in localStorage
-    const testUserStr = localStorage.getItem("testUser");
-    if (testUserStr) {
-      try {
-        const testUser = JSON.parse(testUserStr);
-        setUser(testUser as User);
-        setLoading(false);
-        return;
-      } catch (e) {
-        console.error("Failed to parse testUser", e);
-      }
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         setLoading(false);
+        isSigningIn = false;
       } else {
+        if (isSigningIn) return;
+        isSigningIn = true;
         signInAnonymously(auth).catch((error) => {
           console.error("Anonymous auth failed", error);
           setLoading(false);
+          isSigningIn = false;
         });
       }
     });
@@ -51,7 +45,6 @@ export function useAuth() {
         }, { merge: true });
       }
     } catch (error) {
-      console.error("Google sign in failed", error);
       throw error;
     }
   };

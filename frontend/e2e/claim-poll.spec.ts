@@ -1,96 +1,113 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Claim Poll Flow', () => {
-  test('allows a signed-in user to claim an anonymous poll', async ({ page }) => {
-    // 1. Create a poll as an anonymous user
-    await page.goto('/create');
-    await page.waitForTimeout(2000);
-
-    await page.getByTestId('organizer-name-input').fill('Anonymous Creator');
-    await page.getByTestId('organizer-email-input').fill('anon@example.com');
-    const pollTitle = `Unclaimed Poll ${Date.now()}`;
-    await page.getByTestId('poll-title-input').fill(pollTitle);
+  test('allows a user to claim an anonymous poll from another session', async ({ browser }) => {
+    // ---------------------------------------------------------
+    // Session 1: The Creator
+    // ---------------------------------------------------------
+    const creatorContext = await browser.newContext();
+    const creatorPage = await creatorContext.newPage();
     
-    const addSlotBtn = page.getByTestId('add-slot-btn');
+    await creatorPage.goto('/create');
+    await creatorPage.waitForTimeout(2000);
+
+    await creatorPage.getByTestId('organizer-name-input').fill('Anonymous Creator');
+    await creatorPage.getByTestId('organizer-email-input').fill('anon@example.com');
+    const pollTitle = `Unclaimed Poll ${Date.now()}`;
+    await creatorPage.getByTestId('poll-title-input').fill(pollTitle);
+    
+    const addSlotBtn = creatorPage.getByTestId('add-slot-btn');
     await expect(addSlotBtn).toBeEnabled();
     await addSlotBtn.click();
 
-    const submitBtn = page.getByTestId('create-submit-btn');
+    const submitBtn = creatorPage.getByTestId('create-submit-btn');
     await submitBtn.click();
 
-    // Wait for navigation
-    await page.waitForURL(/\/poll\/[^/]+$/, { timeout: 60000 });
-    await page.waitForTimeout(1000);
-    const pollId = page.url().split('/').pop()?.split('?')[0];
+    // Wait for navigation and grab the URL (which includes the adminToken)
+    await creatorPage.waitForURL(url => url.pathname.startsWith('/poll/'), { timeout: 60000 });
+    const pollUrl = creatorPage.url();
     
-    // 2. Simulate "Signing in" as a real user
-    // We set the testUser in localStorage and reload
-    await page.evaluate(() => {
-      localStorage.setItem('testUser', JSON.stringify({
-        uid: 'real-user-123',
-        isAnonymous: false,
-        email: 'real@example.com',
-        displayName: 'Real User'
-      }));
-    });
+    // Explicitly check that we have an adminToken
+    expect(pollUrl).toContain('adminToken=');
     
-    await page.reload();
-    await page.waitForTimeout(2000);
-    await expect(page.locator('text=Loading poll details...')).not.toBeVisible();
+    // Close the creator's session
+    await creatorContext.close();
 
-    // 3. Verify "Claim this Poll" banner appears
-    await expect(page.getByText(/Claim this Poll/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Add to My Dashboard/i })).toBeVisible();
+    // ---------------------------------------------------------
+    // Session 2: The Claimant
+    // ---------------------------------------------------------
+    const claimantContext = await browser.newContext();
+    const claimantPage = await claimantContext.newPage();
+    
+    // Claimant visits the poll URL (which includes the adminToken)
+    await claimantPage.goto(pollUrl);
+    await claimantPage.waitForTimeout(2000); // Wait for auth/state to settle
+    
+    // Verify we are on the poll page
+    await expect(claimantPage.getByTestId('poll-title')).toBeVisible({ timeout: 15000 });
+    
+    // Verify "Claim this Poll" banner appears
+    const banner = claimantPage.getByText(/Claim this Poll/i);
+    await expect(banner).toBeVisible({ timeout: 30000 });
+    await expect(claimantPage.getByRole('button', { name: /Add to My Dashboard/i })).toBeVisible();
 
-    // 4. Click Claim
-    await page.getByRole('button', { name: /Add to My Dashboard/i }).click();
+    // Click Claim
+    await claimantPage.getByRole('button', { name: /Add to My Dashboard/i }).click();
 
-    // 5. Banner should disappear after claiming
-    await expect(page.getByText(/Claim this Poll/i)).not.toBeVisible();
-    await page.waitForTimeout(2000);
+    // Banner should disappear after claiming
+    await expect(claimantPage.getByTestId('claim-banner')).not.toBeVisible();
+    await claimantPage.waitForTimeout(1000);
 
-    // 6. Go to dashboard and verify the poll is there
-    await page.goto('/dashboard');
-    await expect(page.locator('h2', { hasText: pollTitle })).toBeVisible({ timeout: 15000 });
+    // Go to dashboard and verify the poll is there
+    await claimantPage.goto('/dashboard');
+    await expect(claimantPage.locator('h2', { hasText: pollTitle })).toBeVisible({ timeout: 15000 });
+
+    await claimantContext.close();
   });
 
-  test('shows claim banner on results page too', async ({ page }) => {
-    // 1. Create a poll
-    await page.goto('/create');
-    await page.waitForTimeout(2000);
-    await page.getByTestId('organizer-name-input').fill('Temp Creator');
-    await page.getByTestId('organizer-email-input').fill('temp@example.com');
+  test('shows claim banner on results page for token holders', async ({ browser }) => {
+    // ---------------------------------------------------------
+    // Session 1: The Creator
+    // ---------------------------------------------------------
+    const creatorContext = await browser.newContext();
+    const creatorPage = await creatorContext.newPage();
+    
+    await creatorPage.goto('/create');
+    await creatorPage.waitForTimeout(2000);
+    await creatorPage.getByTestId('organizer-name-input').fill('Temp Creator');
+    await creatorPage.getByTestId('organizer-email-input').fill('temp@example.com');
     const pollTitle = `Results Claim Test ${Date.now()}`;
-    await page.getByTestId('poll-title-input').fill(pollTitle);
+    await creatorPage.getByTestId('poll-title-input').fill(pollTitle);
     
-    await page.getByTestId('add-slot-btn').click();
+    await creatorPage.getByTestId('add-slot-btn').click();
+    await creatorPage.getByTestId('create-submit-btn').click();
+    await creatorPage.waitForURL(url => url.pathname.startsWith('/poll/'), { timeout: 60000 });
     
-    await page.getByTestId('create-submit-btn').click();
-    await page.waitForURL(/\/poll\/[^/]+$/, { timeout: 60000 });
+    const pollId = creatorPage.url().split('/').pop()?.split('?')[0];
+    const adminToken = new URL(creatorPage.url()).searchParams.get('adminToken');
+    const resultsUrl = `/poll/${pollId}/results${adminToken ? `?adminToken=${adminToken}` : ''}`;
     
-    const pollId = page.url().split('/').pop()?.split('?')[0];
-    const resultsUrl = `/poll/${pollId}/results`;
+    await creatorContext.close();
 
-    // 2. "Sign in"
-    await page.evaluate(() => {
-      localStorage.setItem('testUser', JSON.stringify({
-        uid: 'claimant-456',
-        isAnonymous: false,
-        email: 'claimant@example.com',
-        displayName: 'Claimant'
-      }));
-    });
+    // ---------------------------------------------------------
+    // Session 2: The Claimant
+    // ---------------------------------------------------------
+    const claimantContext = await browser.newContext();
+    const claimantPage = await claimantContext.newPage();
 
-    // 3. Go to results page
-    await page.goto(resultsUrl);
-    await page.waitForTimeout(2000);
-    await expect(page.locator('text=Calculating consensus...')).not.toBeVisible();
+    // Go to results page with the admin token
+    await claimantPage.goto(resultsUrl);
+    
+    // Wait for the poll title to appear
+    await expect(claimantPage.locator('h1', { hasText: pollTitle })).toBeVisible({ timeout: 15000 });
 
-    // 4. Verify banner and claim
-    await expect(page.getByText(/Claim this Poll/i)).toBeVisible();
-    await page.getByRole('button', { name: /Add to My Dashboard/i }).click();
+    // Verify banner and claim
+    await expect(claimantPage.getByTestId('claim-banner')).toBeVisible({ timeout: 15000 });
+    await claimantPage.getByRole('button', { name: /Add to My Dashboard/i }).click();
 
-    // 5. Banner should disappear
-    await expect(page.getByText(/Claim this Poll/i)).not.toBeVisible();
+    // Banner should disappear
+    await expect(claimantPage.getByText(/Claim this Poll/i)).not.toBeVisible();
+
+    await claimantContext.close();
   });
 });

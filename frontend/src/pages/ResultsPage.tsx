@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Send } from "lucide-react";
-import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll, getPrivateVoteData } from "@/lib/pollService";
+import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll, getPrivateVoteData, ensureAdminGrant } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, VoteValue } from "../types/index";
 
@@ -22,12 +22,13 @@ export default function ResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isTokenAdmin, setIsTokenAdmin] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showAddressCopied, setShowAddressCopied] = useState(false);
   const [emails, setEmails] = useState<Record<string, string>>({});
   const [isFetchingEmails, setIsFetchingEmails] = useState(false);
 
-  const isOrganizer = user && !user.isAnonymous && poll?.organizerUid === user.uid;
+  const isOrganizer = user && poll?.organizerUid === user.uid;
 
   useEffect(() => {
     if (!pollId) return;
@@ -43,6 +44,20 @@ export default function ResultsPage() {
 
     return () => unsubscribe();
   }, [pollId]);
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId);
+    if (token && user && pollId) {
+      ensureAdminGrant(pollId, token).then(valid => {
+        setIsTokenAdmin(valid);
+      }).catch(err => {
+        console.error("ensureAdminGrant failed in results:", err);
+        setIsTokenAdmin(false);
+      });
+    } else {
+      setIsTokenAdmin(false);
+    }
+  }, [user, pollId]);
 
   useEffect(() => {
     if (isOrganizer && votes.length > 0 && Object.keys(emails).length === 0 && !isFetchingEmails) {
@@ -144,7 +159,7 @@ export default function ResultsPage() {
 
     setIsClaiming(true);
     try {
-      await claimPoll(pollId, token, user?.uid);
+      await claimPoll(pollId, token);
       // No need to alert, the poll organizerUid change will trigger a re-render via subscription
     } catch (err) {
       console.error("Failed to claim poll:", err);
@@ -344,7 +359,7 @@ export default function ResultsPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
       {(() => {
-        const token = new URLSearchParams(window.location.search).get("adminToken");
+        const token = new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId);
         return (
           <Link 
             to={`/poll/${pollId}${token ? `?adminToken=${token}` : ""}`}
@@ -357,12 +372,12 @@ export default function ResultsPage() {
       })()}
 
       {(() => {
-        const token = localStorage.getItem("adminToken_" + pollId) || new URLSearchParams(window.location.search).get("adminToken");
-        const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
+        const isActuallyOrganizer = user && poll.organizerUid === user.uid;
+        const isAlreadyManager = user && poll.managers?.includes(user.uid);
         
-        if (user && !user.isAnonymous && !isActuallyOrganizer && token && token === poll.adminToken) {
+        if (user && !isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
           return (
-            <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+            <div data-testid="claim-banner" className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
                   <CalendarCheck className="w-6 h-6" />
@@ -508,8 +523,7 @@ export default function ResultsPage() {
                 </div>
               </div>
               {(() => {
-                const token = localStorage.getItem("adminToken_" + pollId);
-                const isAdmin = isOrganizer || token;
+                const isAdmin = isOrganizer || isTokenAdmin;
                 
                 if (!isAdmin) return null;
 
@@ -530,7 +544,8 @@ export default function ResultsPage() {
                   );
                 }
 
-                const editUrl = `/poll/${pollId}/edit${token ? "?adminToken=" + token : ""}`;
+                const currentToken = new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId);
+                const editUrl = `/poll/${pollId}/edit${currentToken ? "?adminToken=" + currentToken : ""}`;
                 return (
                   <Link
                     to={editUrl}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
-import { subscribeToPoll, submitVote, deleteVote, claimPoll } from "@/lib/pollService";
+import { subscribeToPoll, submitVote, deleteVote, claimPoll, ensureAdminGrant } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, Vote, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
@@ -24,6 +24,7 @@ export default function VotePollPage() {
   const [editingVoteId, setEditingVoteId] = useState<string | null>(null);
   const [lastSubmissionWasUpdate, setLastSubmissionWasUpdate] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isTokenAdmin, setIsTokenAdmin] = useState(false);
   const hasInitializedFormRef = useRef(false);
   const hasInitializedWithVoteRef = useRef(false);
 
@@ -166,6 +167,20 @@ export default function VotePollPage() {
     }
   };
 
+  useEffect(() => {
+    const token = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
+    if (token && user && pollId) {
+      ensureAdminGrant(pollId, token).then((valid: boolean) => {
+        setIsTokenAdmin(valid);
+      }).catch(err => {
+        console.error("ensureAdminGrant failed:", err);
+        setIsTokenAdmin(false);
+      });
+    } else {
+      setIsTokenAdmin(false);
+    }
+  }, [user, pollId, searchParams]);
+
   const handleClaim = async () => {
     if (!pollId || isClaiming) return;
     const token = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
@@ -173,7 +188,7 @@ export default function VotePollPage() {
 
     setIsClaiming(true);
     try {
-      await claimPoll(pollId, token, user?.uid);
+      await claimPoll(pollId, token);
       // Re-render happens via subscription
     } catch (err) {
       console.error("Failed to claim poll:", err);
@@ -227,7 +242,7 @@ export default function VotePollPage() {
           </p>
           <div className="flex flex-col gap-4">
             <Link 
-              to={`/poll/${pollId}/results`}
+              to={`/poll/${pollId}/results${searchParams.get("adminToken") ? `?adminToken=${searchParams.get("adminToken")}` : ""}`}
               data-testid="view-results-link"
               className="w-full bg-brand-green text-white font-bold py-4 rounded-2xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 text-center"
             >
@@ -274,14 +289,15 @@ export default function VotePollPage() {
   });
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("adminToken");
+    navigator.clipboard.writeText(url.toString());
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 3000);
   };
 
   const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
-  const isOwner = adminToken === poll.adminToken;
-  const adminUrl = `${window.location.origin}/poll/${pollId}?adminToken=${poll.adminToken}`;
+  const isOwner = isTokenAdmin;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 md:py-12">
@@ -292,7 +308,7 @@ export default function VotePollPage() {
           </h1>
           <div className="flex items-center gap-2">
             <Link 
-              to={`/poll/${pollId}/results`}
+              to={`/poll/${pollId}/results${searchParams.get("adminToken") ? `?adminToken=${searchParams.get("adminToken")}` : ""}`}
               data-testid="view-results-link"
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-neutral-600 font-bold text-sm hover:bg-neutral-50 transition-colors shadow-sm"
             >
@@ -309,7 +325,7 @@ export default function VotePollPage() {
                 <Share2 className="w-5 h-5" />
               </button>
               {showCopied && (
-                <div className="absolute top-full mt-2 right-0 bg-neutral-800 text-white text-xs py-2 px-3 rounded-xl shadow-xl z-20 animate-in fade-in slide-in-from-top-1">
+                <div className="absolute top-full mt-2 right-0 bg-neutral-800 text-white text-xs py-2 px-3 rounded-xl shadow-xl z-20">
                   Copied!
                 </div>
               )}
@@ -350,40 +366,48 @@ export default function VotePollPage() {
               </div>
             </div>
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full lg:w-auto">
-              <input 
-                readOnly 
-                value={adminUrl} 
-                aria-label="Management link"
-                className="bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 w-full lg:w-64" 
-              />
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(adminUrl);
-                    setShowCopied(true);
-                    setTimeout(() => setShowCopied(false), 3000);
-                  }}
-                  className="bg-brand-green text-white px-5 py-3 rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap flex-1 lg:flex-none text-center"
-                >
-                  Copy Link
-                </button>
-                <Link
-                  to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
-                  className="bg-white text-brand-green border border-brand-green-light px-5 py-3 rounded-xl font-bold hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm flex-1 lg:flex-none"
-                >
-                  <Edit3 size={18} />
-                  Edit
-                </Link>
-              </div>
+              {(() => {
+                const currentAdminUrl = `${window.location.origin}/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`;
+                return (
+                  <>
+                    <input 
+                      readOnly 
+                      value={currentAdminUrl} 
+                      aria-label="Management link"
+                      className="bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 w-full lg:w-64" 
+                    />
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(currentAdminUrl);
+                          setShowCopied(true);
+                          setTimeout(() => setShowCopied(false), 3000);
+                        }}
+                        className="bg-brand-green text-white px-5 py-3 rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap flex-1 lg:flex-none text-center"
+                      >
+                        Copy Link
+                      </button>
+                      <Link
+                        to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
+                        className="bg-white text-brand-green border border-brand-green-light px-5 py-3 rounded-xl font-bold hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm flex-1 lg:flex-none"
+                      >
+                        <Edit3 size={18} />
+                        Edit
+                      </Link>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
 
         {(() => {
-          const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
-          if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken && adminToken === poll.adminToken) {
+          const isActuallyOrganizer = user && poll.organizerUid === user.uid;
+          const isAlreadyManager = user && poll.managers?.includes(user.uid);
+          if (user && !isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
             return (
-              <div className="mt-8 bg-brand-green-light/30 border border-brand-green-light rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+              <div data-testid="claim-banner" className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
                     <ShieldCheck className="w-6 h-6" />

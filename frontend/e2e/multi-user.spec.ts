@@ -23,7 +23,7 @@ test.describe('Multi-user Flows', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    await organizerPage.waitForURL(/\/poll\/[^/]+$/);
+    await organizerPage.waitForURL(/\/poll\/[^/]+/);
     await organizerPage.waitForTimeout(2000);
     await expect(organizerPage.locator('text=Loading poll details...')).not.toBeVisible({ timeout: 30000 });
     const pollUrl = organizerPage.url();
@@ -69,7 +69,7 @@ test.describe('Multi-user Flows', () => {
 
     // 4. View Results
     await p2Page.getByTestId('view-results-link').click();
-    await p2Page.waitForURL(/\/poll\/[^/]+\/results$/);
+    await p2Page.waitForURL(/\/poll\/[^/]+\/results/);
 
     // Verify matrix
     await expect(p2Page.getByTestId('results-matrix')).toBeVisible();

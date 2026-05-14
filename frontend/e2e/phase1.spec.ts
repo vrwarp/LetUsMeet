@@ -30,9 +30,9 @@ test.describe('Phase 1 Critical User Journeys', () => {
     await page.getByTestId('create-submit-btn').click();
 
     // Wait for navigation to the poll page
-    await page.waitForURL(/\/poll\/[^/]+$/);
+    await page.waitForURL(/\/poll\/[^/]+/);
     const pollUrl = page.url();
-    expect(pollUrl).toMatch(/\/poll\/[a-zA-Z0-9_-]+$/);
+    expect(pollUrl).toMatch(/\/poll\/[a-zA-Z0-9_-]+/);
 
     // --- 3. Vote Poll Page ---
     await expect(page.getByTestId('poll-title')).toContainText(pollTitle);
@@ -55,9 +55,9 @@ test.describe('Phase 1 Critical User Journeys', () => {
     // Wait for success screen
     await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
 
-    // --- 4. View Results Page ---
+    // Poll Success -> Results
     await page.getByTestId('view-results-link').click();
-    await page.waitForURL(/\/poll\/[^/]+\/results$/);
+    await page.waitForURL(/\/poll\/[^/?]+\/results/);
 
     // Check results table
     await expect(page.getByTestId('results-matrix')).toBeVisible();

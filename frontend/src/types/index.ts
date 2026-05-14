@@ -26,7 +26,6 @@ export interface Poll {
   organizerUid?: string | null;
   organizerName: string;
   organizerEmail?: string;
-  adminToken?: string;
   title: string;
   description?: string;
   location: string;
@@ -34,6 +33,7 @@ export interface Poll {
   timeSlots: TimeSlot[];
   status: PollStatus;
   finalizedSlotId?: string;
+  managers?: string[];
   createdAt: string;  // ISO 8601
 }
 

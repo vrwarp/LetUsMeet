@@ -11,7 +11,7 @@ export default function DashboardPage() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (loading || !user || user.isAnonymous) {
+    if (loading || !user) {
       setFetching(false);
       return;
     }
@@ -34,7 +34,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user || user.isAnonymous) {
+  if (!user) {
     return (
       <div className="text-center py-20">
         <h2 className="text-2xl font-bold text-neutral-800 mb-4">Please sign in to view your dashboard</h2>

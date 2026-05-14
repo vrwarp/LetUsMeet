@@ -40,3 +40,7 @@ if (useEmulator) {
   connectFirestoreEmulator(db, "127.0.0.1", 8081);
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 }
+
+if (typeof window !== 'undefined') {
+  (window as any).firebaseAuth = auth;
+}

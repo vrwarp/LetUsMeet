@@ -9,7 +9,8 @@ import {
   getDoc,
   query,
   where,
-  orderBy
+  orderBy,
+  arrayUnion
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import type { Poll, Vote } from "../types/index";
@@ -45,12 +46,72 @@ export async function createPoll(data: Omit<Poll, "id" | "pollId" | "status" | "
     ...data,
     timeSlots: slotsWithIds,
     organizerUid,
-    adminToken, // Used for later edits if not signed in
     status: "OPEN",
     createdAt: new Date().toISOString(),
   });
 
+  try {
+    const tokenRef = doc(db, "polls", docRef.id, "adminTokens", adminToken);
+    await setDoc(tokenRef, {
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    throw err;
+  }
+
   return { pollId: docRef.id, adminToken };
+}
+
+/**
+ * Ensures the user has an admin grant for the poll if they provide a valid token.
+ * This is used to authorize admin operations without exposing the token in the poll doc.
+ */
+export async function ensureAdminGrant(pollId: string, adminToken: string) {
+  await auth.authStateReady();
+  if (!auth.currentUser) {
+    for (let i = 0; i < 20; i++) {
+      if (auth.currentUser) break;
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  const userUid = auth.currentUser?.uid;
+  if (!userUid) return false;
+  
+  const grantRef = doc(db, "polls", pollId, "adminGrants", userUid);
+  try {
+    const snap = await getDoc(grantRef);
+    if (snap.exists() && snap.data().adminToken === adminToken) return true;
+
+    await setDoc(grantRef, {
+      adminToken,
+      grantedAt: new Date().toISOString(),
+    });
+    return true;
+  } catch (error: any) {
+    return false;
+  }
+}
+
+/**
+ * Explicitly claims an anonymous poll for a signed-in user.
+ */
+export async function claimPoll(pollId: string, adminToken: string) {
+  await auth.authStateReady();
+  const userUid = auth.currentUser?.uid;
+  if (!userUid) throw new Error("Must be signed in to claim");
+
+  // 1. Create the grant
+  const grantRef = doc(db, "polls", pollId, "adminGrants", userUid);
+  await setDoc(grantRef, {
+    adminToken,
+    grantedAt: new Date().toISOString(),
+  });
+
+  // 2. Add to managers array in poll doc
+  const pollRef = doc(db, "polls", pollId);
+  await updateDoc(pollRef, {
+    managers: arrayUnion(userUid)
+  });
 }
 
 /**
@@ -127,23 +188,6 @@ export async function updatePoll(pollId: string, data: Partial<Poll>) {
 }
 
 /**
- * Associates an existing poll with a signed-in user's account.
- * Requires the admin token to prove ownership.
- */
-export async function claimPoll(pollId: string, _adminToken: string, uid?: string) {
-  const organizerUid = uid || auth.currentUser?.uid;
-  if (!organizerUid) throw new Error("Must be signed in to claim a poll");
-  
-  const pollRef = doc(db, "polls", pollId);
-  // Security rules verify the update based on existing adminToken
-  await updateDoc(pollRef, {
-    organizerUid: organizerUid,
-    adminToken: _adminToken, // Required by security rules to authorize the update
-    updatedAt: new Date().toISOString()
-  });
-}
-
-/**
  * Deletes a vote for a specific poll.
  */
 export async function deleteVote(pollId: string, voteId: string) {
@@ -194,11 +238,11 @@ export function subscribeToPoll(
 
     currentVotes.forEach(vote => {
       Object.entries(vote.selections).forEach(([slotId, value]) => {
-        if (voteCounts[slotId]) {
-          voteCounts[slotId][value]++;
-        } else if (!currentPoll) {
+        if (!voteCounts[slotId]) {
           // If poll isn't loaded yet, still track counts if possible
           if (!voteCounts[slotId]) voteCounts[slotId] = { YES: 0, NO: 0, IF_NEED_BE: 0 };
+          voteCounts[slotId][value]++;
+        } else {
           voteCounts[slotId][value]++;
         }
       });
@@ -210,7 +254,12 @@ export function subscribeToPoll(
   const unsubPoll = onSnapshot(pollRef, (doc) => {
     hasPollFired = true;
     if (doc.exists()) {
-      currentPoll = { id: doc.id, pollId: doc.id, ...doc.data() } as unknown as Poll;
+      const data = doc.data();
+      // Remove adminToken if it somehow exists (defense-in-depth for legacy docs)
+      if (data && 'adminToken' in data) {
+        delete data.adminToken;
+      }
+      currentPoll = { id: doc.id, pollId: doc.id, ...data } as unknown as Poll;
     } else {
       currentPoll = null;
     }
@@ -245,14 +294,45 @@ export function subscribeToUserPolls(
   onUpdate: (polls: Poll[]) => void
 ) {
   const pollsRef = collection(db, "polls");
-  const q = query(
+  
+  // Query 1: Organized polls
+  const q1 = query(
     pollsRef,
     where("organizerUid", "==", uid),
     orderBy("createdAt", "desc")
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const polls = snapshot.docs.map(doc => ({ pollId: doc.id, ...doc.data() } as Poll));
-    onUpdate(polls);
+  // Query 2: Managed polls (claimed)
+  const q2 = query(
+    pollsRef,
+    where("managers", "array-contains", uid),
+    orderBy("createdAt", "desc")
+  );
+
+  let polls1: Poll[] = [];
+  let polls2: Poll[] = [];
+
+  const emit = () => {
+    const combined = [...polls1, ...polls2];
+    // De-duplicate by pollId
+    const unique = Array.from(new Map(combined.map(p => [p.pollId, p])).values());
+    // Re-sort by createdAt desc
+    unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    onUpdate(unique);
+  };
+
+  const unsub1 = onSnapshot(q1, (snap) => {
+    polls1 = snap.docs.map(doc => ({ pollId: doc.id, ...doc.data() } as Poll));
+    emit();
   });
+
+  const unsub2 = onSnapshot(q2, (snap) => {
+    polls2 = snap.docs.map(doc => ({ pollId: doc.id, ...doc.data() } as Poll));
+    emit();
+  });
+
+  return () => {
+    unsub1();
+    unsub2();
+  };
 }

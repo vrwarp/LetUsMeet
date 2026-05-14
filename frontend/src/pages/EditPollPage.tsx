@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle, Clock, X, ShieldCheck } from "lucide-react";
-import { subscribeToPoll, updatePoll, claimPoll } from "@/lib/pollService";
+import { subscribeToPoll, updatePoll, claimPoll, ensureAdminGrant } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
@@ -31,6 +31,7 @@ export default function EditPollPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isTokenAdmin, setIsTokenAdmin] = useState(false);
   const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
   const [poll, setPoll] = useState<Poll | null>(null);
 
@@ -76,6 +77,16 @@ export default function EditPollPage() {
 
     return () => unsubscribe();
   }, [pollId]);
+
+  useEffect(() => {
+    if (adminToken && user && pollId) {
+      ensureAdminGrant(pollId, adminToken).then(valid => {
+        setIsTokenAdmin(valid);
+      });
+    } else {
+      setIsTokenAdmin(false);
+    }
+  }, [user, pollId, adminToken]);
 
   const handlePickerClick = (e: React.MouseEvent<HTMLInputElement>) => {
     const el = e.currentTarget;
@@ -173,7 +184,7 @@ export default function EditPollPage() {
 
     setIsClaiming(true);
     try {
-      await claimPoll(pollId, adminToken, user?.uid);
+      await claimPoll(pollId, adminToken);
       // Re-render via subscription
     } catch (err) {
       console.error("Failed to claim poll:", err);
@@ -204,8 +215,8 @@ export default function EditPollPage() {
 
       {(() => {
         if (!poll) return null;
-        const isActuallyOrganizer = user && !user.isAnonymous && poll.organizerUid === user.uid;
-        if (user && !user.isAnonymous && !isActuallyOrganizer && adminToken && adminToken === poll.adminToken) {
+        const isActuallyOrganizer = user && poll.organizerUid === user.uid;
+        if (user && !isActuallyOrganizer && isTokenAdmin) {
           return (
             <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
               <div className="flex items-center gap-4">

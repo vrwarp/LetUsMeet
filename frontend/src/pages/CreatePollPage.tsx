@@ -220,7 +220,7 @@ export default function CreatePollPage() {
         localStorage.setItem(`adminToken_${pollId}`, adminToken);
       }
 
-      navigate(`/poll/${pollId}`);
+      navigate(`/poll/${pollId}?adminToken=${adminToken}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
       setError(err.message || "Something went wrong. Please try again.");
