@@ -26,7 +26,7 @@ import {
   appendSignedEvent, 
   loadIdentity 
 } from "@/lib/pollService";
-import { importSymmetricKey } from "@/lib/crypto";
+import { importSymmetricKey, exportPublicKey } from "@/lib/crypto";
 import { useAuth } from "../hooks/useAuth";
 import type { PollState, VoteValue, PollAction } from "../types";
 import ActionCard from "@/components/ActionCard";
@@ -58,7 +58,6 @@ export default function ResultsPage() {
         setIsAdmin(false);
         return;
       }
-      const { exportPublicKey } = await import("@/lib/crypto");
       const pubKeyHex = await exportPublicKey(identity.publicKey);
       setIsAdmin(pubKeyHex === pollState.adminPublicKey);
     };

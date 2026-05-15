@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './Layout';
@@ -43,7 +44,6 @@ describe('Layout', () => {
   });
 
   it('renders dashboard, sign out and profile image when authenticated', async () => {
-    const userEvent = (await import('@testing-library/user-event')).default;
     const event = userEvent.setup();
     
     render(

@@ -226,15 +226,69 @@ export async function derivePrfMasterKey(): Promise<CryptoKey> {
   return prfPromise;
 }
 
+/**
+ * Loads or initializes the Master Keystore Key (MKK).
+ * The MKK is a static key used to encrypt all keystore entries.
+ * It is itself stored in Firestore, wrapped (encrypted) by the transient PRF key.
+ */
+let mkkPromise: Promise<CryptoKey> | null = null;
+
+export async function getMasterKeystoreKey(): Promise<CryptoKey> {
+  if (mkkPromise) return mkkPromise;
+
+  mkkPromise = (async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user || user.isAnonymous) throw new Error("Must be signed in to access MKK.");
+
+      const prfKey = await derivePrfMasterKey();
+      const mkkRef = doc(db, "users", user.uid, "keystore", "mkk_wrapped");
+      const snap = await getDoc(mkkRef);
+
+      if (!snap.exists()) {
+        // Initialize MKK
+        const newMkk = await generateSymmetricKey();
+        const rawMkk = await window.crypto.subtle.exportKey("raw", newMkk);
+        const mkkString = btoa(String.fromCharCode(...new Uint8Array(rawMkk)));
+        
+        const { ciphertext, iv } = await encrypt(prfKey, mkkString);
+        await setDoc(mkkRef, {
+          wrappedKey: ciphertext,
+          iv,
+          createdAt: Date.now()
+        });
+        
+        return newMkk;
+      }
+
+      const data = snap.data();
+      const decryptedMkkString = await decrypt(prfKey, data.wrappedKey, data.iv);
+      const rawMkk = Uint8Array.from(atob(decryptedMkkString), c => c.charCodeAt(0));
+      
+      return await window.crypto.subtle.importKey(
+        "raw",
+        rawMkk,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    } finally {
+      // We don't nullify mkkPromise here so it stays cached for the session
+    }
+  })();
+
+  return mkkPromise;
+}
+
 // === KEYSTORE (Authenticated Storage) ===
 
 export async function saveToKeystore(pollId: string, payload: DecryptedKeystorePayload) {
   const user = auth.currentUser;
-  if (!user || user.isAnonymous) return; // Only for Google-authed users
+  if (!user || user.isAnonymous) return; 
 
-  const masterKey = await derivePrfMasterKey();
+  const mkk = await getMasterKeystoreKey();
   const json = JSON.stringify(payload);
-  const { ciphertext, iv } = await encrypt(masterKey, json);
+  const { ciphertext, iv } = await encrypt(mkk, json);
 
   const entryRef = doc(db, "users", user.uid, "keystore", pollId);
   await setDoc(entryRef, {
@@ -250,12 +304,12 @@ export async function loadFromKeystore(pollId: string): Promise<DecryptedKeystor
   if (!user || user.isAnonymous) return null;
 
   const entryRef = doc(db, "users", user.uid, "keystore", pollId);
-  const snap = await (await import("firebase/firestore")).getDoc(entryRef);
+  const snap = await getDoc(entryRef);
   if (!snap.exists()) return null;
 
   const data = snap.data() as KeystoreEntry;
-  const masterKey = await derivePrfMasterKey();
-  const json = await decrypt(masterKey, data.wrappedPayload, data.iv);
+  const mkk = await getMasterKeystoreKey();
+  const json = await decrypt(mkk, data.wrappedPayload, data.iv);
   return JSON.parse(json);
 }
 
@@ -263,21 +317,24 @@ export async function verifyMasterKey(): Promise<boolean> {
   const user = auth.currentUser;
   if (!user || user.isAnonymous) return true;
 
-  const masterKey = await derivePrfMasterKey();
-  const verifyRef = doc(db, "users", user.uid, "keystore", "identity_verification");
-  const snap = await getDoc(verifyRef);
-
-  if (!snap.exists()) {
-    // First time: create verification entry
-    const nonce = Math.random().toString(36).substring(2, 15);
-    const { ciphertext, iv } = await encrypt(masterKey, nonce);
-    await setDoc(verifyRef, { ciphertext, iv, nonce, version: 1 });
-    return true;
-  }
-
-  const data = snap.data();
   try {
-    const decrypted = await decrypt(masterKey, data.ciphertext, data.iv);
+    // Attempting to get the MKK effectively verifies the PRF key
+    await getMasterKeystoreKey();
+    
+    // Also verify the secondary nonce as a sanity check
+    const mkk = await getMasterKeystoreKey();
+    const verifyRef = doc(db, "users", user.uid, "keystore", "identity_verification");
+    const snap = await getDoc(verifyRef);
+
+    if (!snap.exists()) {
+      const nonce = Math.random().toString(36).substring(2, 15);
+      const { ciphertext, iv } = await encrypt(mkk, nonce);
+      await setDoc(verifyRef, { ciphertext, iv, nonce, version: 1 });
+      return true;
+    }
+
+    const data = snap.data();
+    const decrypted = await decrypt(mkk, data.ciphertext, data.iv);
     return decrypted === data.nonce;
   } catch (e) {
     console.error("Master key verification failed:", e);

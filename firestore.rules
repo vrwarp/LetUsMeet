@@ -11,7 +11,9 @@ service cloud.firestore {
           // Standard poll keystore entry
           request.resource.data.keys().hasAll(['pollId', 'wrappedPayload', 'iv', 'updatedAt']) ||
           // Identity verification entry
-          (entryId == 'identity_verification' && request.resource.data.keys().hasAll(['ciphertext', 'iv', 'nonce', 'version']))
+          (entryId == 'identity_verification' && request.resource.data.keys().hasAll(['ciphertext', 'iv', 'nonce', 'version'])) ||
+          // Master Keystore Key (MKK) entry
+          (entryId == 'mkk_wrapped' && request.resource.data.keys().hasAll(['wrappedKey', 'iv', 'createdAt']))
         );
     }
 
