@@ -3,6 +3,7 @@ import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPo
 import type { User } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase";
+import { derivePrfMasterKey, verifyMasterKey, resetKeystore } from "@/lib/pollService";
 
 let isSigningIn = false;
 
@@ -10,10 +11,22 @@ let isSigningIn = false;
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isKeyMismatch, setIsKeyMismatch] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
+        if (currentUser && !currentUser.isAnonymous) {
+          // Trigger PRF derivation for authenticated users
+          derivePrfMasterKey().then(async () => {
+            const isMatch = await verifyMasterKey();
+            if (!isMatch) {
+              setIsKeyMismatch(true);
+            }
+          }).catch((e) => {
+            console.error("Master key derivation failed on auth state change", e);
+          });
+        }
         setUser(currentUser);
         setLoading(false);
         isSigningIn = false;
@@ -37,12 +50,27 @@ export function useAuth() {
       const result = await signInWithPopup(auth, provider);
 
       if (result.user) {
+        // 1. Update user record
         await setDoc(doc(db, "users", result.user.uid), {
           uid: result.user.uid,
           email: result.user.email,
           displayName: result.user.displayName,
-          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }, { merge: true });
+
+        // 2. Immediate WebAuthn Flow
+        try {
+          await derivePrfMasterKey();
+          const isMatch = await verifyMasterKey();
+          if (!isMatch) {
+            setIsKeyMismatch(true);
+            return; // Don't throw, let UI handle mismatch state
+          }
+        } catch (webauthnError: any) {
+          console.error("WebAuthn verification failed during sign-in", webauthnError);
+          await signOut(auth);
+          throw new Error("Zero-Knowledge Security: A passkey/WebAuthn verification is required to access your polls and keep your data private. Please try signing in again and complete the security prompt.");
+        }
       }
     } catch (error) {
       throw error;
@@ -50,8 +78,14 @@ export function useAuth() {
   };
 
   const signOutUser = async () => {
+    setIsKeyMismatch(false);
     await signOut(auth);
   };
 
-  return { user, loading, signInWithGoogle, signOutUser };
+  const resetAccount = async () => {
+    await resetKeystore();
+    await signOutUser();
+  };
+
+  return { user, loading, isKeyMismatch, signInWithGoogle, signOutUser, resetAccount };
 }

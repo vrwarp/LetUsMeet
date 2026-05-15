@@ -8,7 +8,9 @@ import {
   serverTimestamp,
   getDocs,
   where,
-  limit
+  limit,
+  writeBatch,
+  getDoc
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import type { 
@@ -255,6 +257,53 @@ export async function loadFromKeystore(pollId: string): Promise<DecryptedKeystor
   const masterKey = await derivePrfMasterKey();
   const json = await decrypt(masterKey, data.wrappedPayload, data.iv);
   return JSON.parse(json);
+}
+
+export async function verifyMasterKey(): Promise<boolean> {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return true;
+
+  const masterKey = await derivePrfMasterKey();
+  const verifyRef = doc(db, "users", user.uid, "keystore", "identity_verification");
+  const snap = await getDoc(verifyRef);
+
+  if (!snap.exists()) {
+    // First time: create verification entry
+    const nonce = Math.random().toString(36).substring(2, 15);
+    const { ciphertext, iv } = await encrypt(masterKey, nonce);
+    await setDoc(verifyRef, { ciphertext, iv, nonce, version: 1 });
+    return true;
+  }
+
+  const data = snap.data();
+  try {
+    const decrypted = await decrypt(masterKey, data.ciphertext, data.iv);
+    return decrypted === data.nonce;
+  } catch (e) {
+    console.error("Master key verification failed:", e);
+    return false;
+  }
+}
+
+export async function resetKeystore() {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return;
+
+  const keystoreRef = collection(db, "users", user.uid, "keystore");
+  const snap = await getDocs(keystoreRef);
+  
+  const batch = writeBatch(db);
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+
+  // Also clear IndexedDB
+  const request = indexedDB.open("LetUsMeet-Identities", 2); // DB_NAME/VERSION
+  request.onsuccess = () => {
+    const db = request.result;
+    const tx = db.transaction(["identities", "master_keys"], "readwrite");
+    tx.objectStore("identities").clear();
+    tx.objectStore("master_keys").clear();
+  };
 }
 
 // === LEDGER SERVICE ===

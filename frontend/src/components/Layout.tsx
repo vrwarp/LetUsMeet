@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink } from "lucide-react";
+import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import ScrollToTop from "./ScrollToTop";
 
 export default function Layout() {
-  const { user, loading, signInWithGoogle, signOutUser } = useAuth();
+  const { user, loading, isKeyMismatch, signInWithGoogle, signOutUser, resetAccount } = useAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -104,7 +105,14 @@ export default function Layout() {
                   </div>
                 ) : (
                   <button
-                    onClick={signInWithGoogle}
+                    onClick={async () => {
+                      setAuthError(null);
+                      try {
+                        await signInWithGoogle();
+                      } catch (e: any) {
+                        setAuthError(e.message);
+                      }
+                    }}
                     className="flex items-center gap-2 text-sm font-bold text-neutral-700 hover:text-brand-green transition-colors px-4 py-2 rounded-full hover:bg-neutral-100 border border-neutral-200"
                   >
                     <LogIn size={18} />
@@ -116,9 +124,62 @@ export default function Layout() {
           </nav>
         </div>
       </header>
+
+      {authError && (
+        <div className="max-w-4xl mx-auto px-4 mt-4">
+          <div className="bg-red-50 border border-red-100 text-red-600 px-6 py-4 rounded-[2rem] font-medium flex items-start gap-4 shadow-lg shadow-red-100/50">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p>{authError}</p>
+            </div>
+            <button onClick={() => setAuthError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 w-full">
         <Outlet />
       </main>
+
+      {isKeyMismatch && (
+        <div className="fixed inset-0 z-[200] bg-brand-charcoal/98 backdrop-blur-xl flex items-center justify-center p-6 text-white text-center">
+          <div className="max-w-md w-full">
+            <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-8">
+              <AlertTriangle size={40} />
+            </div>
+            <h2 className="text-3xl font-black mb-4">Identity Key Mismatch</h2>
+            <p className="text-neutral-400 mb-8 leading-relaxed">
+              The passkey you just used is different from the one originally used to secure your account. 
+              Because of our zero-knowledge security, it is mathematically impossible to decrypt your polls with this key.
+            </p>
+            
+            <div className="grid gap-4">
+              <button 
+                onClick={signOutUser}
+                className="w-full bg-white text-brand-charcoal py-4 rounded-2xl font-bold hover:bg-neutral-100 transition-colors"
+              >
+                Sign Out & Try Again
+              </button>
+              
+              <div className="pt-4 border-t border-white/10 mt-4">
+                <p className="text-sm text-neutral-500 mb-4">Lost your original passkey?</p>
+                <button 
+                  onClick={() => {
+                    if (confirm("WARNING: This will permanently delete ALL your encrypted polls and reset your account. This cannot be undone. Are you sure?")) {
+                      resetAccount();
+                    }
+                  }}
+                  className="w-full bg-red-500/10 text-red-500 border border-red-500/20 py-4 rounded-2xl font-bold hover:bg-red-500/20 transition-colors"
+                >
+                  Reset My Account & Delete All Data
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-neutral-600 font-medium">
           <p>© 2026 Benson Tsai • <span className="text-brand-green-dark font-bold">LetUs</span><span className="text-brand-red font-bold">Meet</span></p>

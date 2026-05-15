@@ -3,10 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // 1. KEYSTORE — only collection using Firebase Auth for security
-    match /users/{userId}/keystore/{pollId} {
+    match /users/{userId}/keystore/{entryId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.keys().hasAll(['pollId', 'wrappedPayload', 'iv', 'updatedAt']);
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && (
+          // Standard poll keystore entry
+          request.resource.data.keys().hasAll(['pollId', 'wrappedPayload', 'iv', 'updatedAt']) ||
+          // Identity verification entry
+          (entryId == 'identity_verification' && request.resource.data.keys().hasAll(['ciphertext', 'iv', 'nonce', 'version']))
+        );
     }
 
     // 2. BLIND LEDGER
