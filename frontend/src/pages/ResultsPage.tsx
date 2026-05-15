@@ -291,8 +291,8 @@ export default function ResultsPage() {
               <th key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
                 <div className="text-[11px] md:text-sm font-bold text-neutral-800 leading-tight">
                   {metadata.schedulingMode === "EXACT" 
-                    ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })
-                    : new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })
+                    ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                    : new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
                   }
                 </div>
                 <div className="text-[10px] md:text-xs text-neutral-500 leading-tight">
@@ -304,7 +304,7 @@ export default function ResultsPage() {
                 {isAdmin && !pollState.isFinalized && (
                   <button
                     onClick={() => handleFinalize(slot.id)}
-                    className="mt-2 text-[9px] font-black bg-brand-green text-white px-2 py-0.5 rounded-full uppercase"
+                    className="mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm"
                   >
                     {finalizing === slot.id ? "..." : "Select"}
                   </button>
