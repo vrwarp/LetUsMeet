@@ -22,6 +22,8 @@
   "author": "",
   "scripts": {
     "dev": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npx firebase emulators:start --only auth,firestore,functions,hosting\"",
+    "dev-persistent": "concurrently --kill-others-on-fail \"npm run dev --prefix frontend\" \"npx firebase emulators:start --only auth,firestore,functions,hosting --import=./firebase-data --export-on-exit --force\"",
+    "clear-persistent": "printf 'WARNING: This will delete all saved Firebase emulator data. Continue? (y/N) '; read ans; case \"$ans\" in [yY]*) rm -rf firebase-data && echo 'Data cleared.' ;; *) echo 'Aborted.' ;; esac",
     "build": "npm run build --prefix frontend && npm run build --prefix functions",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "npm run build --prefix frontend && npm run test:unit --prefix frontend",

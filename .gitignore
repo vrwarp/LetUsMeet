@@ -103,4 +103,5 @@ test-results/
 # Functions
 functions/lib/
 functions/typings/
+firebase-data/
 
