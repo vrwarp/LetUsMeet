@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/base-test';
 
 test.describe('Phase 1 Critical User Journeys', () => {
   // We use a single test to preserve the state (the created poll ID) across the flow,

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/base-test';
 
 test.describe('Navigation Flows', () => {
   test('navigates through the entire app lifecycle smoothly', async ({ page }) => {

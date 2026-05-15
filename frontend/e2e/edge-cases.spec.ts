@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/base-test';
 
 test.describe('Error & Edge Cases', () => {
   test('displays validation errors on empty form submission', async ({ page }) => {

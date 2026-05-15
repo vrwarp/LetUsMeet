@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/base-test';
 
 test.describe('Fuzzy Scheduling', () => {
   test('should create a poll with general blocks and allow voting', async ({ page }) => {

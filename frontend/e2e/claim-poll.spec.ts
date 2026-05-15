@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/base-test';
 
 test.describe('Claim Poll Flow', () => {
   test('allows a user to claim an anonymous poll from another session', async ({ browser }) => {

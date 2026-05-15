@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/base-test';
 
 test.describe('Vote Editing and Multiple Responses', () => {
   test('allows a user to edit their vote and submit a second one', async ({ page }) => {

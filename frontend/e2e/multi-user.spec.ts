@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/base-test';
 
 test.describe('Multi-user Flows', () => {
   test('handles multiple participants voting', async ({ browser }) => {
