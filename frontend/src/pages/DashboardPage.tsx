@@ -71,12 +71,12 @@ export default function DashboardPage() {
           {polls.map((poll) => (
             <div
               key={poll.pollId}
-              className="bg-white p-5 sm:p-7 rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-xl hover:shadow-brand-green/5 transition-all duration-300 group"
+              className="bg-white p-5 sm:p-7 rounded-[2.5rem] border border-neutral-100 shadow-sm"
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <h2 className="text-xl sm:text-2xl font-black text-neutral-800 tracking-tight group-hover:text-brand-green transition-colors">{poll.title}</h2>
+                    <h2 className="text-xl sm:text-2xl font-black text-neutral-800 tracking-tight">{poll.title}</h2>
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       poll.status === "OPEN" 
                         ? "bg-brand-green-light text-brand-green-dark" 
