@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X } from "lucide-react";
+import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import ScrollToTop from "./ScrollToTop";
 
 export default function Layout() {
-  const { user, loading, isKeyMismatch, signInWithGoogle, signOutUser, resetAccount } = useAuth();
+  const { user, loading, isKeyMismatch, signInWithGoogle, signOutUser, resetAccount, deleteAccount } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -91,6 +91,24 @@ export default function Layout() {
                           Dashboard
                         </Link>
                         
+                        <div className="h-px bg-neutral-50 my-1"></div>
+                        
+                        <button
+                          onClick={async () => {
+                            if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
+                              try {
+                                await deleteAccount();
+                              } catch (e: any) {
+                                alert("Failed to delete account: " + e.message);
+                              }
+                            }
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-brand-red hover:bg-brand-red/5 transition-colors"
+                        >
+                          <Trash2 size={18} className="text-brand-red/60" />
+                          Delete My Account
+                        </button>
+
                         <div className="h-px bg-neutral-50 my-1"></div>
                         
                         <button
@@ -181,8 +199,14 @@ export default function Layout() {
         </div>
       )}
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-neutral-600 font-medium">
-          <p>© 2026 Benson Tsai • <span className="text-brand-green-dark font-bold">LetUs</span><span className="text-brand-red font-bold">Meet</span></p>
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-neutral-600 font-medium">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
+            <p>© 2026 Benson Tsai • <span className="text-brand-green-dark font-bold">LetUs</span><span className="text-brand-red font-bold">Meet</span></p>
+            <div className="flex items-center gap-6">
+              <Link to="/privacy" className="hover:text-brand-green transition-colors">Privacy</Link>
+              <Link to="/terms" className="hover:text-brand-green transition-colors">Terms</Link>
+            </div>
+          </div>
           <a 
             href="https://github.com/vrwarp/LetUsMeet" 
             target="_blank" 

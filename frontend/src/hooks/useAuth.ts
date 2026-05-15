@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
 import { derivePrfMasterKey, verifyMasterKey, resetKeystore } from "@/lib/pollService";
 
 let isSigningIn = false;
-
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -87,5 +87,22 @@ export function useAuth() {
     await signOutUser();
   };
 
-  return { user, loading, isKeyMismatch, signInWithGoogle, signOutUser, resetAccount };
+  const deleteAccount = async () => {
+    if (!user || user.isAnonymous) return;
+    
+    const functions = getFunctions();
+    const deleteFn = httpsCallable(functions, "deleteUserAccount");
+    
+    try {
+      await deleteFn();
+      // After successful deletion, clear local storage and sign out
+      localStorage.clear();
+      await signOutUser();
+    } catch (error) {
+      console.error("Account deletion failed:", error);
+      throw error;
+    }
+  };
+
+  return { user, loading, isKeyMismatch, signInWithGoogle, signOutUser, resetAccount, deleteAccount };
 }
