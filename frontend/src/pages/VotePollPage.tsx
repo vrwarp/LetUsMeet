@@ -60,43 +60,46 @@ export default function VotePollPage() {
 
   // const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
 
+  const [allVotes, setAllVotes] = useState<Vote[]>([]);
+
   useEffect(() => {
     if (!pollId) return;
     
     setIsLoading(true);
     const unsubscribe = subscribeToPoll(pollId, (data) => {
       setPoll(data.poll as any);
-      
-      if (data.poll && user) {
-        const myVotes = (data.votes as any).filter((v: Vote) => v.participantUid === user.uid);
-        setUserVotes(myVotes);
-        
-        const foundVote = myVotes.length > 0;
-        
-        if (foundVote && !hasInitializedWithVoteRef.current) {
-          // Initialize with existing vote (even if we already initialized as empty)
-          const latestVote = [...myVotes].sort((a, b) => 
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          )[0];
-          loadVoteIntoForm(latestVote);
-          hasInitializedWithVoteRef.current = true;
-          hasInitializedFormRef.current = true;
-        } else if (!hasInitializedFormRef.current) {
-          // Initialize as empty for now
-          initializeEmptyForm(data.poll as any);
-          hasInitializedFormRef.current = true;
-        }
-      } else if (data.poll && !user && !hasInitializedFormRef.current) {
-        initializeEmptyForm(data.poll as any);
-        hasInitializedFormRef.current = true;
-      }
-      
+      setAllVotes(data.votes as any);
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [pollId, user?.uid]);
- // Removed hasInitializedForm to avoid re-subscribing on form init
+  }, [pollId]);
+
+  useEffect(() => {
+    if (poll && user) {
+      const myVotes = allVotes.filter((v: Vote) => v.participantUid === user.uid);
+      setUserVotes(myVotes);
+      
+      const foundVote = myVotes.length > 0;
+      
+      if (foundVote && !hasInitializedWithVoteRef.current) {
+        // Initialize with existing vote (even if we already initialized as empty)
+        const latestVote = [...myVotes].sort((a, b) => 
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )[0];
+        loadVoteIntoForm(latestVote);
+        hasInitializedWithVoteRef.current = true;
+        hasInitializedFormRef.current = true;
+      } else if (!hasInitializedFormRef.current) {
+        // Initialize as empty for now
+        initializeEmptyForm(poll);
+        hasInitializedFormRef.current = true;
+      }
+    } else if (poll && !user && !hasInitializedFormRef.current) {
+      initializeEmptyForm(poll);
+      hasInitializedFormRef.current = true;
+    }
+  }, [poll, user?.uid, allVotes]);
 
   const initializeEmptyForm = (pollData: Poll) => {
     const initial: Record<string, VoteValue> = {};
@@ -323,79 +326,10 @@ export default function VotePollPage() {
     }
   };
 
+
   const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
   const isOwner = isTokenAdmin;
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-600 font-medium">Loading poll details...</p>
-      </div>
-    );
-  }
-
-  if ((poll?.status as any) === "FINALIZED") {
-    return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <div className="bg-amber-50 rounded-3xl p-10 border border-amber-100">
-          <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
-          <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
-          <a href={`/poll/${pollId}/results`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
-            View Final Results
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (success) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <div className="bg-brand-green-light/50 rounded-3xl p-10 border border-brand-green-light shadow-xl shadow-brand-green/10">
-          <div className="w-20 h-20 bg-brand-green rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-brand-green/20">
-            <CheckCircle className="w-10 h-10 text-white" />
-          </div>
-          <h2 className="text-3xl font-bold text-neutral-800 mb-3">
-            {lastSubmissionWasUpdate ? "Vote Updated!" : "Vote Cast!"}
-          </h2>
-          <p className="text-neutral-600 mb-8 text-lg">
-            {lastSubmissionWasUpdate 
-              ? "Your availability has been updated successfully." 
-              : "Your availability has been recorded successfully."}
-          </p>
-          <div className="flex flex-col gap-4">
-            <Link 
-              to={`/poll/${pollId}/results${searchParams.get("adminToken") ? `?adminToken=${searchParams.get("adminToken")}` : ""}`}
-              data-testid="view-results-link"
-              className="w-full bg-brand-green text-white font-bold py-4 rounded-2xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 text-center"
-            >
-              View Group Availability
-            </Link>
-            <button 
-              onClick={() => {
-                setSuccess(false);
-              }}
-              className="text-neutral-600 font-semibold hover:text-neutral-700 transition-colors"
-            >
-              Back to poll
-            </button>
-          </div>
-        </div>
-        <p className="mt-8 text-neutral-600">Availability updated</p>
-      </div>
-    );
-  }
-
-  if (error || !poll) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <p className="text-neutral-600 text-lg mb-6">{error || "Poll not found."}</p>
-        <Link to="/" className="text-indigo-600 font-bold hover:underline">Return to Home</Link>
-      </div>
-    );
-  }
 
 
 

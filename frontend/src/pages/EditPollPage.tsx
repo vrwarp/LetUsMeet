@@ -86,7 +86,7 @@ export default function EditPollPage() {
     } else {
       setIsTokenAdmin(false);
     }
-  }, [user, pollId, adminToken]);
+  }, [user?.uid, pollId, adminToken]);
 
   const handlePickerClick = (e: React.MouseEvent<HTMLInputElement>) => {
     const el = e.currentTarget;

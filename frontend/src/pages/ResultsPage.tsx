@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Send, ChevronDown } from "lucide-react";
 import { subscribeToPoll, unfinalizePoll, ensureAdminGrant, finalizePoll, claimPoll, getPrivateVoteData } from "@/lib/pollService";
 import type { Poll, VoteValue } from "../types/index";
@@ -56,7 +56,8 @@ export default function ResultsPage() {
 
   const isOrganizer = user && poll?.organizerUid === user.uid;
   const isManager = user && poll?.managers?.includes(user.uid);
-  const isAdmin = isOrganizer || isTokenAdmin || isManager;
+  const [isAuthChecking, setIsAuthChecking] = useState(false);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (!pollId) return;
@@ -74,24 +75,30 @@ export default function ResultsPage() {
   }, [pollId]);
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId);
+    const token = searchParams.get("adminToken") || localStorage.getItem("adminToken_" + pollId);
     if (token && user && pollId) {
+      setIsAuthChecking(true);
       ensureAdminGrant(pollId, token).then(valid => {
         setIsTokenAdmin(valid);
+        setIsAuthChecking(false);
       }).catch(err => {
         console.error("ensureAdminGrant failed in results:", err);
         setIsTokenAdmin(false);
+        setIsAuthChecking(false);
       });
     } else {
       setIsTokenAdmin(false);
+      setIsAuthChecking(false);
     }
-  }, [user, pollId]);
+  }, [user?.uid, pollId, searchParams]);
 
   useEffect(() => {
     if (isOrganizer && votes.length > 0 && Object.keys(emails).length === 0 && !isFetchingEmails) {
       handleRevealEmails();
     }
   }, [isOrganizer, votes, emails, isFetchingEmails]);
+
+  const isAdmin = isOrganizer || isTokenAdmin || isManager;
 
   const handleShare = () => {
     const url = window.location.origin + "/poll/" + pollId;
@@ -100,11 +107,11 @@ export default function ResultsPage() {
     setTimeout(() => setShowShareCopied(false), 3000);
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthChecking) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Tallying the results...</p>
+        <p className="text-neutral-500 font-medium">{isAuthChecking ? "Verifying access..." : "Tallying the results..."}</p>
       </div>
     );
   }
@@ -202,7 +209,7 @@ export default function ResultsPage() {
 
   const handleClaim = async () => {
     if (!pollId || isClaiming) return;
-    const token = localStorage.getItem("adminToken_" + pollId) || new URLSearchParams(window.location.search).get("adminToken");
+    const token = searchParams.get("adminToken") || localStorage.getItem("adminToken_" + pollId);
     if (!token) return;
 
     setIsClaiming(true);
@@ -422,10 +429,12 @@ export default function ResultsPage() {
       })()}
 
       {(() => {
+        if (!poll) return null;
         const isActuallyOrganizer = user && poll.organizerUid === user.uid;
-        const isAlreadyManager = user && poll.managers?.includes(user.uid);
+        const managers = poll.managers || [];
+        const isAlreadyManager = user && managers.includes(user.uid);
         
-        if (user && !isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
+        if (!isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
           return (
             <div data-testid="claim-banner" className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
               <div className="flex items-center gap-4">
@@ -477,7 +486,7 @@ export default function ResultsPage() {
                               WebkitMaskImage: (canExpand && !isDescriptionExpanded) ? 'linear-gradient(to bottom, black 60%, transparent 95%)' : 'none'
                             }}
                           >
-                            <h1 className="text-2xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm break-words leading-tight">
+                            <h1 data-testid="poll-title" className="text-2xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm break-words leading-tight">
                               {poll.title}
                             </h1>
                             {poll.description && (
