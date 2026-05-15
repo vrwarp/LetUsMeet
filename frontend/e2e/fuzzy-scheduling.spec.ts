@@ -61,6 +61,6 @@ test.describe('Fuzzy Scheduling', () => {
     // Check matrix for the vote
     const matrix = page.locator('[data-testid="results-matrix"]');
     await expect(matrix).toContainText('Test Participant');
-    await expect(page.locator('[data-testid^="total-yes-"]').first()).toHaveText('1');
+    await expect(page.locator('[data-testid^="total-"]').first()).toHaveText('1');
   });
 });

@@ -36,11 +36,11 @@ const ActionCard: React.FC<ActionCardProps> = ({
 
   const iconBgStyles = theme === 'dark'
     ? "bg-white/10 text-white shadow-inner"
-    : "bg-brand-green-light/50 text-brand-green";
+    : "bg-brand-green-light/50 text-brand-green-dark";
 
   const labelStyles = theme === 'dark'
     ? "text-white/60"
-    : "text-neutral-400";
+    : "text-neutral-500";
 
   const valueStyles = theme === 'dark'
     ? "text-white"

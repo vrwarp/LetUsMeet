@@ -73,11 +73,11 @@ export default function DashboardPage() {
               key={poll.pollId}
               className="bg-white p-5 sm:p-7 rounded-[2.5rem] border border-neutral-100 shadow-sm"
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-start gap-3 mb-3">
                     <h2 className="text-xl sm:text-2xl font-black text-neutral-800 tracking-tight">{poll.title}</h2>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                    <span className={`mt-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       poll.status === "OPEN" 
                         ? "bg-brand-green-light text-brand-green-dark" 
                         : "bg-red-50 text-red-600"

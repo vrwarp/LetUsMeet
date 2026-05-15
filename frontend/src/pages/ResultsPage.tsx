@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Send, ChevronDown } from "lucide-react";
 import { subscribeToPoll, unfinalizePoll, ensureAdminGrant, finalizePoll, claimPoll, getPrivateVoteData } from "@/lib/pollService";
 import type { Poll, VoteValue } from "../types/index";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
-import { MapPin, User as UserIcon, Share2 } from "lucide-react";
+import { MapPin, Share2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
 interface VoteResult {
@@ -27,11 +27,10 @@ export default function ResultsPage() {
   const [pollError, setPollError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
   const [isTokenAdmin, setIsTokenAdmin] = useState(false);
+  const [showLinkCopied, setShowLinkCopied] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showAddressCopied, setShowAddressCopied] = useState(false);
-  const [showLinkCopied, setShowLinkCopied] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [isClamped, setIsClamped] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
 
@@ -44,12 +43,10 @@ export default function ResultsPage() {
   const toggleExpando = () => {
     if (!isDescriptionExpanded) {
       setIsDescriptionExpanded(true);
-      setIsClamped(false);
     } else {
       setIsDescriptionExpanded(false);
       // Wait for transition to finish before clamping to show ellipsis
       setTimeout(() => {
-        setIsClamped(true);
       }, 700);
     }
   };
@@ -686,7 +683,7 @@ export default function ResultsPage() {
                   setShowLinkCopied(true);
                   setTimeout(() => setShowLinkCopied(false), 2000);
                 }}
-                className={`inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 ${
+                className={`inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 min-w-[200px] ${
                   showLinkCopied 
                     ? 'bg-brand-green text-white shadow-brand-green/20' 
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 shadow-neutral-200/20'

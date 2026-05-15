@@ -223,7 +223,7 @@ export default function VotePollPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Loading poll details...</p>
+        <p className="text-neutral-600 font-medium">Loading poll details...</p>
       </div>
     );
   }
@@ -270,13 +270,13 @@ export default function VotePollPage() {
               onClick={() => {
                 setSuccess(false);
               }}
-              className="text-neutral-500 font-semibold hover:text-neutral-700 transition-colors"
+              className="text-neutral-600 font-semibold hover:text-neutral-700 transition-colors"
             >
               Back to poll
             </button>
           </div>
         </div>
-        <p className="mt-8 text-neutral-500">Availability updated</p>
+        <p className="mt-8 text-neutral-600">Availability updated</p>
       </div>
     );
   }
@@ -284,7 +284,7 @@ export default function VotePollPage() {
   if (error || !poll) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <p className="text-neutral-500 text-lg mb-6">{error || "Poll not found."}</p>
+        <p className="text-neutral-600 text-lg mb-6">{error || "Poll not found."}</p>
         <Link to="/" className="text-indigo-600 font-bold hover:underline">Return to Home</Link>
       </div>
     );
@@ -330,12 +330,12 @@ export default function VotePollPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Loading poll details...</p>
+        <p className="text-neutral-600 font-medium">Loading poll details...</p>
       </div>
     );
   }
 
-  if (poll?.status === "FINALIZED") {
+  if ((poll?.status as any) === "FINALIZED") {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
         <div className="bg-amber-50 rounded-3xl p-10 border border-amber-100">
@@ -377,13 +377,13 @@ export default function VotePollPage() {
               onClick={() => {
                 setSuccess(false);
               }}
-              className="text-neutral-500 font-semibold hover:text-neutral-700 transition-colors"
+              className="text-neutral-600 font-semibold hover:text-neutral-700 transition-colors"
             >
               Back to poll
             </button>
           </div>
         </div>
-        <p className="mt-8 text-neutral-500">Availability updated</p>
+        <p className="mt-8 text-neutral-600">Availability updated</p>
       </div>
     );
   }
@@ -391,7 +391,7 @@ export default function VotePollPage() {
   if (error || !poll) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <p className="text-neutral-500 text-lg mb-6">{error || "Poll not found."}</p>
+        <p className="text-neutral-600 text-lg mb-6">{error || "Poll not found."}</p>
         <Link to="/" className="text-indigo-600 font-bold hover:underline">Return to Home</Link>
       </div>
     );
@@ -433,7 +433,7 @@ export default function VotePollPage() {
                               {poll.title}
                             </h1>
                             {poll.description && (
-                              <p className="text-base md:text-lg text-neutral-500 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
+                              <p className="text-base md:text-lg text-neutral-600 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
                                 {poll.description}
                               </p>
                             )}
@@ -451,11 +451,11 @@ export default function VotePollPage() {
                             onClick={toggleExpando}
                             className="group/btn relative flex items-center gap-2 px-6 py-2.5 bg-neutral-100 hover:bg-neutral-200 active:scale-95 transition-all rounded-full border border-neutral-200 shadow-lg"
                           >
-                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500 group-hover/btn:text-brand-green-dark transition-colors">
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-600 group-hover/btn:text-brand-green-dark transition-colors">
                               {isDescriptionExpanded ? 'Show Less' : 'Show More'}
                             </span>
                             <div className={`transition-transform duration-500 ${isDescriptionExpanded ? 'rotate-180' : ''}`}>
-                              <ChevronDown size={14} className="text-neutral-400 group-hover/btn:text-brand-green-dark" />
+                              <ChevronDown size={14} className="text-neutral-600 group-hover/btn:text-brand-green-dark" />
                             </div>
                           </button>
                         </div>
@@ -490,14 +490,14 @@ export default function VotePollPage() {
                 data-testid="poll-organizer"
               />
 
-              {/* View Results Button */}
+              {/* Results Button */}
               <Link 
                 to={`/poll/${pollId}/results${searchParams.get("adminToken") ? `?adminToken=${searchParams.get("adminToken")}` : ""}`}
                 data-testid="view-results-link"
-                className="group flex-1 min-w-[200px] flex items-center justify-center gap-3 bg-brand-green text-white hover:bg-brand-green-dark transition-all rounded-[1.5rem] md:rounded-[2rem] px-8 py-4 min-h-[72px] md:min-h-[84px] font-black text-xl active:scale-95 shadow-xl shadow-brand-green/20"
+                className="group flex-1 md:flex-initial flex items-center justify-center gap-3 bg-brand-green text-white hover:bg-brand-green-dark transition-all rounded-[1.5rem] md:rounded-[2rem] px-10 py-4 min-h-[72px] md:min-h-[84px] font-black text-xl active:scale-95 shadow-xl shadow-brand-green/20"
               >
                 <History className="w-7 h-7 group-hover:rotate-12 transition-transform" />
-                <span>View Results</span>
+                <span>Results</span>
               </Link>
 
               {/* Share Button */}
@@ -522,7 +522,7 @@ export default function VotePollPage() {
                 </div>
                 <div>
                   <h2 className="font-bold text-brand-charcoal text-lg leading-tight">You are the Owner</h2>
-                  <p className="text-neutral-500 text-sm mt-1">Manage or finalize your poll using this link.</p>
+                  <p className="text-neutral-600 text-sm mt-1">Manage or finalize your poll using this link.</p>
                 </div>
               </div>
               <div className="w-full md:w-auto">
@@ -531,9 +531,10 @@ export default function VotePollPage() {
                   return (
                     <div className="flex flex-row items-center gap-2 bg-white border border-neutral-200 p-2 rounded-2xl shadow-sm w-full md:min-w-[480px]">
                       <input 
-                        readOnly 
+                        aria-label="Administrative link for this poll"
+                        readOnly
+                        className="bg-transparent px-3 py-2 text-xs font-mono text-neutral-600 flex-1 min-w-0 focus:outline-none" 
                         value={currentAdminUrl} 
-                        className="bg-transparent px-3 py-2 text-xs font-mono text-neutral-500 flex-1 min-w-0 focus:outline-none" 
                       />
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button 
@@ -581,7 +582,7 @@ export default function VotePollPage() {
                     disabled={isClaiming}
                     className="px-8 py-3 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 disabled:opacity-50"
                   >
-                    {isClaiming ? "Adding..." : "Add to Dashboard"}
+                    {isClaiming ? "Adding to Dashboard..." : "Add to My Dashboard"}
                   </button>
                 </div>
               );
@@ -648,7 +649,7 @@ export default function VotePollPage() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       editingVoteId === v.voteId 
                         ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" 
-                        : "bg-white text-neutral-500 border border-neutral-200 hover:border-indigo-300"
+                        : "bg-white text-neutral-600 border border-neutral-200 hover:border-indigo-300"
                     }`}
                   >
                     {v.participantName || "Anonymous"} ({new Date(v.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})

@@ -35,7 +35,7 @@ export default function Layout() {
           <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
             <img src={logoImg} alt="" className="h-9 sm:h-10 w-auto transition-transform group-hover:scale-105" />
             <span className="font-display font-bold text-base sm:text-2xl tracking-tight [font-variant:small-caps] block">
-              <span className="text-brand-green-dark">Let</span><span className="text-brand-green">Us</span><span className="text-brand-red">Meet</span>
+              <span className="text-brand-green-dark">Let</span><span className="text-brand-green-dark">Us</span><span className="text-brand-red">Meet</span>
             </span>
           </Link>
           <nav className="flex items-center gap-2 sm:gap-4">
@@ -121,7 +121,7 @@ export default function Layout() {
       </main>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-neutral-600 font-medium">
-          <p>© 2026 Benson Tsai • <span className="text-brand-green font-bold">LetUs</span><span className="text-brand-red font-bold">Meet</span></p>
+          <p>© 2026 Benson Tsai • <span className="text-brand-green-dark font-bold">LetUs</span><span className="text-brand-red font-bold">Meet</span></p>
           <a 
             href="https://github.com/vrwarp/LetUsMeet" 
             target="_blank" 

@@ -1,5 +1,4 @@
 import React from "react";
-import { CheckCircle2 } from "lucide-react";
 
 interface CompactActionCardProps {
   icon: React.ReactNode;

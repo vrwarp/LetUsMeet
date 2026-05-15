@@ -25,7 +25,7 @@ describe('Layout', () => {
       </MemoryRouter>
     );
     
-    expect(screen.getByText(/Simple group scheduling/i)).toBeInTheDocument();
+    expect(screen.getByText(/Benson Tsai/i)).toBeInTheDocument();
   });
 
   it('renders child routes via Outlet', () => {

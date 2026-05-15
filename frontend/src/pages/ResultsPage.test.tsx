@@ -60,7 +60,7 @@ describe('ResultsPage', () => {
     expect(screen.getByText(/1 participants/i)).toBeInTheDocument();
     
     // Check vote counts
-    const row = screen.getByText('Total Yes').closest('tr');
+    const row = screen.getByText('TOTAL').closest('tr');
     expect(row).toHaveTextContent('1');
   });
 
