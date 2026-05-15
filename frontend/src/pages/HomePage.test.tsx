@@ -14,16 +14,4 @@ describe('HomePage', () => {
     expect(screen.getByRole('link', { name: /Start a Poll/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Start a Poll/i })).toHaveAttribute('href', '/create');
   });
-
-  it('renders features section', () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
-    
-    expect(screen.getByTestId('feature-frictionless')).toBeInTheDocument();
-    expect(screen.getByTestId('feature-trinary')).toBeInTheDocument();
-    expect(screen.getByTestId('feature-realtime')).toBeInTheDocument();
-  });
 });

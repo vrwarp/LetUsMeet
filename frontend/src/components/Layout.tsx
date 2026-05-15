@@ -10,12 +10,15 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-neutral-50 text-brand-charcoal font-sans flex flex-col">
       <ScrollToTop />
-      <header className="bg-white border-b border-neutral-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <img src={logoImg} alt="LetUsMeet" className="h-10 sm:h-14 w-auto transition-transform group-hover:scale-105" />
+      <header className="bg-white border-b border-neutral-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
+          <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
+            <img src={logoImg} alt="" className="h-9 sm:h-10 w-auto transition-transform group-hover:scale-105" />
+            <span className="font-display font-bold text-base sm:text-2xl tracking-tight [font-variant:small-caps] block">
+              <span className="text-brand-green-dark">Let</span><span className="text-brand-green">Us</span><span className="text-brand-red">Meet</span>
+            </span>
           </Link>
-          <nav className="flex items-center gap-4 sm:gap-6">
+          <nav className="flex items-center gap-2 sm:gap-6">
             <Link
               to="/create"
               data-testid="create-poll-btn"
@@ -59,7 +62,7 @@ export default function Layout() {
           </nav>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl mx-auto px-4 py-4 sm:py-8 w-full">
+      <main className="flex-1 w-full">
         <Outlet />
       </main>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">

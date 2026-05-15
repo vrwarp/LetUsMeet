@@ -334,13 +334,6 @@ export default function ResultsPage() {
               ))}
             </tr>
           ))}
-          {votes.length === 0 && (
-            <tr>
-              <td colSpan={sortedSlots.length + 1} className="p-12 text-center text-neutral-600 font-medium italic">
-                No votes have been cast yet.
-              </td>
-            </tr>
-          )}
         </tbody>
         <tfoot className="bg-neutral-50/80 border-t-2 border-neutral-100 font-black">
           <tr>
@@ -401,7 +394,7 @@ export default function ResultsPage() {
       })()}
 
       <div className={`bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12 transition-all duration-500 ${poll.status === "FINALIZED" ? "ring-4 ring-brand-green/20" : ""}`}>
-        <div className={`px-8 py-10 text-white transition-all duration-700 ${
+        <div className={`px-4 sm:px-8 py-6 sm:py-10 text-white transition-all duration-700 ${
           poll.status === "FINALIZED" 
             ? "bg-gradient-to-br from-brand-green-dark via-brand-green to-brand-green-dark" 
             : "bg-brand-gradient"
@@ -560,7 +553,7 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           <div className="flex items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-2 overflow-hidden">
               <Info className="w-5 h-5 text-brand-green flex-shrink-0" />
@@ -576,7 +569,44 @@ export default function ResultsPage() {
             </button>
           </div>
 
-          {renderMatrixTable()}
+          {votes.length === 0 ? (
+            <div className="bg-neutral-50 rounded-[2rem] border border-dashed border-neutral-200 p-8 sm:p-12 text-center animate-in fade-in zoom-in-95 duration-500">
+              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-neutral-100 flex items-center justify-center mx-auto mb-4 text-brand-green">
+                <Users className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-neutral-800 mb-2">No responses yet</h3>
+              <p className="text-neutral-500 text-sm max-w-sm mx-auto mb-8 leading-relaxed">
+                Your availability grid will appear here once participants start voting. Share the poll link to get started!
+              </p>
+              <button 
+                onClick={() => {
+                  const url = window.location.origin + "/poll/" + pollId;
+                  navigator.clipboard.writeText(url);
+                  setShowAddressCopied(true);
+                  setTimeout(() => setShowAddressCopied(false), 2000);
+                }}
+                className={`inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 ${
+                  showAddressCopied 
+                    ? 'bg-brand-green text-white shadow-brand-green/20' 
+                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 shadow-neutral-200/20'
+                }`}
+              >
+                {showAddressCopied ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    Link Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-5 h-5" />
+                    Copy Poll Link
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            renderMatrixTable()
+          )}
         </div>
       </div>
 

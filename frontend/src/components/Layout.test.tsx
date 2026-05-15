@@ -11,7 +11,8 @@ describe('Layout', () => {
       </MemoryRouter>
     );
     
-    expect(screen.getByAltText('LetUsMeet')).toBeInTheDocument();
+    // Logo image is now alt="" for a11y redundancy reasons, find by role or link
+    expect(screen.getByRole('link', { name: /LetUsMeet/i })).toBeInTheDocument();
     expect(screen.getByText('Create Poll')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /LetUsMeet/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /Create Poll/i })).toHaveAttribute('href', '/create');

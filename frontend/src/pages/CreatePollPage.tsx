@@ -231,7 +231,7 @@ export default function CreatePollPage() {
 
 
   return (
-    <div className="max-w-2xl mx-auto py-4 sm:py-8">
+    <div className="max-w-2xl mx-auto px-4 py-4 sm:py-8">
       <div className="mb-10">
         <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Create a Meeting Poll</h1>
         <p className="text-neutral-500">Define the details and suggest some time slots.</p>
@@ -239,7 +239,7 @@ export default function CreatePollPage() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
         {/* Organizer Info Card */}
-        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
+        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="organizer-name" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <User size={16} className="text-indigo-500" />
@@ -276,7 +276,7 @@ export default function CreatePollPage() {
         </div>
 
         {/* Basic Info Card */}
-        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
+        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-title" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <Type size={16} className="text-indigo-500" />
@@ -326,7 +326,7 @@ export default function CreatePollPage() {
         </div>
 
         {/* Scheduling Mode Selection */}
-        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
+        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
             <Type size={16} className="text-brand-green" />
             Scheduling Mode
@@ -376,7 +376,7 @@ export default function CreatePollPage() {
         </div>
 
         {/* Time Slots Card */}
-        <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm">
+        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <CalendarIcon size={16} className="text-brand-green" />

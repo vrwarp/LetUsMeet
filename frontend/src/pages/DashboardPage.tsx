@@ -44,7 +44,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-4 sm:py-8">
+    <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Your Polls</h1>
         <p className="text-neutral-500 mt-1">Manage and finalize your created polls</p>

@@ -204,7 +204,7 @@ export default function EditPollPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
+    <div className="max-w-2xl mx-auto px-4 py-8">
       <Link 
         to={`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`}
         className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"

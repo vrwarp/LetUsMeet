@@ -501,7 +501,7 @@ export default function VotePollPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-12">
-        <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
+        <section className="bg-white rounded-3xl p-4 sm:p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
           <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
             <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-green-light/50 text-brand-green-dark text-sm">1</span>
             Your Availability
@@ -518,7 +518,7 @@ export default function VotePollPage() {
           </div>
         </section>
 
-        <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
+        <section className="bg-white rounded-3xl p-4 sm:p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
           <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
             <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 text-sm">2</span>
             Basic Information

@@ -75,7 +75,7 @@ describe('ResultsPage', () => {
     });
     
     renderPage();
-    expect(await screen.findByText(/No votes have been cast yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No responses yet/i)).toBeInTheDocument();
   });
 
   it('shows Leading badge on best slot (Stream E27)', async () => {
