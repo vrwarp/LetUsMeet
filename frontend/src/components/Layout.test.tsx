@@ -41,4 +41,30 @@ describe('Layout', () => {
     
     expect(screen.getByText('Test Child')).toBeInTheDocument();
   });
+
+  it('renders dashboard, sign out and profile image when authenticated', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default;
+    const event = userEvent.setup();
+    
+    render(
+      <MemoryRouter>
+        <Layout />
+      </MemoryRouter>
+    );
+    
+    // Initial of "Test User" should be visible
+    const profileBtn = screen.getByText('T');
+    expect(profileBtn).toBeInTheDocument();
+    
+    // Dashboard and Sign Out should NOT be visible initially
+    expect(screen.queryByText(/Dashboard/i)).not.toBeInTheDocument();
+    
+    // Click the profile button
+    await event.click(profileBtn);
+    
+    // Now they should be visible
+    expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sign Out/i)).toBeInTheDocument();
+    expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
+  });
 });

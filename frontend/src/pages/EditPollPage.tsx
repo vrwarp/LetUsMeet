@@ -216,7 +216,8 @@ export default function EditPollPage() {
       {(() => {
         if (!poll) return null;
         const isActuallyOrganizer = user && poll.organizerUid === user.uid;
-        if (user && !isActuallyOrganizer && isTokenAdmin) {
+        const isAlreadyManager = user && poll.managers?.includes(user.uid);
+        if (user && !isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
           return (
             <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
               <div className="flex items-center gap-4">
@@ -272,7 +273,7 @@ export default function EditPollPage() {
             <textarea
               id="poll-description"
               placeholder="Add more details about the meeting..."
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all min-h-[100px] resize-y"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all min-h-[100px] resize-none [field-sizing:content] [@supports(field-sizing:content)]:h-auto"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />

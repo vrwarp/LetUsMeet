@@ -302,7 +302,7 @@ export default function CreatePollPage() {
             <textarea
               id="poll-description"
               placeholder="e.g., Let's discuss the project roadmap and next steps."
-              className="w-full min-h-[100px] resize-y"
+              className="w-full min-h-[100px] resize-none [field-sizing:content] [@supports(field-sizing:content)]:h-auto"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />

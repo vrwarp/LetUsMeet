@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight } from "lucide-react";
+import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight, ChevronDown } from "lucide-react";
 import { subscribeToPoll, submitVote, deleteVote, claimPoll, ensureAdminGrant } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Poll, Vote, VoteValue } from "../types/index";
 import TimeSlotCard from "@/components/TimeSlotCard";
+import ActionCard from "@/components/ActionCard";
+import CompactActionCard from "@/components/CompactActionCard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
@@ -21,12 +23,28 @@ export default function VotePollPage() {
   const [showCopied, setShowCopied] = useState(false);
   const [success, setSuccess] = useState(false);
   const [userVotes, setUserVotes] = useState<Vote[]>([]);
+  const [showLocationCopied, setShowLocationCopied] = useState(false);
+  const [showAdminLinkCopied, setShowAdminLinkCopied] = useState(false);
   const [editingVoteId, setEditingVoteId] = useState<string | null>(null);
   const [lastSubmissionWasUpdate, setLastSubmissionWasUpdate] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [isTokenAdmin, setIsTokenAdmin] = useState(false);
   const hasInitializedFormRef = useRef(false);
   const hasInitializedWithVoteRef = useRef(false);
+
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, [poll, isDescriptionExpanded]);
+
+  const toggleExpando = () => {
+    setIsDescriptionExpanded(!isDescriptionExpanded);
+  };
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
@@ -296,139 +314,281 @@ export default function VotePollPage() {
     setTimeout(() => setShowCopied(false), 3000);
   };
 
+
+  const handleCopyLocation = () => {
+    if (poll?.location) {
+      navigator.clipboard.writeText(poll.location);
+      setShowLocationCopied(true);
+      setTimeout(() => setShowLocationCopied(false), 3000);
+    }
+  };
+
   const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
   const isOwner = isTokenAdmin;
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 md:py-12">
-      <div className="mb-10">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <h1 data-testid="poll-title" className="text-3xl md:text-5xl font-black text-neutral-800 tracking-tight leading-tight">
-            {poll.title}
-          </h1>
-          <div className="flex items-center gap-2">
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
+        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
+        <p className="text-neutral-500 font-medium">Loading poll details...</p>
+      </div>
+    );
+  }
+
+  if (poll?.status === "FINALIZED") {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center">
+        <div className="bg-amber-50 rounded-3xl p-10 border border-amber-100">
+          <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
+          <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
+          <a href={`/poll/${pollId}/results`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
+            View Final Results
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center">
+        <div className="bg-brand-green-light/50 rounded-3xl p-10 border border-brand-green-light shadow-xl shadow-brand-green/10">
+          <div className="w-20 h-20 bg-brand-green rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-brand-green/20">
+            <CheckCircle className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-neutral-800 mb-3">
+            {lastSubmissionWasUpdate ? "Vote Updated!" : "Vote Cast!"}
+          </h2>
+          <p className="text-neutral-600 mb-8 text-lg">
+            {lastSubmissionWasUpdate 
+              ? "Your availability has been updated successfully." 
+              : "Your availability has been recorded successfully."}
+          </p>
+          <div className="flex flex-col gap-4">
             <Link 
               to={`/poll/${pollId}/results${searchParams.get("adminToken") ? `?adminToken=${searchParams.get("adminToken")}` : ""}`}
               data-testid="view-results-link"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-neutral-600 font-bold text-sm hover:bg-neutral-50 transition-colors shadow-sm"
+              className="w-full bg-brand-green text-white font-bold py-4 rounded-2xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 text-center"
             >
-              <History className="w-4 h-4 text-brand-green" />
-              <span className="hidden sm:inline">View Results</span>
-              <span className="sm:hidden">Results</span>
+              View Group Availability
             </Link>
-            <div className="relative">
-              <button 
-                onClick={handleShare}
-                aria-label="Share poll" 
-                className="p-3 bg-neutral-100 rounded-2xl hover:bg-neutral-200 transition-colors text-neutral-600"
-              >
-                <Share2 className="w-5 h-5" />
-              </button>
-              {showCopied && (
-                <div className="absolute top-full mt-2 right-0 bg-neutral-800 text-white text-xs py-2 px-3 rounded-xl shadow-xl z-20">
-                  Copied!
+            <button 
+              onClick={() => {
+                setSuccess(false);
+              }}
+              className="text-neutral-500 font-semibold hover:text-neutral-700 transition-colors"
+            >
+              Back to poll
+            </button>
+          </div>
+        </div>
+        <p className="mt-8 text-neutral-500">Availability updated</p>
+      </div>
+    );
+  }
+
+  if (error || !poll) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <p className="text-neutral-500 text-lg mb-6">{error || "Poll not found."}</p>
+        <Link to="/" className="text-indigo-600 font-bold hover:underline">Return to Home</Link>
+      </div>
+    );
+  }
+
+
+
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+      {/* Header Card - Inverted Design */}
+      <div className="bg-white rounded-[3rem] shadow-2xl border border-neutral-100 mb-12 overflow-hidden">
+        <div className="bg-white text-brand-charcoal px-4 sm:px-8 py-8 sm:py-12 relative overflow-hidden">
+          {/* Subtle Decorative Elements */}
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-brand-green-light/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-brand-green-light/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col gap-10">
+            {/* Top Row: Title/Description */}
+            <div className="flex flex-wrap items-start justify-between gap-10">
+              <div className="flex-1 min-w-0 max-w-4xl">
+                <div className="flex items-start gap-5">
+                  <div className="w-1.5 self-stretch bg-brand-green/20 rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="relative group/expando">
+                      {(() => {
+                        const canExpand = poll.title.length > 80 || (poll.description && poll.description.length > 100);
+                        return (
+                          <div 
+                            ref={contentRef}
+                            className="flex flex-col gap-4 min-w-0 transition-all duration-700 ease-in-out overflow-hidden"
+                            style={{ 
+                              maxHeight: isDescriptionExpanded ? `${contentHeight}px` : '200px',
+                              maskImage: (canExpand && !isDescriptionExpanded) ? 'linear-gradient(to bottom, black 60%, transparent 95%)' : 'none',
+                              WebkitMaskImage: (canExpand && !isDescriptionExpanded) ? 'linear-gradient(to bottom, black 60%, transparent 95%)' : 'none'
+                            }}
+                          >
+                            <h1 data-testid="poll-title" className="text-3xl md:text-5xl font-black tracking-tight text-brand-green-dark drop-shadow-sm break-words leading-tight">
+                              {poll.title}
+                            </h1>
+                            {poll.description && (
+                              <p className="text-base md:text-lg text-neutral-500 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
+                                {poll.description}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      
+                      {(poll.title.length > 80 || (poll.description && poll.description.length > 100)) && (
+                        <div className={`flex justify-center transition-all duration-500 ${
+                          isDescriptionExpanded 
+                            ? 'mt-8 relative z-20' 
+                            : 'absolute bottom-2 left-0 w-full z-20'
+                        }`}>
+                          <button 
+                            onClick={toggleExpando}
+                            className="group/btn relative flex items-center gap-2 px-6 py-2.5 bg-neutral-100 hover:bg-neutral-200 active:scale-95 transition-all rounded-full border border-neutral-200 shadow-lg"
+                          >
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500 group-hover/btn:text-brand-green-dark transition-colors">
+                              {isDescriptionExpanded ? 'Show Less' : 'Show More'}
+                            </span>
+                            <div className={`transition-transform duration-500 ${isDescriptionExpanded ? 'rotate-180' : ''}`}>
+                              <ChevronDown size={14} className="text-neutral-400 group-hover/btn:text-brand-green-dark" />
+                            </div>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Bottom Row: Action Cards */}
+            <div className="flex flex-wrap items-stretch gap-4">
+              {/* Location Card */}
+              {poll.location && (
+                <ActionCard 
+                  icon={<MapPin className="w-5 h-5" />}
+                  label="Location"
+                  value={poll.location}
+                  onCopy={handleCopyLocation}
+                  isCopied={showLocationCopied}
+                  theme="light"
+                  data-testid="poll-location"
+                />
               )}
+
+              {/* Organizer Card */}
+              <ActionCard 
+                icon={<UserIcon className="w-5 h-5" />}
+                label="Organizer"
+                value={poll.organizerName || "Organizer"}
+                theme="light"
+                data-testid="poll-organizer"
+              />
+
+              {/* View Results Button */}
+              <Link 
+                to={`/poll/${pollId}/results${searchParams.get("adminToken") ? `?adminToken=${searchParams.get("adminToken")}` : ""}`}
+                data-testid="view-results-link"
+                className="group flex-1 min-w-[200px] flex items-center justify-center gap-3 bg-brand-green text-white hover:bg-brand-green-dark transition-all rounded-[1.5rem] md:rounded-[2rem] px-8 py-4 min-h-[72px] md:min-h-[84px] font-black text-xl active:scale-95 shadow-xl shadow-brand-green/20"
+              >
+                <History className="w-7 h-7 group-hover:rotate-12 transition-transform" />
+                <span>View Results</span>
+              </Link>
+
+              {/* Share Button */}
+              <CompactActionCard 
+                icon={<Share2 className="w-6 h-6" />}
+                onAction={handleShare}
+                isSuccess={showCopied}
+                theme="light"
+                data-testid="share-button"
+              />
             </div>
           </div>
         </div>
 
-        {poll.description && (
-          <div className="mb-8 p-6 bg-white rounded-2xl border border-neutral-100 shadow-sm">
-            <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">
-              {poll.description}
-            </p>
-          </div>
-        )}
-        
-        <div className="flex flex-wrap items-center gap-4 text-neutral-500 font-medium">
-          {poll.location && (
-            <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100">
-              <MapPin className="w-4 h-4 text-brand-green" />
-              <span>{poll.location}</span>
+        {/* Admin Banners - Integrated into card but below gradient */}
+        <div className="bg-neutral-50 border-t border-neutral-100">
+          {isOwner && (
+            <div className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 border-b border-neutral-100 bg-red-50/30">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-brand-red rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-red/20">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-brand-charcoal text-lg leading-tight">You are the Owner</h2>
+                  <p className="text-neutral-500 text-sm mt-1">Manage or finalize your poll using this link.</p>
+                </div>
+              </div>
+              <div className="w-full md:w-auto">
+                {(() => {
+                  const currentAdminUrl = `${window.location.origin}/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`;
+                  return (
+                    <div className="flex flex-row items-center gap-2 bg-white border border-neutral-200 p-2 rounded-2xl shadow-sm w-full md:min-w-[480px]">
+                      <input 
+                        readOnly 
+                        value={currentAdminUrl} 
+                        className="bg-transparent px-3 py-2 text-xs font-mono text-neutral-500 flex-1 min-w-0 focus:outline-none" 
+                      />
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(currentAdminUrl);
+                            setShowAdminLinkCopied(true);
+                            setTimeout(() => setShowAdminLinkCopied(false), 3000);
+                          }}
+                          className={`px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 flex-shrink-0 ${showAdminLinkCopied ? 'bg-white text-brand-red border border-brand-red shadow-lg shadow-brand-red/20' : 'bg-brand-red text-white hover:bg-brand-red-dark'}`}
+                        >
+                          {showAdminLinkCopied ? 'Copied!' : 'Copy'}
+                        </button>
+                        <Link
+                          to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
+                          className="bg-white text-brand-red border border-brand-red-light px-3 py-2 rounded-xl font-bold text-sm hover:bg-red-50 transition-all flex items-center gap-1.5 active:scale-95"
+                        >
+                          <Edit3 size={16} />
+                          Edit
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           )}
-          <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100">
-            <UserIcon className="w-4 h-4 text-brand-green" />
-            <span>{poll.organizerName || "Organizer"}</span>
-          </div>
-        </div>
 
-        {isOwner && (
-          <div className="mt-8 bg-brand-green-light/20 border border-brand-green-light rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="font-bold text-brand-charcoal text-lg">You are the Owner</h2>
-                <p className="text-neutral-600 text-sm">Save this link to manage or finalize your poll later.</p>
-              </div>
-            </div>
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full lg:w-auto">
-              {(() => {
-                const currentAdminUrl = `${window.location.origin}/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`;
-                return (
-                  <>
-                    <input 
-                      readOnly 
-                      value={currentAdminUrl} 
-                      aria-label="Management link"
-                      className="bg-white border border-neutral-200 px-4 py-3 rounded-xl text-xs font-mono text-neutral-600 w-full lg:w-64" 
-                    />
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(currentAdminUrl);
-                          setShowCopied(true);
-                          setTimeout(() => setShowCopied(false), 3000);
-                        }}
-                        className="bg-brand-green text-white px-5 py-3 rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap flex-1 lg:flex-none text-center"
-                      >
-                        Copy Link
-                      </button>
-                      <Link
-                        to={`/poll/${pollId}/edit${adminToken ? `?adminToken=${adminToken}` : ""}`}
-                        className="bg-white text-brand-green border border-brand-green-light px-5 py-3 rounded-xl font-bold hover:bg-neutral-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm flex-1 lg:flex-none"
-                      >
-                        <Edit3 size={18} />
-                        Edit
-                      </Link>
+          {(() => {
+            const isActuallyOrganizer = user && poll.organizerUid === user.uid;
+            const isAlreadyManager = user && poll.managers?.includes(user.uid);
+            if (user && !isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
+              return (
+                <div data-testid="claim-banner" className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
+                      <ShieldCheck className="w-6 h-6" />
                     </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        )}
-
-        {(() => {
-          const isActuallyOrganizer = user && poll.organizerUid === user.uid;
-          const isAlreadyManager = user && poll.managers?.includes(user.uid);
-          if (user && !isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
-            return (
-              <div data-testid="claim-banner" className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
-                    <ShieldCheck className="w-6 h-6" />
+                    <div>
+                      <h2 className="font-bold text-brand-charcoal text-lg">Claim this Poll</h2>
+                      <p className="text-neutral-600 text-sm">Add this poll to your personal dashboard.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="font-bold text-brand-charcoal text-lg">Claim this Poll</h2>
-                    <p className="text-neutral-600 text-sm">You have administrative access. Would you like to add this poll to your dashboard?</p>
-                  </div>
+                  <button
+                    onClick={handleClaim}
+                    disabled={isClaiming}
+                    className="px-8 py-3 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 disabled:opacity-50"
+                  >
+                    {isClaiming ? "Adding..." : "Add to Dashboard"}
+                  </button>
                 </div>
-                <button
-                  onClick={handleClaim}
-                  disabled={isClaiming}
-                  className="px-8 py-3 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap disabled:opacity-50"
-                >
-                  {isClaiming ? "Adding to Dashboard..." : "Add to My Dashboard"}
-                </button>
-              </div>
-            );
-          }
-          return null;
-        })()}
+              );
+            }
+            return null;
+          })()}
+        </div>
       </div>
 
       {userVotes.length > 0 && (

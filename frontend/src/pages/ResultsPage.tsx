@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Send } from "lucide-react";
-import { subscribeToPoll, finalizePoll, claimPoll, unfinalizePoll, getPrivateVoteData, ensureAdminGrant } from "@/lib/pollService";
-import { useAuth } from "@/hooks/useAuth";
+import { Loader2, ArrowLeft, Trophy, Users, Info, CalendarCheck, Edit3, Maximize2, X, RotateCcw, CheckCircle2, Copy, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { subscribeToPoll, unfinalizePoll, ensureAdminGrant, finalizePoll, claimPoll, getPrivateVoteData } from "@/lib/pollService";
 import type { Poll, VoteValue } from "../types/index";
+import ActionCard from "@/components/ActionCard";
+import CompactActionCard from "@/components/CompactActionCard";
+import { MapPin, User as UserIcon, Share2 } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 
 interface VoteResult {
   voteId: string;
@@ -18,6 +21,7 @@ export default function ResultsPage() {
   const [finalizing, setFinalizing] = useState<string | null>(null);
   const [unfinalizing, setUnfinalizing] = useState(false);
   const [votes, setVotes] = useState<VoteResult[]>([]);
+  const [showShareCopied, setShowShareCopied] = useState(false);
   const [voteCounts, setVoteCounts] = useState<Record<string, Record<VoteValue, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
@@ -25,10 +29,37 @@ export default function ResultsPage() {
   const [isTokenAdmin, setIsTokenAdmin] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showAddressCopied, setShowAddressCopied] = useState(false);
+  const [showLinkCopied, setShowLinkCopied] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(true);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, [poll, isDescriptionExpanded]);
+
+  const toggleExpando = () => {
+    if (!isDescriptionExpanded) {
+      setIsDescriptionExpanded(true);
+      setIsClamped(false);
+    } else {
+      setIsDescriptionExpanded(false);
+      // Wait for transition to finish before clamping to show ellipsis
+      setTimeout(() => {
+        setIsClamped(true);
+      }, 700);
+    }
+  };
+
   const [emails, setEmails] = useState<Record<string, string>>({});
   const [isFetchingEmails, setIsFetchingEmails] = useState(false);
 
   const isOrganizer = user && poll?.organizerUid === user.uid;
+  const isManager = user && poll?.managers?.includes(user.uid);
+  const isAdmin = isOrganizer || isTokenAdmin || isManager;
 
   useEffect(() => {
     if (!pollId) return;
@@ -64,6 +95,13 @@ export default function ResultsPage() {
       handleRevealEmails();
     }
   }, [isOrganizer, votes, emails, isFetchingEmails]);
+
+  const handleShare = () => {
+    const url = window.location.origin + "/poll/" + pollId;
+    navigator.clipboard.writeText(url);
+    setShowShareCopied(true);
+    setTimeout(() => setShowShareCopied(false), 3000);
+  };
 
   if (isLoading) {
     return (
@@ -116,11 +154,24 @@ export default function ResultsPage() {
     }
   }
 
-  const bestSlotId = Object.entries(voteCounts).reduce((best, [id, counts]) => {
-    const currentScore = (counts.YES || 0) * 2 + (counts.IF_NEED_BE || 0);
-    const bestScore = best ? (voteCounts[best].YES || 0) * 2 + (voteCounts[best].IF_NEED_BE || 0) : -1;
-    return currentScore > bestScore ? id : best;
-  }, null as string | null);
+  const topSlotIds = (() => {
+    if (votes.length === 0) return [];
+    let maxScore = 0;
+    let ids: string[] = [];
+    Object.entries(voteCounts).forEach(([id, counts]) => {
+      const score = (counts.YES || 0) * 2 + (counts.IF_NEED_BE || 0);
+      if (score > maxScore) {
+        maxScore = score;
+        ids = [id];
+      } else if (score === maxScore && score > 0) {
+        ids.push(id);
+      }
+    });
+    return ids;
+  })();
+
+  const bestSlotId = topSlotIds[0] || null;
+  const isTie = topSlotIds.length > 1;
 
   const handleFinalize = async (slotId: string) => {
     if (!pollId || finalizing) return;
@@ -254,7 +305,7 @@ export default function ResultsPage() {
             <th className="p-4 text-left font-semibold text-neutral-700 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
               <div className="flex items-center justify-between gap-2">
                 <span>Participants</span>
-                {isOrganizer && (
+                {isAdmin && (
                   <button 
                     onClick={handleComposeEmail}
                     disabled={isFetchingEmails}
@@ -292,7 +343,7 @@ export default function ResultsPage() {
                   </>
                 )}
 
-                {isOrganizer && poll.status === "OPEN" && (
+                {isAdmin && poll.status === "OPEN" && (
                   <button
                     onClick={() => handleFinalize(slot.id)}
                     disabled={!!finalizing}
@@ -337,12 +388,21 @@ export default function ResultsPage() {
         </tbody>
         <tfoot className="bg-neutral-50/80 border-t-2 border-neutral-100 font-black">
           <tr>
-            <td className="p-5 text-neutral-700 sticky left-0 bg-neutral-50/80 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase tracking-wider text-xs font-black">Total Yes</td>
-            {sortedSlots.map(slot => (
-              <td key={slot.id} data-testid={`total-yes-${slot.id}`} className={`p-5 text-center text-xl text-brand-green-dark transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/50 border-x-2 border-brand-green/20' : ''}`}>
-                {voteCounts[slot.id]?.YES || 0}
-              </td>
-            ))}
+            <td className="p-5 text-neutral-700 sticky left-0 bg-neutral-50/80 z-10 border-r border-neutral-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase tracking-wider text-xs font-black">TOTAL</td>
+            {sortedSlots.map(slot => {
+              const yesCount = voteCounts[slot.id]?.YES || 0;
+              const maybeCount = voteCounts[slot.id]?.IF_NEED_BE || 0;
+              return (
+                <td key={slot.id} data-testid={`total-${slot.id}`} className={`p-5 text-center transition-colors duration-500 ${poll.finalizedSlotId === slot.id ? 'bg-brand-green-light/50 border-x-2 border-brand-green/20' : ''}`}>
+                  <div className="flex items-center justify-center gap-1.5 font-bold text-xl">
+                    <span className="text-brand-green-dark">{yesCount}</span>
+                    {maybeCount > 0 && (
+                      <span className="text-amber-500 text-sm">({maybeCount})</span>
+                    )}
+                  </div>
+                </td>
+              );
+            })}
           </tr>
         </tfoot>
       </table>
@@ -350,7 +410,7 @@ export default function ResultsPage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
+    <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
       {(() => {
         const token = new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId);
         return (
@@ -393,162 +453,203 @@ export default function ResultsPage() {
         return null;
       })()}
 
-      <div className={`bg-white rounded-3xl shadow-xl shadow-brand-green/10 border border-brand-green-light/20 overflow-hidden mb-12 transition-all duration-500 ${poll.status === "FINALIZED" ? "ring-4 ring-brand-green/20" : ""}`}>
-        <div className={`px-4 sm:px-8 py-6 sm:py-10 text-white transition-all duration-700 ${
-          poll.status === "FINALIZED" 
-            ? "bg-gradient-to-br from-brand-green-dark via-brand-green to-brand-green-dark" 
-            : "bg-brand-gradient"
-        }`}>
-          <div className="flex flex-wrap items-center justify-between gap-6">
-            <div className="flex-1 min-w-[300px]">
-              <div className="flex items-center gap-3 mb-3">
-                <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white">{poll.title}</h1>
-              </div>
-              <div className="flex flex-wrap items-center gap-4 text-white font-medium">
-                {poll.location && (
-                  <button 
-                    onClick={handleCopyAddress}
-                    className={`relative flex items-start gap-3 transition-all max-w-md group active:scale-[0.98] text-left px-4 py-3 rounded-2xl border overflow-hidden min-h-[72px] ${
-                      showAddressCopied 
-                        ? 'bg-brand-green border-brand-green shadow-lg shadow-brand-green/20' 
-                        : 'bg-black/10 hover:bg-black/20 backdrop-blur-md border-white/10'
-                    }`}
-                  >
-                    {/* Original Content */}
-                    <div className={`flex items-start gap-3 transition-all duration-300 ${showAddressCopied ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-                      <div className="mt-1 p-2 bg-white/10 rounded-xl text-white group-hover:scale-110 transition-transform flex-shrink-0">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none">Location</span>
-                          <Copy className="w-3 h-3 text-white/60 group-hover:text-white transition-colors" />
-                        </div>
-                        <span className="text-sm font-bold leading-snug break-words">{poll.location}</span>
-                      </div>
-                    </div>
+      <div className={`bg-white rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] border border-neutral-100 overflow-hidden mb-8 transition-all duration-500 ${poll.status === "FINALIZED" ? "ring-8 ring-brand-green/10" : ""}`}>
+        <div className="px-4 sm:px-8 py-8 sm:py-12 transition-all duration-700 relative overflow-hidden bg-brand-gradient text-white">
+          {/* Subtle Glow Effects */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute -top-1/2 -left-1/4 w-[100%] h-[200%] bg-white/[0.03] blur-[120px] rotate-12 transform-gpu" />
+          </div>
 
-                    {/* Success Content Overlay */}
-                    <div className={`absolute inset-0 flex items-center gap-3 px-4 py-3 transition-all duration-300 ${showAddressCopied ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
-                      <div className="p-2 bg-white rounded-xl text-brand-green shadow-sm">
-                        <CheckCircle2 className="w-4 h-4" />
+          <div className="relative z-10 flex flex-col gap-8">
+            {/* Top Row: Title/Description & Top Choice Card */}
+            <div className="flex flex-wrap items-center justify-between gap-10">
+              <div className="flex-1 min-w-0 max-w-4xl">
+                <div className="flex items-start gap-4">
+                  <div className="w-1.5 self-stretch bg-white/20 rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="relative group/expando">
+                      {(() => {
+                        const canExpand = poll.title.length > 80 || (poll.description && poll.description.length > 100);
+                        return (
+                          <div 
+                            ref={contentRef}
+                            className="flex flex-col gap-4 min-w-0 transition-all duration-700 ease-in-out overflow-hidden"
+                            style={{ 
+                              maxHeight: isDescriptionExpanded ? `${contentHeight}px` : '200px',
+                              maskImage: (canExpand && !isDescriptionExpanded) ? 'linear-gradient(to bottom, black 60%, transparent 95%)' : 'none',
+                              WebkitMaskImage: (canExpand && !isDescriptionExpanded) ? 'linear-gradient(to bottom, black 60%, transparent 95%)' : 'none'
+                            }}
+                          >
+                            <h1 className="text-2xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm break-words leading-tight">
+                              {poll.title}
+                            </h1>
+                            {poll.description && (
+                              <p className="text-sm md:text-base text-white/60 font-medium max-w-2xl leading-relaxed break-words whitespace-pre-wrap">
+                                {poll.description}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      
+                      {(poll.title.length > 80 || (poll.description && poll.description.length > 100)) && (
+                        <div className={`flex justify-center transition-all duration-500 ${
+                          isDescriptionExpanded 
+                            ? 'mt-8 relative z-20' 
+                            : 'absolute bottom-2 left-0 w-full z-20'
+                        }`}>
+                          <button 
+                            onClick={toggleExpando}
+                            className="group/btn relative flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-full border border-white/10 backdrop-blur-md shadow-2xl"
+                          >
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/60 group-hover/btn:text-white transition-colors">
+                              {isDescriptionExpanded ? 'Show Less' : 'Show More'}
+                            </span>
+                            <div className={`transition-transform duration-500 ${isDescriptionExpanded ? 'rotate-180' : ''}`}>
+                              <ChevronDown size={14} className="text-white/40 group-hover/btn:text-white" />
+                            </div>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-5 w-full md:w-auto">
+                {(poll.status === "FINALIZED" || bestSlotId) && (
+                  <div className={`event-card !p-6 !hover:scale-[1.02] transition-all duration-500 shadow-2xl ${
+                    poll.status === "FINALIZED" 
+                      ? "!bg-white !text-brand-charcoal !border-white ring-8 ring-white/10" 
+                      : "!bg-white/10 !backdrop-blur-2xl !border-white/30 !shadow-none"
+                  }`}>
+                    <div className="flex items-center gap-6">
+                      <div className={`p-4 rounded-[1.25rem] shadow-xl transition-all duration-500 ${
+                        poll.status === "FINALIZED" 
+                          ? "bg-brand-green text-white shadow-brand-green/20" 
+                          : "bg-white text-brand-green shadow-white/10"
+                      }`}>
+                        {poll.status === "FINALIZED" ? <CalendarCheck className="w-8 h-8" /> : <Trophy className="w-8 h-8" />}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none mb-1">Success</span>
-                        <span className="text-sm font-bold leading-none text-white whitespace-nowrap">Address Copied to Clipboard!</span>
+                      <div>
+                        <p className={`text-[11px] uppercase tracking-[0.25em] font-black mb-1 ${poll.status === "FINALIZED" ? "text-neutral-400" : "text-white/60"}`}>
+                          {poll.status === "FINALIZED" ? "CONFIRMED DATE" : (isTie ? "TIED FOR TOP" : "TOP SELECTION")}
+                        </p>
+                        <p className={`text-2xl font-black leading-tight ${poll.status === "FINALIZED" ? "text-brand-charcoal" : "text-white"}`}>
+                          {(() => {
+                            const targetSlotId = poll.status === "FINALIZED" ? poll.finalizedSlotId : bestSlotId;
+                            if (!targetSlotId) return null;
+                            
+                            const slot = poll.timeSlots.find(s => s.id === targetSlotId)!;
+                            if (!slot) return null;
+
+                            if ("startTime" in slot) {
+                              return new Date(slot.startTime).toLocaleDateString(undefined, {
+                                weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                              });
+                            } else {
+                              const dateStr = new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                              const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
+                              const label = (slot as any).label ? ` - ${(slot as any).label}` : "";
+                              return `${dateStr}${label}${timeStr}`;
+                            }
+                          })()}
+                        </p>
+                        {isTie && poll.status !== "FINALIZED" && (
+                          <div className="mt-2 text-[10px] font-black bg-white/20 text-white px-2.5 py-1 rounded-lg inline-block uppercase tracking-widest backdrop-blur-md">
+                            Tied with {topSlotIds.length - 1} other{topSlotIds.length > 2 ? 's' : ''}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 )}
-                <div className="flex items-start gap-3 bg-black/10 hover:bg-black/20 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 transition-all group">
-                  {poll.status === "FINALIZED" && poll.finalizedSlotId ? (
-                    <>
-                      <div className="mt-1 p-2 bg-white/10 rounded-xl text-white group-hover:scale-110 transition-transform">
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none mb-1.5">Confirmed Participation</span>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-[10px] font-black">✓</div>
-                            <span className="text-sm font-bold leading-none">{voteCounts[poll.finalizedSlotId]?.YES || 0} yes</span>
-                          </div>
-                          {voteCounts[poll.finalizedSlotId]?.IF_NEED_BE > 0 && (
-                            <div className="flex items-center gap-1.5 border-l border-white/20 pl-3">
-                              <div className="w-5 h-5 rounded-md bg-white/10 flex items-center justify-center text-[10px] font-black text-white/80">?</div>
-                              <span className="text-sm font-bold leading-none">{voteCounts[poll.finalizedSlotId].IF_NEED_BE} if need be</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="mt-1 p-2 bg-white/10 rounded-xl text-white group-hover:scale-110 transition-transform">
-                        <Users className="w-4 h-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-wider font-black text-white leading-none mb-1">Participants</span>
-                        <span className="text-sm font-bold leading-none">{votes.length} participants</span>
-                      </div>
-                    </>
-                  )}
-                </div>
               </div>
             </div>
-            <div className="flex flex-col gap-4 w-full md:w-auto">
-              <div className={`event-card !bg-white/10 !border-white/40 !backdrop-blur-xl !shadow-none !p-5 !hover:scale-100 transition-all duration-500 ${
-                poll.status === "FINALIZED" ? "!bg-white/20 !border-white/60 ring-2 ring-white/20 shadow-lg shadow-black/10" : ""
-              }`}>
-                <div className="flex items-center gap-5">
-                  <div className={`p-3 rounded-2xl shadow-lg transition-all duration-500 ${
-                    poll.status === "FINALIZED" 
-                      ? "bg-white text-brand-green shadow-brand-green/20" 
-                      : "bg-brand-green text-white shadow-brand-green/30"
-                  }`}>
-                    {poll.status === "FINALIZED" ? <CalendarCheck className="w-7 h-7" /> : <Trophy className="w-7 h-7" />}
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/70 mb-0.5">
-                      {poll.status === "FINALIZED" ? "CONFIRMED DATE" : "TOP SELECTION"}
-                    </p>
-                    <p className="text-xl font-black text-white leading-tight">
-                      {(() => {
-                        const targetSlotId = poll.status === "FINALIZED" ? poll.finalizedSlotId : bestSlotId;
-                        if (!targetSlotId) return 'No results yet';
-                        
-                        const slot = poll.timeSlots.find(s => s.id === targetSlotId)!;
-                        if (!slot) return 'No results yet';
 
-                        if ("startTime" in slot) {
-                          return new Date(slot.startTime).toLocaleDateString(undefined, {
-                            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                          });
-                        } else {
-                          const dateStr = new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-                          const timeStr = (slot as any).time ? ` @ ${(slot as any).time}` : "";
-                          const label = (slot as any).label ? ` - ${(slot as any).label}` : "";
-                          return `${dateStr}${label}${timeStr}`;
-                        }
-                      })()}
-                    </p>
+            {/* Bottom Row: Action Cards */}
+            <div className="flex flex-col lg:flex-row lg:items-stretch gap-4 md:gap-5">
+              
+              {/* Group 1: Location & Share (Mobile Row 1) */}
+              <div className="flex flex-row gap-4 md:gap-5 flex-1 min-w-0 lg:contents">
+                {poll.location && (
+                  <div className="flex-1 min-w-0 lg:order-1">
+                    <ActionCard 
+                      icon={<MapPin className="w-5 h-5" />}
+                      label="Location"
+                      value={poll.location}
+                      onCopy={handleCopyAddress}
+                      isCopied={showAddressCopied}
+                      theme="dark"
+                      data-testid="poll-location"
+                    />
                   </div>
+                )}
+                <div className="lg:order-3">
+                  <CompactActionCard 
+                    icon={<Share2 className="w-6 h-6" />}
+                    onAction={handleShare}
+                    isSuccess={showShareCopied}
+                    theme="dark"
+                    data-testid="share-button"
+                  />
                 </div>
               </div>
-              {(() => {
-                const isAdmin = isOrganizer || isTokenAdmin;
-                
-                if (!isAdmin) return null;
 
-                if (poll.status === "FINALIZED") {
-                  return (
+              {/* Group 2: Participants & Admin (Mobile Row 2) */}
+              <div className="flex flex-row gap-4 md:gap-5 flex-1 min-w-0 lg:contents">
+                <div className="flex-1 min-w-0 lg:order-2">
+                  {poll.status === "FINALIZED" && poll.finalizedSlotId ? (
+                    <ActionCard 
+                      icon={<CheckCircle2 className="w-5 h-5" />}
+                      label="Confirmed Participation"
+                      value={`${votes.filter(v => v.selections[poll.finalizedSlotId!] === "YES").length} People attending`}
+                      theme="dark"
+                      data-testid="poll-participation"
+                    />
+                  ) : (
+                    <ActionCard 
+                      icon={<Users className="w-5 h-5" />}
+                      label="Participants"
+                      value={`${votes.length} participants`}
+                      theme="dark"
+                      data-testid="poll-participants"
+                    />
+                  )}
+                </div>
+
+                {(() => {
+                  if (!isAdmin) return null;
+
+                  const content = poll.status === "FINALIZED" ? (
                     <button
                       onClick={handleUnfinalize}
-                      disabled={unfinalizing}
-                      className="flex items-center justify-center gap-2 px-6 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white font-bold transition-all active:scale-95 disabled:opacity-50"
+                      data-testid="unfinalize-button"
+                      className="relative w-[72px] h-[72px] md:w-[84px] md:h-[84px] flex items-center justify-center bg-brand-red/20 hover:bg-brand-red/30 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/40 text-brand-red-light shadow-xl transition-all active:scale-[0.98] group"
                     >
-                      {unfinalizing ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <RotateCcw size={18} />
-                      )}
-                      Unselect Date
+                      <div className="p-3 rounded-2xl bg-brand-red/20 group-hover:bg-brand-red/30 group-hover:scale-110 transition-all">
+                        {unfinalizing ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <RotateCcw className="w-6 h-6 text-white" />}
+                      </div>
                     </button>
+                  ) : (
+                    <Link
+                      to={`/poll/${pollId}/edit${(new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId)) ? "?adminToken=" + (new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId)) : ""}`}
+                      className="relative w-[72px] h-[72px] md:w-[84px] md:h-[84px] flex items-center justify-center bg-brand-red/20 hover:bg-brand-red/30 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/40 text-brand-red-light shadow-xl transition-all active:scale-[0.98] group"
+                    >
+                      <div className="p-3 rounded-2xl bg-brand-red/20 group-hover:bg-brand-red/30 group-hover:scale-110 transition-all">
+                        <Edit3 className="w-6 h-6 text-white" />
+                      </div>
+                    </Link>
                   );
-                }
 
-                const currentToken = new URLSearchParams(window.location.search).get("adminToken") || localStorage.getItem("adminToken_" + pollId);
-                const editUrl = `/poll/${pollId}/edit${currentToken ? "?adminToken=" + currentToken : ""}`;
-                return (
-                  <Link
-                    to={editUrl}
-                    className="flex items-center justify-center gap-2 px-6 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white font-bold transition-all active:scale-95"
-                  >
-                    <Edit3 size={18} />
-                    Edit Poll
-                  </Link>
-                );
-              })()}
+                  return (
+                    <div className="lg:order-4">
+                      {content}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
             </div>
           </div>
         </div>
@@ -582,16 +683,16 @@ export default function ResultsPage() {
                 onClick={() => {
                   const url = window.location.origin + "/poll/" + pollId;
                   navigator.clipboard.writeText(url);
-                  setShowAddressCopied(true);
-                  setTimeout(() => setShowAddressCopied(false), 2000);
+                  setShowLinkCopied(true);
+                  setTimeout(() => setShowLinkCopied(false), 2000);
                 }}
                 className={`inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 ${
-                  showAddressCopied 
+                  showLinkCopied 
                     ? 'bg-brand-green text-white shadow-brand-green/20' 
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 shadow-neutral-200/20'
                 }`}
               >
-                {showAddressCopied ? (
+                {showLinkCopied ? (
                   <>
                     <CheckCircle2 className="w-5 h-5" />
                     Link Copied!
@@ -608,7 +709,6 @@ export default function ResultsPage() {
             renderMatrixTable()
           )}
         </div>
-      </div>
 
       {/* Maximized Overlay */}
       {isMaximized && (
@@ -644,6 +744,3 @@ export default function ResultsPage() {
   );
 }
 
-const MapPin = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-);

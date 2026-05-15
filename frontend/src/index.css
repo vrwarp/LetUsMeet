@@ -4,16 +4,16 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
 
-  /* Brand Colors - Refined for Premium Feel */
+  /* Brand Colors - Official Brand Kit Palette */
   --color-brand-green-dark: #1B3F06;
-  --color-brand-green: #387C09;
+  --color-brand-green: #4CAF50;
   --color-brand-green-light: #E8F5E9;
 
   --color-brand-red-dark: #450000;
-  --color-brand-red: #A80000;
+  --color-brand-red: #8B0000;
   --color-brand-red-light: #FFEBEE;
 
-  --color-brand-cream: #FDFCF0;
+  --color-brand-cream: #FFFB6;
   --color-brand-charcoal: #121212;
   --color-brand-white: #FFFFFF;
   --color-brand-light-gray: #F5F5F5;
@@ -100,8 +100,7 @@
 
 @layer utilities {
   .bg-brand-gradient {
-    background: linear-gradient(to right, var(--color-brand-green), var(--color-brand-red));
-    background: linear-gradient(in oklch to right, var(--color-brand-green), var(--color-brand-red));
+    background: linear-gradient(135deg, #091206 0%, #121d0d 100%);
   }
 
   .text-brand-gradient {

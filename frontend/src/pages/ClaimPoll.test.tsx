@@ -167,4 +167,37 @@ describe('Claim Poll Feature', () => {
     expect(await screen.findByText('Unclaimed Poll')).toBeInTheDocument();
     expect(screen.queryByText(/Claim this Poll/i)).not.toBeInTheDocument();
   });
+
+  it('does NOT offer to claim if user is already a manager', async () => {
+    window.localStorage.setItem(`adminToken_${pollId}`, adminToken);
+    
+    vi.mocked(pollService.subscribeToPoll).mockImplementation((_id, cb) => {
+      cb({
+        poll: {
+          id: pollId,
+          pollId: pollId,
+          title: 'Managed Poll',
+          organizerUid: 'someone-else',
+          managers: ['my-uid'],
+          status: 'OPEN',
+          schedulingMode: 'EXACT',
+          timeSlots: [],
+        } as any,
+        votes: [],
+        voteCounts: {},
+      });
+      return () => {};
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/poll/${pollId}/edit`]}>
+        <Routes>
+          <Route path="/poll/:pollId/edit" element={<EditPollPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Edit Your Poll/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Claim this Poll/i)).not.toBeInTheDocument();
+  });
 });
