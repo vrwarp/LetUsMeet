@@ -539,7 +539,7 @@ export default function VotePollPage() {
             disabled={isSubmitting}
             className="flex-1 bg-brand-green text-white !py-6 !text-2xl font-black rounded-3xl hover:bg-brand-green-dark shadow-xl transition-all flex items-center justify-center gap-4"
           >
-            {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Encrypted Vote"}
+            {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Vote"}
           </button>
           
           <button
