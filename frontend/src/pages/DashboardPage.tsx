@@ -82,8 +82,8 @@ export default function DashboardPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-neutral-900 tracking-tight">Your Ledger</h1>
-          <p className="text-neutral-500">Securely synced across your devices.</p>
+          <h1 className="text-3xl font-black text-neutral-900 tracking-tight">Your Polls</h1>
+          <p className="text-neutral-500">Manage and finalize your created polls</p>
         </div>
       </div>
 
