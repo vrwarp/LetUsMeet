@@ -1,24 +1,55 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { subscribeToUserPolls } from "@/lib/pollService";
+import { subscribeToUserKeystore, loadFromKeystore, getGenesisEvent } from "@/lib/pollService";
+import { importSymmetricKey } from "@/lib/crypto";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Calendar, MapPin, ExternalLink, Activity } from "lucide-react";
-import type { Poll } from "../types/index";
+import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock } from "lucide-react";
+import type { PollMetadata } from "../types";
+
+interface DecryptedDashboardEntry {
+  pollId: string;
+  symmetricKey: string;
+  metadata: PollMetadata;
+}
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
-  const [polls, setPolls] = useState<Poll[]>([]);
+  const [entries, setEntries] = useState<DecryptedDashboardEntry[]>([]);
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (loading || !user) {
+    if (loading || !user || user.isAnonymous) {
       setFetching(false);
       return;
     }
 
     setFetching(true);
-    const unsubscribe = subscribeToUserPolls(user.uid, (fetchedPolls) => {
-      setPolls(fetchedPolls);
+    const unsubscribe = subscribeToUserKeystore(user.uid, async (keystoreEntries) => {
+      const decryptedEntries: DecryptedDashboardEntry[] = [];
+
+      for (const entry of keystoreEntries) {
+        try {
+          // 1. Load symmetric key from keystore
+          const keystoreData = await loadFromKeystore(entry.pollId);
+          if (!keystoreData) continue;
+
+          const cryptoKey = await importSymmetricKey(keystoreData.symmetricPollKey);
+
+          // 2. Fetch and decrypt metadata using service method
+          const metadata = await getGenesisEvent(entry.pollId, cryptoKey);
+          if (metadata) {
+            decryptedEntries.push({
+              pollId: entry.pollId,
+              symmetricKey: keystoreData.symmetricPollKey,
+              metadata
+            });
+          }
+        } catch (e) {
+          console.warn("Failed to decrypt dashboard entry", entry.pollId, e);
+        }
+      }
+
+      setEntries(decryptedEntries);
       setFetching(false);
     });
 
@@ -29,97 +60,79 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Loading your dashboard...</p>
+        <p className="text-neutral-500 font-medium">Decrypting your dashboard...</p>
       </div>
     );
   }
 
-  if (!user) {
+  if (!user || user.isAnonymous) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl font-bold text-neutral-800 mb-4">Please sign in to view your dashboard</h2>
-        <p className="text-neutral-600">You need an organizer account to access this page.</p>
+      <div className="max-w-md mx-auto py-20 text-center">
+        <div className="bg-neutral-50 rounded-[3rem] p-10 border border-neutral-100">
+          <Lock className="w-12 h-12 text-neutral-300 mx-auto mb-6" />
+          <h2 className="text-2xl font-bold text-neutral-800 mb-4">Organizer Access Only</h2>
+          <p className="text-neutral-600 mb-8">Sign in with Google to sync your polls across devices and access your dashboard.</p>
+          <Link to="/" className="btn-primary-green inline-block">Back to Home</Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Your Polls</h1>
-        <p className="text-neutral-500 mt-1">Manage and finalize your created polls</p>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-black text-neutral-900 tracking-tight">Your Ledger</h1>
+          <p className="text-neutral-500">Securely synced across your devices.</p>
+        </div>
       </div>
 
-      {polls.length === 0 ? (
-        <div className="bg-white p-12 rounded-3xl border border-neutral-200 text-center shadow-sm">
-          <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-full flex items-center justify-center mx-auto mb-4">
+      {entries.length === 0 ? (
+        <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50">
+          <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Calendar size={32} />
           </div>
-          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls yet</h2>
-          <p className="text-neutral-500 max-w-md mx-auto mb-6">
-            You haven't created any polls yet. Get started by creating your first poll to find the perfect meeting time.
+          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls in your keystore</h2>
+          <p className="text-neutral-500 max-w-md mx-auto mb-8">
+            Created polls will appear here automatically when you're signed in.
           </p>
-          <Link
-            to="/create"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-green-light text-brand-green-dark rounded-xl font-bold hover:bg-brand-green-light/50 transition-colors"
-          >
-            Create your first poll
+          <Link to="/create" className="btn-primary-green inline-block">
+            Create New Poll
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4 sm:gap-6">
-          {polls.map((poll) => (
-            <div
-              key={poll.pollId}
-              className="bg-white p-5 sm:p-7 rounded-[2.5rem] border border-neutral-100 shadow-sm"
-            >
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+        <div className="grid gap-6">
+          {entries.map((entry) => (
+            <div key={entry.pollId} className="bg-white p-8 rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex flex-col md:flex-row justify-between gap-6">
                 <div className="flex-1">
-                  <div className="flex items-start gap-3 mb-3">
-                    <h2 className="text-xl sm:text-2xl font-black text-neutral-800 tracking-tight">{poll.title}</h2>
-                    <span className={`mt-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                      poll.status === "OPEN" 
-                        ? "bg-brand-green-light text-brand-green-dark" 
-                        : "bg-red-50 text-red-600"
-                    }`}>
-                      {poll.status}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-sm text-neutral-500 font-medium">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-brand-green" />
-                      <span>{new Date(poll.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    </div>
-                    {poll.location && (
+                  <h2 className="text-2xl font-black text-brand-green-dark mb-4">{entry.metadata.title}</h2>
+                  <div className="flex flex-wrap gap-4 text-sm font-bold text-neutral-500">
+                    {entry.metadata.location && (
                       <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-brand-green" />
-                        <span>{poll.location}</span>
+                        <span>{entry.metadata.location}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
                       <Activity size={16} className="text-brand-green" />
-                      <span>{poll.schedulingMode === "EXACT" ? "Exact Time" : "General Blocks"}</span>
+                      <span>{entry.metadata.schedulingMode}</span>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto">
+                
+                <div className="flex items-center gap-3">
                   <Link
-                    to={`/poll/${poll.pollId}`}
-                    className="flex-1 md:flex-none px-6 py-3 bg-neutral-50 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-100 transition-all text-sm border border-neutral-100 text-center"
+                    to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
+                    className="px-6 py-3 bg-neutral-50 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-100"
                   >
-                    View Poll
+                    View
                   </Link>
                   <Link
-                    to={`/poll/${poll.pollId}/results`}
-                    className={`flex-1 md:flex-none px-6 py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-md shadow-brand-green/10 ${
-                      poll.status === "OPEN" 
-                        ? "bg-brand-green text-white hover:bg-brand-green-dark" 
-                        : "bg-brand-red text-white hover:bg-brand-red-dark"
-                    }`}
+                    to={`/poll/${entry.pollId}/results#key=${entry.symmetricKey}`}
+                    className="px-6 py-3 bg-brand-green text-white rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-2"
                   >
-                    <ExternalLink size={16} />
-                    Results
+                    <ExternalLink size={16} /> Results
                   </Link>
                 </div>
               </div>

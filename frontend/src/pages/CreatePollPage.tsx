@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail, Clock, X, Sparkles } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
-import { createPoll } from "@/lib/pollService";
+import { createBlindPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
@@ -18,10 +18,13 @@ interface TimeSlotInput {
 import timeExactLettuce from "../assets/time-exact-lettuce.webp";
 import timeFuzzyMeat from "../assets/time-fuzzy-meat.webp";
 
+function generateId() {
+  return Math.random().toString(36).substring(2, 15);
+}
+
 export default function CreatePollPage() {
   const navigate = useNavigate();
   const [organizerName, setOrganizerName] = useState("");
-  const [organizerEmail, setOrganizerEmail] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
@@ -42,8 +45,7 @@ export default function CreatePollPage() {
   useEffect(() => {
     if (!hasPrefilled && user && !user.isAnonymous) {
       if (user.displayName) setOrganizerName(user.displayName);
-      if (user.email) setOrganizerEmail(user.email);
-      if (user.displayName || user.email) {
+      if (user.displayName) {
         setHasPrefilled(true);
       }
     }
@@ -194,33 +196,31 @@ export default function CreatePollPage() {
     setError(null);
 
     try {
-      const { pollId, adminToken } = await createPoll({
+      const metadata = {
         title,
         location,
         organizerName,
-        organizerEmail,
         schedulingMode,
         description,
         timeSlots: schedulingMode === "EXACT"
           ? slots.map(slot => ({
+            id: generateId(),
             startTime: new Date(`${slot.date}T${slot.startTime || "09:00"}`).toISOString(),
             endTime: new Date(`${slot.date}T${slot.endTime || "10:00"}`).toISOString(),
           })) as any[]
           : slots.map(slot => ({
+            id: generateId(),
             date: slot.date,
             label: slot.label || "General",
             time: slot.time || undefined,
           })) as any[],
-      });
+      };
 
-      console.log("CREATE POLL RESULT:", { pollId, adminToken });
+      const { pollId, key } = await createBlindPoll(metadata);
 
-      // Store admin token for the creator
-      if (adminToken) {
-        localStorage.setItem(`adminToken_${pollId}`, adminToken);
-      }
+      console.log("CREATE BLIND POLL RESULT:", { pollId });
 
-      navigate(`/poll/${pollId}?adminToken=${adminToken}`);
+      navigate(`/poll/${pollId}#key=${key}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
       setError(err.message || "Something went wrong. Please try again.");
@@ -238,7 +238,6 @@ export default function CreatePollPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-        {/* Organizer Info Card */}
         <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="organizer-name" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
@@ -254,23 +253,6 @@ export default function CreatePollPage() {
               className="w-full"
               value={organizerName}
               onChange={(e) => setOrganizerName(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="organizer-email" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <Mail size={16} className="text-indigo-500" />
-              Your Email
-            </label>
-            <input
-              id="organizer-email"
-              required
-              type="email"
-              data-testid="organizer-email-input"
-              placeholder="e.g., jane@example.com"
-              className="w-full"
-              value={organizerEmail}
-              onChange={(e) => setOrganizerEmail(e.target.value)}
             />
           </div>
         </div>
@@ -661,7 +643,7 @@ export default function CreatePollPage() {
         <button
           type="submit"
           data-testid="create-submit-btn"
-          disabled={isSubmitting || !title || !organizerName || !organizerEmail || slots.length === 0}
+          disabled={isSubmitting || !title || !organizerName || slots.length === 0}
           className="btn-primary-green w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           {isSubmitting ? (
