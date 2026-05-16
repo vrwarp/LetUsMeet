@@ -18,6 +18,7 @@ describe('DashboardPage', () => {
     vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((_uid, cb) => {
       cb([{ 
         pollId: 'p1', 
+        amkId: 'amk_v1',
         wrappedPayload: 'ciphertext', 
         iv: 'iv', 
         updatedAt: Date.now() 

@@ -35,9 +35,24 @@ export interface BlindEvent {
 
 export interface KeystoreEntry {
   pollId: string;
-  wrappedPayload: string; // PRF-encrypted ciphertext
+  amkId: string; // NEW: Explicitly declare which AMK encrypted this payload
+  wrappedPayload: string; // AMK-encrypted ciphertext
   iv: string;
   updatedAt: number;
+}
+
+export interface DevicePublicKey {
+  deviceId: string;
+  deviceName: string; // e.g., "Benson's MacBook"
+  publicKey: string; // Base64 SPKI (RSA-OAEP)
+  createdAt: number;
+}
+
+export interface AccountKeysDocument {
+  activeAmkId: string; // e.g., "amk_v1"
+  devices: Record<string, DevicePublicKey>; // Keyed by deviceId
+  keyring: Record<string, Record<string, string>>;
+  // Map of amkId -> { deviceId: "wrapped_amk_base64" }
 }
 
 // === CLIENT-SIDE DECRYPTED SCHEMA ===

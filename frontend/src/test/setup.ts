@@ -86,6 +86,7 @@ vi.mock('@/lib/pollService', () => {
     subscribeToUserKeystore: vi.fn((_uid: string, callback: any) => {
       callback([{ 
         pollId: 'mock-poll-id-123',
+        amkId: 'amk_v1',
         wrappedPayload: 'ciphertext',
         iv: 'iv',
         updatedAt: Date.now()
@@ -99,6 +100,7 @@ vi.mock('@/lib/pollService', () => {
       schedulingMode: 'EXACT',
       timeSlots: [],
     })),
+    verifyAmk: vi.fn(() => Promise.resolve(true)),
     // Legacy support
     createPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' })),
     subscribeToPoll: vi.fn(() => () => {}),
@@ -149,6 +151,7 @@ vi.mock('../lib/pollService', () => {
     subscribeToUserKeystore: vi.fn((_uid: string, callback: any) => {
       callback([{ 
         pollId: 'mock-poll-id-123',
+        amkId: 'amk_v1',
         wrappedPayload: 'ciphertext',
         iv: 'iv',
         updatedAt: Date.now()
@@ -162,6 +165,7 @@ vi.mock('../lib/pollService', () => {
       schedulingMode: 'EXACT',
       timeSlots: [],
     })),
+    verifyAmk: vi.fn(() => Promise.resolve(true)),
     // Legacy support
     createPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' })),
     subscribeToPoll: vi.fn(() => () => {}),

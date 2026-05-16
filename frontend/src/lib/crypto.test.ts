@@ -12,7 +12,14 @@ import {
   importPrivateKey,
   signAction,
   verifySignature,
-  canonicalStringify
+  canonicalStringify,
+  generateDeviceKeyPair,
+  exportDevicePublicKey,
+  exportDevicePrivateKey,
+  importDevicePublicKey,
+  importDevicePrivateKey,
+  wrapAmk,
+  unwrapAmk
 } from './crypto';
 
 describe('Crypto Primitives', () => {
@@ -133,6 +140,56 @@ describe('Crypto Primitives', () => {
       expect(canonicalStringify(null)).toBe('null');
       expect(canonicalStringify(123)).toBe('123');
       expect(canonicalStringify("test")).toBe('"test"');
+    });
+  });
+
+  describe('RSA-OAEP Device Keys', () => {
+    it('should generate, export, and import device keys', async () => {
+      const { publicKey, privateKey } = await generateDeviceKeyPair();
+      
+      const pubB64 = await exportDevicePublicKey(publicKey);
+      const privB64 = await exportDevicePrivateKey(privateKey);
+      
+      const importedPub = await importDevicePublicKey(pubB64);
+      const importedPriv = await importDevicePrivateKey(privB64);
+      
+      expect(importedPub.type).toBe('public');
+      expect(importedPriv.type).toBe('private');
+      expect(importedPub.algorithm.name).toBe('RSA-OAEP');
+    });
+
+    it('should wrap and unwrap an AMK', async () => {
+      const { publicKey, privateKey } = await generateDeviceKeyPair();
+      const amk = await generateSymmetricKey(256);
+      const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
+      
+      const wrapped = await wrapAmk(publicKey, rawAmk);
+      expect(typeof wrapped).toBe('string');
+      expect(wrapped.length).toBeGreaterThan(0);
+      
+      const unwrappedRaw = await unwrapAmk(privateKey, wrapped);
+      expect(unwrappedRaw).toEqual(rawAmk);
+      
+      const importedAmk = await window.crypto.subtle.importKey(
+        "raw",
+        unwrappedRaw,
+        { name: "AES-GCM" },
+        true,
+        ["encrypt", "decrypt"]
+      );
+      expect(importedAmk.type).toBe('secret');
+      expect((importedAmk.algorithm as any).length).toBe(256);
+    });
+
+    it('should fail to unwrap with wrong private key', async () => {
+      const pair1 = await generateDeviceKeyPair();
+      const pair2 = await generateDeviceKeyPair();
+      const amk = await generateSymmetricKey(256);
+      const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
+      
+      const wrapped = await wrapAmk(pair1.publicKey, rawAmk);
+      
+      await expect(unwrapAmk(pair2.privateKey, wrapped)).rejects.toThrow();
     });
   });
 });

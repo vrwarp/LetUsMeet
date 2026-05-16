@@ -5,9 +5,9 @@
 
 // === SYMMETRIC KEY (AES-GCM) ===
 
-export async function generateSymmetricKey(): Promise<CryptoKey> {
+export async function generateSymmetricKey(length: 128 | 256 = 128): Promise<CryptoKey> {
   return await window.crypto.subtle.generateKey(
-    { name: "AES-GCM", length: 128 },
+    { name: "AES-GCM", length },
     true, // extractable
     ["encrypt", "decrypt"]
   );
@@ -119,6 +119,81 @@ export async function importPrivateKey(b64: string): Promise<CryptoKey> {
     { name: "ECDSA", namedCurve: "P-256" },
     true,
     ["sign"]
+  );
+}
+
+// === DEVICE KEYS (RSA-OAEP) ===
+
+export async function generateDeviceKeyPair(): Promise<{ publicKey: CryptoKey; privateKey: CryptoKey }> {
+  const pair = await window.crypto.subtle.generateKey(
+    {
+      name: "RSA-OAEP",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["encrypt", "decrypt"]
+  );
+  return pair as { publicKey: CryptoKey; privateKey: CryptoKey };
+}
+
+export async function exportDevicePublicKey(key: CryptoKey): Promise<string> {
+  const exported = await window.crypto.subtle.exportKey("spki", key);
+  return btoa(String.fromCharCode(...new Uint8Array(exported)));
+}
+
+export async function exportDevicePrivateKey(key: CryptoKey): Promise<string> {
+  const exported = await window.crypto.subtle.exportKey("pkcs8", key);
+  return btoa(String.fromCharCode(...new Uint8Array(exported)));
+}
+
+export async function importDevicePublicKey(b64: string): Promise<CryptoKey> {
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  
+  return await window.crypto.subtle.importKey(
+    "spki",
+    buf,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    true,
+    ["encrypt"]
+  );
+}
+
+export async function importDevicePrivateKey(b64: string): Promise<CryptoKey> {
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  
+  return await window.crypto.subtle.importKey(
+    "pkcs8",
+    buf,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    true,
+    ["decrypt"]
+  );
+}
+
+export async function wrapAmk(devicePublicKey: CryptoKey, rawAmkBuffer: ArrayBuffer): Promise<string> {
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    devicePublicKey,
+    rawAmkBuffer
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+}
+
+export async function unwrapAmk(devicePrivateKey: CryptoKey, wrappedAmkBase64: string): Promise<ArrayBuffer> {
+  const bin = atob(wrappedAmkBase64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+
+  return await window.crypto.subtle.decrypt(
+    { name: "RSA-OAEP" },
+    devicePrivateKey,
+    buf
   );
 }
 

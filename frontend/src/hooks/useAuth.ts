@@ -4,7 +4,9 @@ import type { User } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
-import { derivePrfMasterKey, verifyMasterKey, resetKeystore } from "@/lib/pollService";
+import { derivePrfMasterKey } from "@/lib/prfService";
+import { verifyAmk } from "@/lib/deviceService";
+import { resetKeystore } from "@/lib/pollService";
 
 let isSigningIn = false;
 
@@ -17,14 +19,17 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         if (currentUser && !currentUser.isAnonymous) {
-          // Trigger PRF derivation for authenticated users
-          derivePrfMasterKey().then(async () => {
-            const isMatch = await verifyMasterKey();
+          // 1. Ensure PRF is derived (for legacy migration)
+          derivePrfMasterKey().catch(e => console.warn("PRF derivation failed", e));
+          
+          // 2. Verify AMK (Multi-device Key)
+          verifyAmk().then((isMatch) => {
             if (!isMatch) {
               setIsKeyMismatch(true);
             }
           }).catch((e) => {
-            console.error("Master key derivation failed on auth state change", e);
+            console.error("AMK verification failed on auth state change", e);
+            setIsKeyMismatch(true);
           });
         }
         setUser(currentUser);
@@ -58,18 +63,20 @@ export function useAuth() {
           updatedAt: new Date().toISOString(),
         }, { merge: true });
 
-        // 2. Immediate WebAuthn Flow
+        // 2. Immediate Security Flow
         try {
-          await derivePrfMasterKey();
-          const isMatch = await verifyMasterKey();
+          // Optional: still derive PRF for migration
+          await derivePrfMasterKey().catch(() => {});
+          
+          const isMatch = await verifyAmk();
           if (!isMatch) {
             setIsKeyMismatch(true);
-            return; // Don't throw, let UI handle mismatch state
+            return;
           }
-        } catch (webauthnError: any) {
-          console.error("WebAuthn verification failed during sign-in", webauthnError);
+        } catch (error: any) {
+          console.error("Security verification failed during sign-in", error);
           await signOut(auth);
-          throw new Error("Zero-Knowledge Security: A passkey/WebAuthn verification is required to access your polls and keep your data private. Please try signing in again and complete the security prompt.");
+          throw new Error("Zero-Knowledge Security: A device key or recovery phrase is required to access your polls. Please try signing in again.");
         }
       }
     } catch (error) {

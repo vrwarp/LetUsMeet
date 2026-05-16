@@ -15,7 +15,9 @@ import type {
   PollAction,
   DecryptedKeystorePayload,
   Poll,
-  Vote
+  Vote,
+  DevicePublicKey,
+  AccountKeysDocument
 } from '../../../shared/types';
 
 export type {
@@ -35,7 +37,9 @@ export type {
   PollAction,
   DecryptedKeystorePayload,
   Poll,
-  Vote
+  Vote,
+  DevicePublicKey,
+  AccountKeysDocument
 };
 
 // API request/response shapes (mostly legacy, will be removed)
