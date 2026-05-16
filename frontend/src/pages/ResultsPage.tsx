@@ -356,7 +356,7 @@ export default function ResultsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
-      <Link to={`/poll/${pollId}${window.location.hash}`} className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8">
+      <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8">
         <ArrowLeft size={16} /> Back to Poll
       </Link>
 
@@ -493,7 +493,7 @@ export default function ResultsPage() {
                   </button>
                 ) : (
                   <Link
-                    to={`/poll/${pollId}/edit${window.location.hash}`}
+                    to={`/poll/${pollId}/edit${window.location.search}${window.location.hash}`}
                     className="w-[72px] h-[72px] md:w-[84px] md:h-[84px] flex items-center justify-center rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl"
                     title="Edit Poll"
                   >
@@ -521,7 +521,7 @@ export default function ResultsPage() {
         </div>
         
         {voteArray.length === 0 ? (
-          <div className="text-center py-20 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
+          <div data-testid="results-empty-state" className="text-center py-20 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
             <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
             <p className="text-neutral-500 font-medium">No responses yet. Share the link to start tallying!</p>
           </div>

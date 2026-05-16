@@ -174,6 +174,7 @@ export default function Layout() {
                         
                         <Link
                           to="/dashboard"
+                          data-testid="dashboard-link"
                           className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 hover:text-brand-green transition-colors"
                         >
                           <LayoutDashboard size={18} className="text-neutral-400" />

@@ -114,11 +114,15 @@ export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }>
 
       if (!snap.exists()) {
         // Flow A: Initial Setup (Genesis Device)
-        return await setupGenesisDevice(user.uid);
+        const result = await setupGenesisDevice(user.uid);
+        cachedAmk = result.amk;
+        cachedAmkId = result.amkId;
+        return result;
       }
 
       const data = snap.data() as AccountKeysDocument;
-      const wrappedAmkBase64 = data.keyring[data.activeAmkId]?.[deviceId];
+      const amkId = data.activeAmkId;
+      const wrappedAmkBase64 = data.keyring[amkId]?.[deviceId];
 
       // Check device keys
       const deviceKeysB64 = await loadDeviceKeysFromIndexedDB();
@@ -129,6 +133,8 @@ export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }>
         if (recovered) {
           console.log("Silent recovery successful. Auto-registering device...");
           await registerCurrentDevice(recovered.amk, recovered.amkId);
+          cachedAmk = recovered.amk;
+          cachedAmkId = recovered.amkId;
           return recovered;
         }
 
@@ -150,7 +156,7 @@ export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }>
         true,
         ["encrypt", "decrypt"]
       );
-      cachedAmkId = data.activeAmkId;
+      cachedAmkId = amkId;
 
       const result = { amk: cachedAmk, amkId: cachedAmkId as string };
       
@@ -165,6 +171,42 @@ export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }>
   })();
 
   return verificationPromise;
+}
+
+/**
+ * Retrieves a specific AMK by its ID. Used for decrypting older keystore entries
+ * after an AMK rotation has occurred.
+ */
+export async function getAmkById(targetAmkId: string): Promise<CryptoKey> {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) throw new Error("Must be signed in.");
+
+  const deviceId = getDeviceId();
+  const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
+  const snap = await getDoc(accountKeysRef);
+
+  if (!snap.exists()) throw new Error("Account keys missing.");
+  
+  const data = snap.data() as AccountKeysDocument;
+  const wrappedAmkBase64 = data.keyring[targetAmkId]?.[deviceId];
+
+  if (!wrappedAmkBase64) {
+    throw new Error(`AMK ${targetAmkId} not found or not wrapped for this device.`);
+  }
+
+  const deviceKeysB64 = await loadDeviceKeysFromIndexedDB();
+  if (!deviceKeysB64) throw new Error("Device keys missing.");
+
+  const privateKey = await importDevicePrivateKey(deviceKeysB64.privateKey);
+  const amkBuffer = await unwrapAmk(privateKey, wrappedAmkBase64);
+
+  return await window.crypto.subtle.importKey(
+    "raw",
+    amkBuffer,
+    { name: "AES-GCM" },
+    true,
+    ["encrypt", "decrypt"]
+  );
 }
 
 /**
@@ -571,7 +613,7 @@ export async function loadFromKeystore(pollId: string): Promise<DecryptedKeystor
   if (!snap.exists()) return null;
 
   const data = snap.data() as KeystoreEntry;
-  const { amk } = await getActiveAmk();
+  const amk = await getAmkById(data.amkId);
   const json = await decrypt(amk, data.wrappedPayload, data.iv);
   return JSON.parse(json);
 }

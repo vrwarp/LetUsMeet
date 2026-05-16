@@ -14,6 +14,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     // 2. Verify dashboard/profile shows "Protected by Zero-Knowledge" or similar
     // And verify recovery is enabled
     await page.getByTestId('user-profile-btn').click();
+    await page.getByTestId('dashboard-link').click();
     await expect(page.getByTestId('recovery-status')).toContainText('Active');
     await expect(page.getByTestId('device-list')).toContainText('Current');
     
@@ -24,12 +25,12 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await page.getByTestId('add-slot-btn').click();
     await page.getByTestId('create-submit-btn').click();
     
-    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     await expect(page.getByTestId('poll-title')).toContainText('Genesis Poll');
     
     // Verify we can see the results (keystore read)
     await page.getByTestId('view-results-link').click();
-    await expect(page.getByTestId('results-matrix')).toBeVisible();
+    await expect(page.getByTestId('results-empty-state')).toBeVisible();
   });
 
   test('Flow B: Authorizing a New Device', async ({ browser, context: sponsorContext }) => {
@@ -75,7 +76,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.getByTestId('poll-title-input').fill('Shared Poll');
     await sponsorPage.getByTestId('add-slot-btn').click();
     await sponsorPage.getByTestId('create-submit-btn').click();
-    await sponsorPage.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await sponsorPage.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     const pollUrl = sponsorPage.url();
     
     await newDevicePage.goto(pollUrl);
@@ -95,13 +96,21 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await setupWebAuthn(otherDeviceContext, test.info());
     const otherDevicePage = await otherDeviceContext.newPage();
     await otherDevicePage.goto('/');
+    // Set unique name for other device
+    await otherDevicePage.evaluate(() => localStorage.setItem('deviceName', 'Other Device'));
     await mockGoogleSignIn(otherDevicePage, email);
     
     // (Authorization dance)
     await otherDevicePage.getByTestId('request-auth-btn').click();
     await sponsorPage.goto('/dashboard');
+    // Set unique name for sponsor device
+    await sponsorPage.evaluate(() => localStorage.setItem('deviceName', 'Sponsor Device'));
     await sponsorPage.getByTestId('approve-auth-btn').click();
+    
+    // Wait for approval to propagate to both pages
     await expect(otherDevicePage.getByTestId('user-profile-btn')).toBeVisible();
+    await expect(sponsorPage.getByTestId('device-item')).toHaveCount(2);
+    await expect(sponsorPage.getByTestId('pending-auth-request')).not.toBeVisible();
     
     // 2. Create data before revocation
     await sponsorPage.goto('/create');
@@ -109,16 +118,16 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.getByTestId('poll-title-input').fill('Old AMK Poll');
     await sponsorPage.getByTestId('add-slot-btn').click();
     await sponsorPage.getByTestId('create-submit-btn').click();
-    await sponsorPage.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await sponsorPage.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     const oldPollUrl = sponsorPage.url();
     
     // 3. Sponsor revokes the other device
     await sponsorPage.goto('/dashboard');
     const otherDeviceRow = sponsorPage.getByTestId('device-item').filter({ hasNotText: 'Current' });
-    await otherDeviceRow.getByTestId('revoke-device-btn').click();
     
-    // Confirm revocation
+    // Confirm revocation (MUST be registered before the click)
     sponsorPage.once('dialog', dialog => dialog.accept());
+    await otherDeviceRow.getByTestId('revoke-device-btn').click();
     
     // 4. Verify AMK rotation (should be transparent to sponsor)
     await expect(sponsorPage.getByTestId('rotation-success-toast')).toBeVisible();

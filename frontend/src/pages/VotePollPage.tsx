@@ -267,7 +267,7 @@ export default function VotePollPage() {
           <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
           <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
-          <Link to={`/poll/${pollId}/results${window.location.hash}`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
+          <Link to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
             View Final Results
           </Link>
         </div>
@@ -284,7 +284,7 @@ export default function VotePollPage() {
           <p className="text-neutral-600 mb-8">Your availability has been encrypted and added to the ledger.</p>
           <div className="flex flex-col gap-4">
             <Link 
-              to={`/poll/${pollId}/results${window.location.hash}`} 
+              to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} 
               data-testid="view-results-link"
               className="btn-primary-green w-full text-center py-4"
             >
@@ -396,7 +396,7 @@ export default function VotePollPage() {
 
               {/* Results Button */}
               <Link 
-                to={`/poll/${pollId}/results${window.location.hash}`}
+                to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`}
                 data-testid="view-results-link"
                 className="group flex-1 md:flex-initial flex items-center justify-center gap-3 bg-brand-green text-white hover:bg-brand-green-dark transition-all rounded-[1.5rem] md:rounded-[2rem] px-10 py-4 min-h-[72px] md:min-h-[84px] font-black text-xl active:scale-95 shadow-xl shadow-brand-green/20"
               >

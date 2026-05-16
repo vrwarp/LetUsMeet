@@ -185,7 +185,7 @@ export default function EditPollPage() {
       const action: PollAction = { type: "POLL_UPDATED", payload: updatedMetadata };
       await appendSignedEvent(pollId, symmetricKey, identity.privateKey, identity.publicKey, action);
       
-      navigate(`/poll/${pollId}${window.location.hash}`);
+      navigate(`/poll/${pollId}${window.location.search}${window.location.hash}`);
     } catch (err: any) {
       setError("Failed to update poll.");
     } finally {
@@ -208,7 +208,7 @@ export default function EditPollPage() {
         <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
         <h2 className="text-2xl font-bold text-neutral-800 mb-4">Admin Access Required</h2>
         <p className="text-neutral-600 text-lg mb-8">{error || "You do not have the administrative key for this poll."}</p>
-        <Link to={`/poll/${pollId}${window.location.hash}`} className="btn-primary-green inline-block">Back to Poll</Link>
+        <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className="btn-primary-green inline-block">Back to Poll</Link>
       </div>
     );
   }
@@ -218,7 +218,7 @@ export default function EditPollPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <Link 
-        to={`/poll/${pollId}${window.location.hash}`}
+        to={`/poll/${pollId}${window.location.search}${window.location.hash}`}
         className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8"
       >
         <ArrowLeft size={16} /> Back to Poll

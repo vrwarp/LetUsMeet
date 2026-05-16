@@ -17,7 +17,7 @@ test.describe('Navigation Flows', () => {
     await page.getByTestId('add-slot-btn').click();
     await page.getByTestId('create-submit-btn').click();
 
-    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     const pollUrl = page.url();
     await expect(page.getByTestId('poll-title')).toContainText('Nav Test Poll');
 
@@ -29,7 +29,7 @@ test.describe('Navigation Flows', () => {
 
     // Poll Success -> Results
     await page.getByTestId('view-results-link').click();
-    await page.waitForURL(/\/poll\/[^/]+\/results#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
     await expect(page.getByRole('heading', { name: /Availability Grid/i })).toBeVisible();
 
     // Results -> Poll
