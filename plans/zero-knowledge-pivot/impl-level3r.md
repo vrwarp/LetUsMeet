@@ -34,21 +34,27 @@ export interface AccountKeysDocument {
 *   Register the PRF method in `recoveryMethods`.
 *   Wrap the AMK for both and store in the `keyring`.
 
-### 2.2 Refactor `revokeDevice` (The "Purge" Logic)
+### 2.2 Refactor `revokeDevice` (The "Persistence" Logic)
 *   Generate new AMK.
 *   Update all active device wrappers (Level 3D).
-*   **Purge all recovery entries** in the new `amkId` slot of the keyring.
-*   This forces a "Security Gap" that the user must explicitly close by re-authenticating with their recovery method.
+*   **Update Asymmetric Recovery wrappers** (like Phrases) by using their **Public Key** to re-wrap the new AMK. 
+*   **Attempt Symmetric Recovery re-wrapping** (like PRF):
+    *   Attempt to derive the `prfKey` silently (using IndexedDB cache).
+    *   If available, re-wrap the new AMK for all PRF methods in `recoveryMethods`.
+*   This ensures recovery stays valid across rotations without user intervention.
 
 ### 2.3 Implement `enableRecoveryMethod(type: 'prf')`
-*   New function in `deviceService.ts`.
-*   Authenticates via PRF.
-*   Wraps the **current active AMK** with the derived PRF key.
-*   Updates the `AccountKeysDocument` to restore the recovery entry in the `keyring`.
+*   Authenticates via PRF and derives `prfKey`.
+*   Generate a deterministic **Method ID** by hashing the `prfKey` (e.g., `SHA-256` of the raw key bytes).
+*   Wraps the **current active AMK** with the `prfKey`.
+*   Updates `recoveryMethods` with the label (e.g., "Passkey on MacBook") and `credentialId`.
+*   Updates the `keyring` for the current `amkId` using the hash-based Method ID.
+*   **Opportunistic Check**: On every sign-in/action, if a `prfKey` is in the session, check if its hash-based Method ID exists in the `keyring` for the current AMK. If not, auto-enable it.
 
 ### 2.4 Update `getActiveAmk` Fallback
-*   If device keys are missing, check `recoveryMethods` and the `keyring` for any `__recovery_` entries.
-*   If found, trigger the existing `tryRecoverAmkWithPrf` logic.
+*   If device keys are missing, check `recoveryMethods`.
+*   For `prf`: Try `tryRecoverAmkWithPrf` (uses existing symmetric logic).
+*   For `phrase`: Prompt for phrase -> derive RSA Private Key -> unwrap AMK.
 
 ## Phase 3: UI & UX Integration
 
@@ -71,4 +77,4 @@ export interface AccountKeysDocument {
 ---
 
 ## 5. Security Note
-By purging recovery on rotation, we ensure that a compromised recovery key cannot be used to unlock data generated *after* a security event (revocation), unless the user (the true owner) re-authorizes it.
+By automatically re-wrapping recovery keys during rotation, we prioritize availability and low friction. Since revocation events are user-initiated, we assume the session performing the revocation is trusted and can safely propagate the security update to the recovery layer.

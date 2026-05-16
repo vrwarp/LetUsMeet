@@ -1,6 +1,6 @@
 import { auth } from "../firebase";
 
-import { 
+import {
   openDB,
   STORE_MASTER_KEYS
 } from "./idb";
@@ -15,38 +15,53 @@ async function saveMasterKeyToIndexedDB(uid: string, key: CryptoKey) {
   });
 }
 
-async function loadMasterKeyFromIndexedDB(uid: string): Promise<CryptoKey | null> {
+export async function loadMasterKeyFromIndexedDB(uid: string): Promise<CryptoKey | null> {
   const db = await openDB();
   const tx = db.transaction(STORE_MASTER_KEYS, "readonly");
   const request = tx.objectStore(STORE_MASTER_KEYS).get(uid);
   return new Promise((resolve) => {
-    request.onsuccess = () => resolve(request.result || null);
+    request.onsuccess = () => {
+      const key = request.result as CryptoKey | null;
+      if (key && !key.extractable) {
+        resolve(null); // Treat non-extractable keys as missing to force a fresh derivation
+      } else {
+        resolve(key);
+      }
+    };
     request.onerror = () => resolve(null);
   });
 }
 
-let prfPromise: Promise<CryptoKey> | null = null;
+let prfPromise: Promise<{ masterKey: CryptoKey, usedCredentialId: string }> | null = null;
+let globalPrfLock: Promise<any> = Promise.resolve();
 
-export async function derivePrfMasterKey(): Promise<CryptoKey> {
+export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ masterKey: CryptoKey, usedCredentialId: string }> {
+  // If we already have a successful derivation in this session, return it immediately
   if (prfPromise) return prfPromise;
 
-  prfPromise = (async () => {
+  // Use the lock to ensure sequential execution of ANY WebAuthn request
+  const resultPromise = (async () => {
+    await globalPrfLock;
+
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("Must be signed in to derive PRF key.");
 
-      const cachedKey = await loadMasterKeyFromIndexedDB(user.uid);
-      if (cachedKey) return cachedKey;
-
-      const isPrfSupported = (window.PublicKeyCredential as any)?.isConditionalMediationAvailable;
-      if (!isPrfSupported) {
-        throw new Error("WebAuthn PRF not supported on this browser.");
+      // For silent check (no IDs provided), check IndexedDB
+      if (!credentialIds || credentialIds.length === 0) {
+        const cachedKey = await loadMasterKeyFromIndexedDB(user.uid);
+        if (cachedKey) {
+          return { masterKey: cachedKey, usedCredentialId: "cached" };
+        }
       }
 
       const storageKey = `prf_cred_${user.uid}`;
-      let credentialId = localStorage.getItem(storageKey);
+      const effectiveIds = (credentialIds && credentialIds.length > 0)
+        ? credentialIds
+        : [localStorage.getItem(storageKey)].filter(Boolean) as string[];
 
-      if (!credentialId) {
+      if (effectiveIds.length === 0) {
+        // Create new credential logic
         const challenge = window.crypto.getRandomValues(new Uint8Array(32));
         const createOptions: CredentialCreationOptions = {
           publicKey: {
@@ -70,18 +85,19 @@ export async function derivePrfMasterKey(): Promise<CryptoKey> {
 
         const credential = (await navigator.credentials.create(createOptions)) as any;
         if (!credential) throw new Error("Failed to create PRF credential.");
-        
-        credentialId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-        localStorage.setItem(storageKey, credentialId);
+
+        const newId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+        localStorage.setItem(storageKey, newId);
+        effectiveIds.push(newId);
       }
 
       const getOptions: CredentialRequestOptions = {
         publicKey: {
           challenge: window.crypto.getRandomValues(new Uint8Array(32)),
-          allowCredentials: [{
-            id: Uint8Array.from(atob(credentialId), c => c.charCodeAt(0)),
-            type: "public-key"
-          }],
+          allowCredentials: effectiveIds.map(id => ({
+            id: Uint8Array.from(atob(id), c => c.charCodeAt(0)),
+            type: "public-key" as const
+          })),
           userVerification: "required",
           extensions: {
             prf: { eval: { first: new TextEncoder().encode("LetUsMeet-PRF-Salt-v1") } }
@@ -91,28 +107,41 @@ export async function derivePrfMasterKey(): Promise<CryptoKey> {
 
       const assertion = (await navigator.credentials.get(getOptions)) as any;
       const results = assertion.getClientExtensionResults();
-      
+
       if (!results.prf || !results.prf.results || !results.prf.results.first) {
         throw new Error("PRF evaluation failed or not supported by authenticator.");
       }
 
       const prfResult = new Uint8Array(results.prf.results.first);
-      
       const masterKey = await window.crypto.subtle.importKey(
         "raw",
         prfResult.slice(0, 16),
         { name: "AES-GCM" },
-        false,
+        true,
         ["encrypt", "decrypt"]
       );
 
+      const usedId = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+
+      // Always update local storage and IndexedDB with the successfully used credential
+      localStorage.setItem(storageKey, usedId);
       await saveMasterKeyToIndexedDB(user.uid, masterKey);
-      
-      return masterKey;
-    } finally {
-      prfPromise = null;
+
+      return { masterKey, usedCredentialId: usedId };
+    } catch (e) {
+      // If derivation fails, we'll clear the promise cache below
+      throw e;
     }
   })();
 
-  return prfPromise;
+  globalPrfLock = resultPromise.catch(() => { }).then(() => { });
+  
+  // Cache the promise for the session
+  prfPromise = resultPromise;
+  resultPromise.catch(() => {
+    // If the derivation fails (e.g. user cancels), clear the cache so they can try again
+    if (prfPromise === resultPromise) prfPromise = null;
+  });
+
+  return resultPromise;
 }

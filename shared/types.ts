@@ -48,11 +48,29 @@ export interface DevicePublicKey {
   createdAt: number;
 }
 
+export interface RecoveryMethod {
+  type: 'prf' | 'phrase';
+  label: string; // e.g. "Google Passkey", "Primary Recovery Phrase"
+  publicKey?: string; // Optional: For asymmetric recovery (e.g., RSA Public Key for phrases)
+  credentialId?: string; // Optional: For PRF recovery (WebAuthn credential ID)
+  createdAt: number;
+}
+
 export interface AccountKeysDocument {
   activeAmkId: string; // e.g., "amk_v1"
   devices: Record<string, DevicePublicKey>; // Keyed by deviceId
+  recoveryMethods: Record<string, RecoveryMethod>; // Keyed by methodId (e.g., "__recovery_prf")
   keyring: Record<string, Record<string, string>>;
-  // Map of amkId -> { deviceId: "wrapped_amk_base64" }
+  // Map of amkId -> { (deviceId | recoveryMethodId): "wrapped_amk_base64" }
+}
+
+export interface PendingDevice {
+  deviceId: string;
+  deviceName: string;
+  publicKey: string; // Base64 SPKI
+  status: 'pending' | 'authorized' | 'rejected';
+  createdAt: number;
+  expiresAt?: number;
 }
 
 // === CLIENT-SIDE DECRYPTED SCHEMA ===

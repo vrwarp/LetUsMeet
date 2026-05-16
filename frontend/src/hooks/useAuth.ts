@@ -5,31 +5,33 @@ import { doc, setDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
 import { derivePrfMasterKey } from "@/lib/prfService";
-import { verifyAmk } from "@/lib/deviceService";
+import { verifyAmk, getDeviceId } from "@/lib/deviceService";
 import { resetKeystore } from "@/lib/pollService";
+import type { PendingDevice } from "@/types";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 
 let isSigningIn = false;
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isKeyMismatch, setIsKeyMismatch] = useState(false);
+  const [keyMismatchError, setKeyMismatchError] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<PendingDevice[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         if (currentUser && !currentUser.isAnonymous) {
-          // 1. Ensure PRF is derived (for legacy migration)
-          derivePrfMasterKey().catch(e => console.warn("PRF derivation failed", e));
-          
-          // 2. Verify AMK (Multi-device Key)
           verifyAmk().then((isMatch) => {
             if (!isMatch) {
-              setIsKeyMismatch(true);
+              console.warn(`[Auth] AMK verification failed for ${currentUser.uid}: unrecognized device.`);
+              setKeyMismatchError("UNRECOGNIZED_DEVICE: Device not authorized.");
+            } else {
+              console.log(`[Auth] AMK verified successfully for ${currentUser.uid}.`);
             }
           }).catch((e) => {
             console.error("AMK verification failed on auth state change", e);
-            setIsKeyMismatch(true);
+            setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
           });
         }
         setUser(currentUser);
@@ -49,6 +51,30 @@ export function useAuth() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!user || user.isAnonymous) {
+      setPendingRequests([]);
+      return;
+    }
+
+    // Only listen for devices that ARE NOT the current device
+    const currentDeviceId = getDeviceId();
+    const q = query(
+      collection(db, "users", user.uid, "pending_devices"),
+      where("status", "==", "pending")
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const now = Date.now();
+      const requests = snap.docs
+        .map(d => d.data() as PendingDevice)
+        .filter(d => d.deviceId !== currentDeviceId && (!d.expiresAt || d.expiresAt > now));
+      setPendingRequests(requests);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -63,20 +89,12 @@ export function useAuth() {
           updatedAt: new Date().toISOString(),
         }, { merge: true });
 
-        // 2. Immediate Security Flow
+        // 2. Immediate Security Flow (Optional, handled by onAuthStateChanged)
         try {
           // Optional: still derive PRF for migration
-          await derivePrfMasterKey().catch(() => {});
-          
-          const isMatch = await verifyAmk();
-          if (!isMatch) {
-            setIsKeyMismatch(true);
-            return;
-          }
+          await derivePrfMasterKey().catch(() => { });
         } catch (error: any) {
           console.error("Security verification failed during sign-in", error);
-          await signOut(auth);
-          throw new Error("Zero-Knowledge Security: A device key or recovery phrase is required to access your polls. Please try signing in again.");
         }
       }
     } catch (error) {
@@ -85,7 +103,7 @@ export function useAuth() {
   };
 
   const signOutUser = async () => {
-    setIsKeyMismatch(false);
+    setKeyMismatchError(null);
     await signOut(auth);
   };
 
@@ -96,10 +114,10 @@ export function useAuth() {
 
   const deleteAccount = async () => {
     if (!user || user.isAnonymous) return;
-    
+
     const functions = getFunctions();
     const deleteFn = httpsCallable(functions, "deleteUserAccount");
-    
+
     try {
       await deleteFn();
       // After successful deletion, clear local storage and sign out
@@ -111,5 +129,24 @@ export function useAuth() {
     }
   };
 
-  return { user, loading, isKeyMismatch, signInWithGoogle, signOutUser, resetAccount, deleteAccount };
+  const recoverWithPhrase = async (mnemonic: string) => {
+    const { recoverAmkWithPhrase } = await import("@/lib/recoveryService");
+    const { registerCurrentDevice } = await import("@/lib/deviceService");
+
+    const { amk, amkId } = await recoverAmkWithPhrase(mnemonic);
+    await registerCurrentDevice(amk, amkId);
+    setKeyMismatchError(null);
+  };
+
+  return {
+    user,
+    loading,
+    keyMismatchError,
+    signInWithGoogle,
+    signOutUser,
+    resetAccount,
+    deleteAccount,
+    recoverWithPhrase,
+    pendingRequests
+  };
 }

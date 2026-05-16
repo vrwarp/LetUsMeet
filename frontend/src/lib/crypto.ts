@@ -260,3 +260,22 @@ export function canonicalStringify(obj: any): string {
     return JSON.stringify(key) + ":" + canonicalStringify(obj[key]);
   }).join(",") + "}";
 }
+
+/**
+ * Generates a 6-digit verification code from a public key Base64 string.
+ */
+export async function generateVerificationCode(publicKeyB64: string): Promise<string> {
+  const bin = atob(publicKeyB64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  
+  const hash = await window.crypto.subtle.digest("SHA-256", buf);
+  const hashArray = new Uint8Array(hash);
+  
+  // Use first 4 bytes for a 32-bit number
+  const view = new DataView(hashArray.buffer);
+  const num = view.getUint32(0);
+  
+  // Convert to 6-digit string
+  return (num % 1000000).toString().padStart(6, '0');
+}
