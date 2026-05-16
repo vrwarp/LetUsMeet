@@ -96,6 +96,8 @@ export interface PollMetadata {
   organizerName: string;
   schedulingMode: SchedulingMode;
   timeSlots: TimeSlot[];
+  adminPublicKey?: string; // NEW: Store public key in genesis to allow recovery from token
+  encryptedAdminPriv?: { ciphertext: string, iv: string };
 }
 
 export interface VoteData {

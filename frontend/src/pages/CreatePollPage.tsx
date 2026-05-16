@@ -216,11 +216,9 @@ export default function CreatePollPage() {
           })) as any[],
       };
 
-      const { pollId, key } = await createBlindPoll(metadata);
+      const { pollId, key, adminToken } = await createBlindPoll(metadata);
+      navigate(`/poll/${pollId}?adminToken=${adminToken}#key=${key}`);
 
-      console.log("CREATE BLIND POLL RESULT:", { pollId });
-
-      navigate(`/poll/${pollId}#key=${key}`);
     } catch (err: any) {
       console.error("Failed to create poll", err);
       setError(err.message || "Something went wrong. Please try again.");

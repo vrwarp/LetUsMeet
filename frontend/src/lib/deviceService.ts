@@ -197,11 +197,11 @@ export async function getRecoveryStatus(): Promise<{
   isCurrentPrfSealed: boolean 
 }> {
   const user = auth.currentUser;
-  if (!user || user.isAnonymous) return { isSealed: false, methods: [] };
+  if (!user || user.isAnonymous) return { isSealed: false, methods: [], isCurrentPrfSealed: false };
 
   const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
   const snap = await getDoc(accountKeysRef);
-  if (!snap.exists()) return { isSealed: false, methods: [] };
+  if (!snap.exists()) return { isSealed: false, methods: [], isCurrentPrfSealed: false };
 
   const data = snap.data() as AccountKeysDocument;
   const amkId = data.activeAmkId;

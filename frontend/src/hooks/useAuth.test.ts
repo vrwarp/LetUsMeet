@@ -7,17 +7,47 @@ import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 vi.mock('firebase/auth', () => ({
   signInAnonymously: vi.fn(),
   onAuthStateChanged: vi.fn(),
+  GoogleAuthProvider: vi.fn(),
+  signInWithPopup: vi.fn(),
+  signOut: vi.fn(),
+}));
+
+// Mock firebase/firestore
+vi.mock('firebase/firestore', () => ({
+  getFirestore: vi.fn(),
+  doc: vi.fn(),
+  setDoc: vi.fn(),
+  collection: vi.fn(),
+  query: vi.fn(),
+  where: vi.fn(),
+  onSnapshot: vi.fn(() => vi.fn()), // return unsubscribe
+}));
+
+// Mock firebase/functions
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(),
+  httpsCallable: vi.fn(),
 }));
 
 // Mock @/firebase
 vi.mock('@/firebase', () => ({
   auth: { currentUser: null },
+  db: {},
 }));
 
-// Unmock the hook itself since setup.ts mocks it globally
+// Mock @/lib/deviceService
+vi.mock('@/lib/deviceService', () => ({
+  verifyAmk: vi.fn().mockResolvedValue(true),
+  getDeviceId: vi.fn().mockReturnValue('test-device-id'),
+}));
+
+// Mock @/lib/pollService
+vi.mock('@/lib/pollService', () => ({
+  resetKeystore: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Unmock the hook itself
 vi.unmock('@/hooks/useAuth');
-vi.unmock('../hooks/useAuth');
-vi.unmock('./useAuth');
 
 describe('useAuth hook', () => {
   beforeEach(() => {
@@ -25,10 +55,9 @@ describe('useAuth hook', () => {
   });
 
   it('signs in anonymously if no user is present', async () => {
-    // Mock onAuthStateChanged to call back with null initially
     (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
       callback(null);
-      return vi.fn(); // unsubscribe
+      return vi.fn();
     });
 
     (signInAnonymously as any).mockResolvedValue({ user: { uid: 'anon-123' } });
@@ -41,7 +70,7 @@ describe('useAuth hook', () => {
   });
 
   it('returns user if already signed in', async () => {
-    const mockUser = { uid: 'user-123' };
+    const mockUser = { uid: 'user-123', isAnonymous: true };
     (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
       callback(mockUser);
       return vi.fn();
@@ -59,8 +88,7 @@ describe('useAuth hook', () => {
 
   it('sets loading to false after auth is initialized', async () => {
     (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
-      // Delay the callback to simulate async initialization
-      setTimeout(() => callback({ uid: 'user-123' }), 10);
+      setTimeout(() => callback({ uid: 'user-123', isAnonymous: true }), 10);
       return vi.fn();
     });
 

@@ -3,9 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './DashboardPage';
 import * as pollService from '@/lib/pollService';
+import * as deviceService from '@/lib/deviceService';
+import * as recoveryService from '@/lib/recoveryService';
 import { useAuth } from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth');
+vi.mock('@/lib/pollService');
+vi.mock('@/lib/deviceService');
+vi.mock('@/lib/recoveryService');
 
 describe('DashboardPage', () => {
   beforeEach(() => {
@@ -13,25 +18,26 @@ describe('DashboardPage', () => {
     (useAuth as any).mockReturnValue({
       user: { uid: 'user123', isAnonymous: false },
       loading: false,
+      pendingRequests: [],
     });
 
     vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((_uid, cb) => {
-      cb([{ 
-        pollId: 'p1', 
+      cb([{
+        pollId: 'p1',
         amkId: 'amk_v1',
-        wrappedPayload: 'ciphertext', 
-        iv: 'iv', 
-        updatedAt: Date.now() 
+        wrappedPayload: 'ciphertext',
+        iv: 'iv',
+        updatedAt: Date.now()
       }]);
-      return () => {};
+      return () => { };
     });
 
-    vi.mocked(pollService.loadFromKeystore).mockResolvedValue({ 
+    vi.mocked(pollService.loadFromKeystore).mockResolvedValue({
       symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=',
       ecdsaPrivateKey: 'priv',
       ecdsaPublicKey: 'pub'
     });
-    
+
     vi.mocked(pollService.getGenesisEvent).mockResolvedValue({
       title: 'Mock ZK Meeting',
       location: 'Virtual',
@@ -39,6 +45,15 @@ describe('DashboardPage', () => {
       organizerName: 'Test User',
       timeSlots: []
     });
+
+    vi.mocked(deviceService.getRecoveryStatus).mockResolvedValue({
+      isSealed: true,
+      methods: ['Passkey'],
+      isCurrentPrfSealed: true
+    });
+
+    vi.mocked(deviceService.getDeviceId).mockReturnValue('test-device-id');
+    vi.mocked(recoveryService.setupPhraseRecovery).mockResolvedValue('mock mnemonic phrase');
   });
 
   it('renders decrypted polls from keystore', async () => {
@@ -54,7 +69,7 @@ describe('DashboardPage', () => {
   it('shows empty state when no polls found', async () => {
     vi.mocked(pollService.subscribeToUserKeystore).mockImplementationOnce((_uid, cb) => {
       cb([]);
-      return () => {};
+      return () => { };
     });
 
     render(
@@ -63,6 +78,6 @@ describe('DashboardPage', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText(/No polls in your keystore/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No polls/i)).toBeInTheDocument();
   });
 });

@@ -17,18 +17,24 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 // Global mock for useAuth hook - cover both alias and relative paths
+const mockUseAuth = vi.fn(() => ({
+  user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
+  loading: false,
+  keyMismatchError: null,
+  pendingRequests: [],
+  signInWithGoogle: vi.fn(),
+  signOutUser: vi.fn(),
+  resetAccount: vi.fn(),
+  deleteAccount: vi.fn(),
+  recoverWithPhrase: vi.fn(),
+}));
+
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({
-    user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
-    loading: false,
-  })),
+  useAuth: mockUseAuth,
 }));
 
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({
-    user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
-    loading: false,
-  })),
+  useAuth: mockUseAuth,
 }));
 
 // Generate real keys for mocks to avoid ERR_INVALID_ARG_TYPE
@@ -196,17 +202,43 @@ vi.mock('firebase/auth', () => ({
   }),
   signInWithPopup: vi.fn(),
   GoogleAuthProvider: vi.fn(),
+  signOut: vi.fn(),
+  signInAnonymously: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(() => ({})),
   connectFirestoreEmulator: vi.fn(),
+  doc: vi.fn(() => ({})),
+  collection: vi.fn(() => ({})),
+  query: vi.fn(() => ({})),
+  where: vi.fn(() => ({})),
+  onSnapshot: vi.fn((_ref, callback) => {
+    if (typeof callback === 'function') {
+      // Mock a snapshot with some data if needed, or just an empty one
+      callback({
+        exists: () => false,
+        docs: [],
+        data: () => ({})
+      });
+    }
+    return () => {};
+  }),
+  setDoc: vi.fn(() => Promise.resolve()),
+  getDoc: vi.fn(() => Promise.resolve({ exists: () => false })),
+  deleteDoc: vi.fn(() => Promise.resolve()),
+  runTransaction: vi.fn((_db, updateFn) => updateFn({
+    get: vi.fn(() => Promise.resolve({ exists: () => false })),
+    set: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  })),
 }));
 
 vi.mock('firebase/functions', () => ({
   getFunctions: vi.fn(() => ({})),
   connectFunctionsEmulator: vi.fn(),
-  httpsCallable: vi.fn(),
+  httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} }))),
 }));
 
 // Mock localStorage

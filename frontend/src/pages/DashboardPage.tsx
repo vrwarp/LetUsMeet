@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { subscribeToUserKeystore, loadFromKeystore, getGenesisEvent } from "@/lib/pollService";
-import { getRecoveryStatus, enablePrfRecovery } from "@/lib/deviceService";
+import { getRecoveryStatus, enablePrfRecovery, getDeviceId } from "@/lib/deviceService";
 import { setupPhraseRecovery } from "@/lib/recoveryService";
 import { importSymmetricKey } from "@/lib/crypto";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, ShieldAlert, Key, Clipboard, CheckCircle2, Monitor, XCircle } from "lucide-react";
 import type { PollMetadata, PendingDevice } from "../types";
 import { db } from "@/firebase";
-import { collection, onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import { generateVerificationCode } from "@/lib/crypto";
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [entries, setEntries] = useState<DecryptedDashboardEntry[]>([]);
   const [fetching, setFetching] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [accountData, setAccountData] = useState<any>(null);
+  const [showRotationSuccess, setShowRotationSuccess] = useState(false);
 
 
   const handleApprove = async (req: PendingDevice) => {
@@ -54,7 +56,7 @@ export default function DashboardPage() {
   };
   const [recoveryStatus, setRecoveryStatus] = useState<{ isSealed: boolean, methods: string[] }>({ isSealed: false, methods: [] });
   const [enablingRecovery, setEnablingRecovery] = useState(false);
-  
+
   const [showPhraseModal, setShowPhraseModal] = useState(false);
   const [generatedMnemonic, setGeneratedMnemonic] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -66,9 +68,16 @@ export default function DashboardPage() {
     }
 
     setFetching(true);
-    
-    // Initial recovery status check
-    getRecoveryStatus().then(setRecoveryStatus);
+
+    // Listen to account keys for device list and recovery status
+    const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
+    const unsubAccount = onSnapshot(accountKeysRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setAccountData(data);
+        getRecoveryStatus().then(setRecoveryStatus);
+      }
+    });
 
     const unsubscribe = subscribeToUserKeystore(user.uid, async (keystoreEntries) => {
       const decryptedEntries: DecryptedDashboardEntry[] = [];
@@ -96,7 +105,10 @@ export default function DashboardPage() {
       setFetching(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubAccount();
+      unsubscribe();
+    };
   }, [user, loading]);
 
   const handleEnableRecovery = async () => {
@@ -126,6 +138,19 @@ export default function DashboardPage() {
       alert("Failed to setup phrase recovery.");
     } finally {
       setEnablingRecovery(false);
+    }
+  };
+
+  const handleRevoke = async (deviceId: string) => {
+    if (!confirm("Are you sure you want to revoke this device? It will lose access to all your polls immediately.")) return;
+    const { revokeDevice } = await import("@/lib/deviceService");
+    try {
+      await revokeDevice(deviceId);
+      setShowRotationSuccess(true);
+      setTimeout(() => setShowRotationSuccess(false), 5000);
+    } catch (e) {
+      console.error("Failed to revoke device:", e);
+      alert("Failed to revoke device.");
     }
   };
 
@@ -165,27 +190,29 @@ export default function DashboardPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Pending Authorization Requests */}
       {pendingRequests.map(req => (
-        <div key={req.deviceId} className="mb-6 bg-brand-green/10 border-2 border-brand-green/30 p-6 rounded-[2rem] flex flex-col md:flex-row items-center gap-6 shadow-lg shadow-brand-green/5 animate-pulse-subtle">
+        <div key={req.deviceId} data-testid="pending-auth-request" className="mb-6 bg-brand-green/10 border-2 border-brand-green/30 p-6 rounded-[2rem] flex flex-col md:flex-row items-center gap-6 shadow-lg shadow-brand-green/5 animate-pulse-subtle">
           <div className="w-14 h-14 bg-brand-green/20 text-brand-green rounded-2xl flex items-center justify-center flex-shrink-0">
             <Monitor size={28} />
           </div>
           <div className="flex-1 text-center md:text-left">
             <h3 className="text-lg font-bold text-brand-green-dark">Authorize New Device?</h3>
             <p className="text-brand-green-dark/70 text-sm">
-              A new device named <span className="font-bold">"{req.deviceName}"</span> is requesting access. 
+              A new device named <span className="font-bold">"{req.deviceName}"</span> is requesting access.
               Confirm code: <span className="font-mono font-bold bg-white/50 px-2 py-0.5 rounded border border-brand-green/20 ml-1"><PendingCodeDisplay publicKey={req.publicKey} /></span>
             </p>
           </div>
           <div className="flex gap-3">
-            <button 
+            <button
               onClick={() => handleReject(req)}
+              data-testid="reject-auth-btn"
               className="px-6 py-3 bg-white text-neutral-600 rounded-xl font-bold hover:bg-neutral-50 transition-colors flex items-center gap-2"
             >
               <XCircle size={18} /> Reject
             </button>
-            <button 
+            <button
               onClick={() => handleApprove(req)}
               disabled={approvingId === req.deviceId}
+              data-testid="approve-auth-btn"
               className="px-8 py-3 bg-brand-green text-white rounded-xl font-black hover:bg-brand-green-dark transition-colors flex items-center gap-2 shadow-md shadow-brand-green/20 disabled:opacity-50"
             >
               {approvingId === req.deviceId ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 size={18} />}
@@ -207,9 +234,10 @@ export default function DashboardPage() {
               You recently performed a security action (like revoking a device). For your protection, your recovery passkey was disconnected. If you lose access to this device now, you will lose your data.
             </p>
           </div>
-          <button 
+          <button
             onClick={handleEnableRecovery}
             disabled={enablingRecovery}
+            data-testid="enable-recovery-btn"
             className="whitespace-nowrap px-8 py-4 bg-amber-600 text-white rounded-2xl font-black hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-amber-200"
           >
             {enablingRecovery ? (
@@ -234,7 +262,7 @@ export default function DashboardPage() {
               Your passkey is secure, but if you lose your hardware, a 24-word recovery phrase is your last resort. It stays valid across all device changes.
             </p>
           </div>
-          <button 
+          <button
             onClick={handleGeneratePhrase}
             disabled={enablingRecovery}
             className="whitespace-nowrap px-8 py-4 bg-neutral-900 text-white rounded-2xl font-black hover:bg-black transition-colors flex items-center gap-2 disabled:opacity-50"
@@ -250,7 +278,7 @@ export default function DashboardPage() {
           <p className="text-neutral-500 font-medium">Manage and finalize your created polls</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3" data-testid="recovery-status">
           {recoveryStatus.methods.map((method, i) => {
             const isPhrase = method.toLowerCase().includes("phrase");
             return (
@@ -264,11 +292,10 @@ export default function DashboardPage() {
                   }
                 }}
                 disabled={!isPhrase}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${
-                  isPhrase 
-                    ? "bg-brand-green/10 text-brand-green-dark border-brand-green/20 hover:bg-brand-green/20 cursor-pointer active:scale-95" 
-                    : "bg-neutral-100 text-neutral-500 border-neutral-200 cursor-default"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${isPhrase
+                  ? "bg-brand-green/10 text-brand-green-dark border-brand-green/20 hover:bg-brand-green/20 cursor-pointer active:scale-95"
+                  : "bg-neutral-100 text-neutral-500 border-neutral-200 cursor-default"
+                  }`}
               >
                 <ShieldCheck size={16} className={isPhrase ? "text-brand-green" : "text-neutral-400"} />
                 <span>{method} Active</span>
@@ -284,7 +311,7 @@ export default function DashboardPage() {
           <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Calendar size={32} />
           </div>
-          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls in your keystore</h2>
+          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls</h2>
           <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
             Created polls will appear here automatically when you're signed in.
           </p>
@@ -312,7 +339,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <Link
                     to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
@@ -333,13 +360,65 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Device Management Section */}
+      <div className="mt-16 mb-12">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-3xl font-black text-neutral-900 tracking-tight">Your Devices</h2>
+            <p className="text-neutral-500 font-medium">Manage browser instances with access to your polls</p>
+          </div>
+          {showRotationSuccess && (
+            <div data-testid="rotation-success-toast" className="bg-brand-green text-white px-4 py-2 rounded-xl text-sm font-bold animate-fade-in-up">
+              AMK Rotated & Devices Migrated!
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-4" data-testid="device-list">
+          {accountData?.devices && Object.values(accountData.devices).map((device: any) => {
+            const isCurrent = device.deviceId === getDeviceId();
+            return (
+              <div
+                key={device.deviceId}
+                data-testid="device-item"
+                className={`bg-white p-6 rounded-[2rem] border ${isCurrent ? 'border-brand-green/30 bg-brand-green/5' : 'border-neutral-100'} flex items-center justify-between shadow-sm`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isCurrent ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-400'}`}>
+                    <Monitor size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-neutral-800">
+                      {device.deviceName} {isCurrent && <span className="text-brand-green ml-2 text-xs uppercase tracking-widest">(Current)</span>}
+                    </h3>
+                    <p className="text-xs text-neutral-400 font-medium">
+                      Authorized {new Date(device.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                {!isCurrent && (
+                  <button
+                    onClick={() => handleRevoke(device.deviceId)}
+                    data-testid="revoke-device-btn"
+                    className="p-3 text-neutral-400 hover:text-brand-red transition-colors hover:bg-red-50 rounded-xl"
+                    title="Revoke Access"
+                  >
+                    <XCircle size={20} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Phrase Modal */}
       {showPhraseModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-brand-charcoal/80 overflow-y-auto">
           <div className="bg-white rounded-[3rem] p-8 sm:p-12 max-w-2xl w-full shadow-2xl relative animate-fade-in-up">
             <h2 className="text-3xl font-black text-neutral-900 mb-4">Your Recovery Phrase</h2>
             <p className="text-neutral-600 mb-8 font-medium">
-              Write these 24 words down in order and store them in a secure, physical location. 
+              Write these 24 words down in order and store them in a secure, physical location.
               <span className="text-brand-red font-bold"> Do not share this with anyone or save it online.</span>
             </p>
 
@@ -353,14 +432,14 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <button 
+              <button
                 onClick={copyToClipboard}
                 className="flex-1 px-8 py-4 bg-neutral-100 text-neutral-600 rounded-2xl font-black hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
               >
                 {copied ? <CheckCircle2 size={20} className="text-brand-green" /> : <Clipboard size={20} />}
                 {copied ? "Copied!" : "Copy to Clipboard"}
               </button>
-              <button 
+              <button
                 onClick={() => setShowPhraseModal(false)}
                 className="flex-1 px-8 py-4 bg-brand-green text-white rounded-2xl font-black hover:bg-brand-green-dark transition-colors flex items-center justify-center gap-2"
               >

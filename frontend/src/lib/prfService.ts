@@ -76,7 +76,7 @@ export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ ma
               { alg: -7, type: "public-key" },
               { alg: -257, type: "public-key" }
             ],
-            authenticatorSelection: { userVerification: "required" },
+            authenticatorSelection: { userVerification: "discouraged" },
             extensions: {
               prf: { eval: { first: new TextEncoder().encode("LetUsMeet-PRF-Salt-v1") } }
             } as any
@@ -98,7 +98,7 @@ export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ ma
             id: Uint8Array.from(atob(id), c => c.charCodeAt(0)),
             type: "public-key" as const
           })),
-          userVerification: "required",
+          userVerification: "discouraged",
           extensions: {
             prf: { eval: { first: new TextEncoder().encode("LetUsMeet-PRF-Salt-v1") } }
           } as any
@@ -135,7 +135,7 @@ export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ ma
   })();
 
   globalPrfLock = resultPromise.catch(() => { }).then(() => { });
-  
+
   // Cache the promise for the session
   prfPromise = resultPromise;
   resultPromise.catch(() => {

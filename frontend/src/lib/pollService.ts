@@ -5,10 +5,10 @@ import {
   onSnapshot, 
   query,
   orderBy,
-  serverTimestamp,
   getDocs,
   limit,
-  writeBatch
+  writeBatch,
+  serverTimestamp
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import type { 
@@ -29,7 +29,8 @@ import {
   exportPublicKey, 
   signAction,
   importPrivateKey,
-  importPublicKey
+  importPublicKey,
+  deriveKeyFromPassword
 } from "./crypto";
 import { calculatePollState } from "./pollReducer";
 import { 
@@ -128,12 +129,20 @@ export async function createBlindPoll(metadata: PollMetadata) {
   const b64Key = await exportSymmetricKey(symmetricKey);
   const privB64 = await exportPrivateKey(keyPair.privateKey);
   const pubB64 = await exportPublicKey(keyPair.publicKey);
-
+  
   // 1. Create poll doc (empty shell)
   await setDoc(doc(db, "polls", pollId), { pollId });
 
   // 2. Create genesis event
-  const action: PollAction = { type: "POLL_CREATED", payload: metadata };
+  const adminToken = generateId();
+  const adminTokenKey = await deriveKeyFromPassword(adminToken);
+  const encryptedAdminPriv = await encrypt(adminTokenKey, privB64);
+  
+  const action: PollAction = { type: "POLL_CREATED", payload: { 
+    ...metadata, 
+    adminPublicKey: pubB64,
+    encryptedAdminPriv: encryptedAdminPriv
+  } };
   await appendSignedEvent(pollId, symmetricKey, keyPair.privateKey, keyPair.publicKey, action);
 
   // 3. Save keys
@@ -148,7 +157,29 @@ export async function createBlindPoll(metadata: PollMetadata) {
     await saveToIndexedDB(pollId, { privateKey: privB64, publicKey: pubB64 });
   }
 
-  return { pollId, key: b64Key };
+  return { pollId, key: b64Key, adminToken };
+}
+
+/**
+ * Recovers the admin identity from an adminToken by decrypting the private key
+ * stored in the genesis event.
+ */
+export async function loadIdentityFromToken(pollId: string, adminToken: string, symmetricPollKey: CryptoKey): Promise<{ privateKey: CryptoKey, publicKey: CryptoKey } | null> {
+  const metadata = await getGenesisEvent(pollId, symmetricPollKey);
+  if (!metadata || !metadata.encryptedAdminPriv) return null;
+  
+  try {
+    const adminTokenKey = await deriveKeyFromPassword(adminToken);
+    const privB64 = await decrypt(adminTokenKey, metadata.encryptedAdminPriv.ciphertext, metadata.encryptedAdminPriv.iv);
+    
+    return {
+      privateKey: await importPrivateKey(privB64),
+      publicKey: await importPublicKey(metadata.adminPublicKey!)
+    };
+  } catch (e) {
+    console.error("Failed to recover identity from token:", e);
+    return null;
+  }
 }
 
 /**
@@ -262,27 +293,40 @@ export function subscribeToUserKeystore(
 
 export async function submitVote() { throw new Error("Deprecated: Use appendSignedEvent"); }
 export async function finalizePoll() { throw new Error("Deprecated: Use appendSignedEvent"); }
-export async function updatePoll() { throw new Error("Deprecated: Use appendSignedEvent"); }
+export async function submitPollUpdate() { throw new Error("Deprecated: Use appendSignedEvent"); }
 export function subscribeToPoll() { throw new Error("Deprecated: Use subscribeToLedger"); }
 export function subscribeToUserPolls() { throw new Error("Deprecated: Use Keystore query"); }
 
 /**
  * Fetches and decrypts the genesis event (POLL_CREATED) for a poll.
  */
-export async function getGenesisEvent(pollId: string, symmetricKey: CryptoKey): Promise<PollMetadata | null> {
+export async function getGenesisEvent(pollId: string, symmetricPollKey: CryptoKey): Promise<PollMetadata | null> {
   const eventsRef = collection(db, "polls", pollId, "events");
   const q = query(eventsRef, orderBy("createdAt", "asc"), limit(1));
-  const snap = await getDocs(q);
   
-  if (snap.empty) return null;
-  
-  const blind = snap.docs[0].data() as BlindEvent;
-  const json = await decrypt(symmetricKey, blind.encryptedData, blind.iv);
-  const decrypted = JSON.parse(json);
-  
-  if (decrypted.action && decrypted.action.type === "POLL_CREATED") {
-    return decrypted.action.payload;
+  for (let i = 0; i < 10; i++) {
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      try {
+        const blind = snapshot.docs[0].data() as BlindEvent;
+        const json = await decrypt(symmetricPollKey, blind.encryptedData, blind.iv);
+        const decrypted = JSON.parse(json);
+        
+        if (decrypted.action && decrypted.action.type === "POLL_CREATED") {
+          console.log(`CLAIM DEBUG: Genesis event found and decrypted for poll ${pollId}`);
+          return {
+            ...decrypted.action.payload,
+            adminPublicKey: decrypted.publicKey
+          };
+        }
+      } catch (e) {
+        console.error(`CLAIM DEBUG: Error decrypting genesis event for poll ${pollId}:`, e);
+      }
+    }
+    console.log(`CLAIM DEBUG: Genesis event not found for poll ${pollId}, retrying... (${i + 1}/10)`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
+  console.error(`CLAIM DEBUG: Genesis event NOT found for poll ${pollId} after 10 retries`);
   
   return null;
 }
