@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Edit3, Plus, History, ChevronRight, ChevronDown, Lock, AlertTriangle } from "lucide-react";
+import { useParams, Link } from "react-router-dom";
+import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
@@ -23,7 +23,7 @@ import CompactActionCard from "@/components/CompactActionCard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const { user, loading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
@@ -283,7 +283,11 @@ export default function VotePollPage() {
           <h2 className="text-3xl font-bold text-neutral-800 mb-3">Vote Recorded!</h2>
           <p className="text-neutral-600 mb-8">Your availability has been encrypted and added to the ledger.</p>
           <div className="flex flex-col gap-4">
-            <Link to={`/poll/${pollId}/results${window.location.hash}`} className="btn-primary-green w-full text-center py-4">
+            <Link 
+              to={`/poll/${pollId}/results${window.location.hash}`} 
+              data-testid="view-results-link"
+              className="btn-primary-green w-full text-center py-4"
+            >
               View Group Availability
             </Link>
             <button onClick={() => setSuccess(false)} className="text-neutral-600 font-semibold">
@@ -505,6 +509,7 @@ export default function VotePollPage() {
                   value={participantName}
                   onChange={(e) => setParticipantName(e.target.value)}
                   placeholder="Jane Doe"
+                  data-testid="participant-name-input"
                   className="w-full"
                 />
               </div>
@@ -536,7 +541,8 @@ export default function VotePollPage() {
         <div className="flex flex-col md:flex-row gap-4">
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !participantName.trim()}
+            data-testid="vote-submit-btn"
             className="flex-1 bg-brand-green text-white !py-6 !text-2xl font-black rounded-3xl hover:bg-brand-green-dark shadow-xl transition-all flex items-center justify-center gap-4"
           >
             {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Vote"}

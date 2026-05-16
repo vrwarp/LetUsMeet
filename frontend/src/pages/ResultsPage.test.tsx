@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ResultsPage from './ResultsPage';
 import * as pollService from '@/lib/pollService';
@@ -48,7 +48,12 @@ describe('ResultsPage', () => {
 
   it('renders availability grid and totals with custom data', async () => {
     const votes = new Map();
-    votes.set('pub1', { participantName: 'Alice', selections: { t1: 'YES' } });
+    votes.set('pub1', { 
+      responseId: 'r1',
+      participantName: 'Alice', 
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
 
     vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
       cb({
@@ -93,7 +98,12 @@ describe('ResultsPage', () => {
 
   it('shows Leading badge on best slot', async () => {
     const votes = new Map();
-    votes.set('pub1', { participantName: 'Alice', selections: { t1: 'YES' } });
+    votes.set('pub1', { 
+      responseId: 'r1',
+      participantName: 'Alice', 
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
 
     vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
       cb({ 

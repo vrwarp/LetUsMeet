@@ -51,7 +51,7 @@ const mockIdentityPair = await webcrypto.subtle.generateKey(
 vi.mock('@/lib/pollService', () => {
   return {
     createBlindPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', key: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=' })),
-    subscribeToLedger: vi.fn((pollId: string, key: any, callback: any) => {
+    subscribeToLedger: vi.fn((pollId: string, _key: any, callback: any) => {
       callback({
         pollId: pollId,
         metadata: {
@@ -78,9 +78,18 @@ vi.mock('@/lib/pollService', () => {
     saveToIndexedDB: vi.fn(() => Promise.resolve()),
     saveToKeystore: vi.fn(() => Promise.resolve()),
     derivePrfMasterKey: vi.fn(() => Promise.resolve(mockSymmetricKey)),
-    loadFromKeystore: vi.fn(() => Promise.resolve({ symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=' })),
-    subscribeToUserKeystore: vi.fn((uid: string, callback: any) => {
-      callback([{ pollId: 'mock-poll-id-123' }]);
+    loadFromKeystore: vi.fn(() => Promise.resolve({ 
+      symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=',
+      ecdsaPrivateKey: 'priv',
+      ecdsaPublicKey: 'pub'
+    })),
+    subscribeToUserKeystore: vi.fn((_uid: string, callback: any) => {
+      callback([{ 
+        pollId: 'mock-poll-id-123',
+        wrappedPayload: 'ciphertext',
+        iv: 'iv',
+        updatedAt: Date.now()
+      }]);
       return () => {};
     }),
     getGenesisEvent: vi.fn(() => Promise.resolve({
@@ -105,7 +114,7 @@ vi.mock('@/lib/pollService', () => {
 vi.mock('../lib/pollService', () => {
   return {
     createBlindPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', key: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=' })),
-    subscribeToLedger: vi.fn((pollId: string, key: any, callback: any) => {
+    subscribeToLedger: vi.fn((pollId: string, _key: any, callback: any) => {
       callback({
         pollId: pollId,
         metadata: {
@@ -132,9 +141,18 @@ vi.mock('../lib/pollService', () => {
     saveToIndexedDB: vi.fn(() => Promise.resolve()),
     saveToKeystore: vi.fn(() => Promise.resolve()),
     derivePrfMasterKey: vi.fn(() => Promise.resolve(mockSymmetricKey)),
-    loadFromKeystore: vi.fn(() => Promise.resolve({ symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=' })),
-    subscribeToUserKeystore: vi.fn((uid: string, callback: any) => {
-      callback([{ pollId: 'mock-poll-id-123' }]);
+    loadFromKeystore: vi.fn(() => Promise.resolve({ 
+      symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=',
+      ecdsaPrivateKey: 'priv',
+      ecdsaPublicKey: 'pub'
+    })),
+    subscribeToUserKeystore: vi.fn((_uid: string, callback: any) => {
+      callback([{ 
+        pollId: 'mock-poll-id-123',
+        wrappedPayload: 'ciphertext',
+        iv: 'iv',
+        updatedAt: Date.now()
+      }]);
       return () => {};
     }),
     getGenesisEvent: vi.fn(() => Promise.resolve({

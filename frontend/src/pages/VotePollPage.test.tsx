@@ -58,7 +58,7 @@ describe('VotePollPage', () => {
     const slotCard = screen.getByTestId('slot-card');
     fireEvent.click(slotCard);
 
-    const submitBtn = screen.getByRole('button', { name: /Submit Encrypted Vote/i });
+    const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -114,7 +114,7 @@ describe('VotePollPage', () => {
     
     vi.mocked(pollService.appendSignedEvent).mockRejectedValueOnce(new Error('Vote Failed'));
     
-    const submitBtn = screen.getByRole('button', { name: /Submit Encrypted Vote/i });
+    const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
     
     await act(async () => {
       fireEvent.click(submitBtn);

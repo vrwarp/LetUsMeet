@@ -16,11 +16,20 @@ describe('DashboardPage', () => {
     });
 
     vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((_uid, cb) => {
-      cb([{ pollId: 'p1' }]);
+      cb([{ 
+        pollId: 'p1', 
+        wrappedPayload: 'ciphertext', 
+        iv: 'iv', 
+        updatedAt: Date.now() 
+      }]);
       return () => {};
     });
 
-    vi.mocked(pollService.loadFromKeystore).mockResolvedValue({ symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=' });
+    vi.mocked(pollService.loadFromKeystore).mockResolvedValue({ 
+      symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=',
+      ecdsaPrivateKey: 'priv',
+      ecdsaPublicKey: 'pub'
+    });
     
     vi.mocked(pollService.getGenesisEvent).mockResolvedValue({
       title: 'Mock ZK Meeting',

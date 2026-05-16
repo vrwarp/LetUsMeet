@@ -12,7 +12,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
     await expect(page).toHaveTitle(/LetUsMeet/);
 
     // Navigate to create page
-    await page.getByTestId('create-poll-btn').click();
+    await page.locator('header').getByTestId('create-poll-btn').click();
     await expect(page).toHaveURL(/\/create/);
 
     // --- 2. Create Poll Page ---

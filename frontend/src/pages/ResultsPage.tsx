@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import { 
   Loader2, 
   ArrowLeft, 
-  Trophy, 
   Users, 
   Info, 
   CalendarCheck, 
@@ -12,7 +11,6 @@ import {
   X, 
   RotateCcw, 
   CheckCircle2, 
-  Copy, 
   ChevronDown,
   Lock,
   MapPin,
@@ -45,7 +43,6 @@ export default function ResultsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showShareCopied, setShowShareCopied] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [showAddressCopied, setShowAddressCopied] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [finalizing, setFinalizing] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -344,7 +341,7 @@ export default function ResultsPage() {
             <td className="p-4 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 uppercase text-xs">TOTAL</td>
             {sortedSlots.map(slot => (
               <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
-                <div className="flex items-center justify-center gap-1 font-bold text-base md:text-lg">
+                <div data-testid={`total-${slot.id}`} className="flex items-center justify-center gap-1 font-bold text-base md:text-lg">
                   <span className="text-brand-green-dark">{voteCounts[slot.id].YES}</span>
                   {voteCounts[slot.id].IF_NEED_BE > 0 && <span className="text-amber-500 text-sm md:text-sm">({voteCounts[slot.id].IF_NEED_BE})</span>}
                 </div>
@@ -514,7 +511,11 @@ export default function ResultsPage() {
            <h2 className="text-2xl font-bold text-neutral-800 flex items-center gap-3">
              <Info className="text-brand-green" /> Availability Grid
            </h2>
-           <button onClick={() => setIsMaximized(true)} className="p-2 hover:bg-neutral-100 rounded-lg">
+           <button 
+             onClick={() => setIsMaximized(true)} 
+             className="p-2 hover:bg-neutral-100 rounded-lg"
+             aria-label="Maximize availability grid"
+           >
              <Maximize2 size={20} />
            </button>
         </div>
@@ -533,8 +534,12 @@ export default function ResultsPage() {
         <div className="fixed inset-0 z-[100] bg-brand-charcoal/95 backdrop-blur-md p-3 md:p-8 flex flex-col">
           <div className="flex justify-between items-center text-white mb-4 md:mb-8">
             <h2 className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
-            <button onClick={() => setIsMaximized(false)} className="p-2 hover:bg-white/10 rounded-full flex-shrink-0">
-              <X size={28} md:size={32} />
+            <button 
+              onClick={() => setIsMaximized(false)} 
+              className="p-2 hover:bg-white/10 rounded-full flex-shrink-0"
+              aria-label="Close maximization"
+            >
+              <X size={32} />
             </button>
           </div>
           <div className="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-auto p-1 md:p-4">

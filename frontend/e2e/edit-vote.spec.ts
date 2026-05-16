@@ -7,7 +7,6 @@ test.describe('Vote Editing and Multiple Responses', () => {
     await page.waitForTimeout(2000);
 
     await page.getByTestId('organizer-name-input').fill('E2E Organizer');
-    await page.getByTestId('organizer-email-input').fill('organizer@e2e.com');
     await page.getByTestId('poll-title-input').fill(`E2E Edit Test Poll ${Date.now()}`);
 
     const addSlotBtn = page.getByTestId('add-slot-btn');
@@ -19,9 +18,7 @@ test.describe('Vote Editing and Multiple Responses', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    await page.waitForURL(/\/poll\/[^/]+$/);
-    await page.waitForTimeout(500);
-    await expect(page.locator('text=Loading poll details...')).not.toBeVisible();
+    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
     const pollUrl = page.url();
 
     // 2. Initial Vote
@@ -30,43 +27,39 @@ test.describe('Vote Editing and Multiple Responses', () => {
     await page.getByTestId('vote-submit-btn').click();
 
     // Wait for success screen
-    await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
+    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
 
     // 3. Navigate away and come back (simulate "going directly to the poll")
     await page.goto('/');
     await page.goto(pollUrl);
-    await page.waitForTimeout(2000);
-    await expect(page.locator('text=Loading poll details...')).not.toBeVisible();
-
+    
     // Should see the editing banner
-    await expect(page.getByText(/Editing your previous response/i)).toBeVisible();
+    await expect(page.getByText(/Editing your previous response/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('participant-name-input')).toHaveValue('E2E Voter');
-    await expect(page.getByTestId('vote-submit-btn')).toContainText('Update Your Response');
 
     // 4. Update the vote
     await page.getByTestId('slot-card').nth(1).click(); // NO -> YES
     await page.getByTestId('vote-submit-btn').click();
 
-    // Wait for success (should say updated)
-    await expect(page.locator('h2', { hasText: 'Vote Updated!' })).toBeVisible();
+    // Wait for success
+    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
 
     // Test "Back to poll" button logic
     await page.getByRole('button', { name: /Back to poll/i }).click();
     await expect(page.getByText(/Editing your previous response/i)).toBeVisible();
-    await expect(page.getByTestId('vote-submit-btn')).toContainText('Update Your Response');
 
     // 5. Submit a second response
     await page.getByRole('button', { name: /Submit New Response/i }).click();
 
-    // Form should be cleared (except maybe prefilled name)
+    // Form should be cleared (except maybe prefilled name if logged in, but we are anonymous here)
     await expect(page.getByText(/Submitting a new response/i)).toBeVisible();
-    await expect(page.getByTestId('vote-submit-btn')).toContainText('Submit Your Vote');
+    await expect(page.getByTestId('participant-name-input')).toHaveValue('');
 
     await page.getByTestId('slot-card').nth(0).click(); // NO -> YES
     await page.getByTestId('participant-name-input').fill('E2E Voter Second');
     await page.getByTestId('vote-submit-btn').click();
 
-    await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
+    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
     await page.getByRole('button', { name: /Back to poll/i }).click();
 
     // 6. Verify switcher appears
@@ -74,13 +67,17 @@ test.describe('Vote Editing and Multiple Responses', () => {
     await expect(page.getByRole('button', { name: /E2E Voter \(/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /E2E Voter Second \(/i })).toBeVisible();
 
-    // 7. Test Deletion
+    // 7. Test Retraction
     await page.getByRole('button', { name: /E2E Voter Second \(/i }).click();
     page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: /Delete Response/i }).click();
+    await page.getByRole('button', { name: /Retract Vote/i }).click();
+
+    // Wait for success screen
+    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
+    await page.getByRole('button', { name: /Back to poll/i }).click();
 
     // Verify it's gone from switcher
-    await expect(page.getByText(/You've already submitted a response/i).or(page.getByText(/You've submitted 1 response/i))).toBeVisible();
+    await expect(page.getByText(/You've already submitted a response/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /E2E Voter Second \(/i })).not.toBeVisible();
   });
 });

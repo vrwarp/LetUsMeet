@@ -5,7 +5,7 @@ import {
   signAction,
   exportPublicKey
 } from './crypto';
-import { DecryptedSignedEvent, PollMetadata, VoteData } from '../types';
+import type { DecryptedSignedEvent, PollMetadata, VoteData } from '../types';
 
 describe('Poll Reducer', () => {
   let adminKeys: { publicKey: CryptoKey; privateKey: CryptoKey };
@@ -61,18 +61,23 @@ describe('Poll Reducer', () => {
 
   it('should process votes correctly', async () => {
     const genesis = await createEvent(adminKeys, { type: 'POLL_CREATED', payload: mockMetadata });
-    const voteData: VoteData = { participantName: "Bob", selections: { t1: "YES" }, clientTimestamp: Date.now() };
+    const voteData: VoteData = { 
+      responseId: "r1",
+      participantName: "Bob", 
+      selections: { t1: "YES" }, 
+      clientTimestamp: Date.now() 
+    };
     const vote = await createEvent(voterKeys, { type: 'VOTE_UPSERT', payload: voteData });
     
     const state = await calculatePollState([genesis, vote]);
     expect(state.votes.size).toBe(1);
-    expect(state.votes.get(voterPub)?.participantName).toBe("Bob");
+    expect(state.votes.get(`${voterPub}:r1`)?.participantName).toBe("Bob");
   });
 
   it('should allow voters to retract their votes', async () => {
     const genesis = await createEvent(adminKeys, { type: 'POLL_CREATED', payload: mockMetadata });
-    const vote = await createEvent(voterKeys, { type: 'VOTE_UPSERT', payload: { participantName: "Bob" } as any });
-    const retract = await createEvent(voterKeys, { type: 'VOTE_RETRACTED', payload: null });
+    const vote = await createEvent(voterKeys, { type: 'VOTE_UPSERT', payload: { responseId: "r1", participantName: "Bob" } as any });
+    const retract = await createEvent(voterKeys, { type: 'VOTE_RETRACTED', payload: { responseId: "r1" } });
     
     const state = await calculatePollState([genesis, vote, retract]);
     expect(state.votes.size).toBe(0);
@@ -81,7 +86,7 @@ describe('Poll Reducer', () => {
   it('should reject votes after finalization', async () => {
     const genesis = await createEvent(adminKeys, { type: 'POLL_CREATED', payload: mockMetadata });
     const finalize = await createEvent(adminKeys, { type: 'POLL_FINALIZED', payload: { finalizedSlotId: 't1' } });
-    const lateVote = await createEvent(voterKeys, { type: 'VOTE_UPSERT', payload: { participantName: "Bob" } as any });
+    const lateVote = await createEvent(voterKeys, { type: 'VOTE_UPSERT', payload: { responseId: "r1", participantName: "Bob" } as any });
     
     const state = await calculatePollState([genesis, finalize, lateVote]);
     expect(state.isFinalized).toBe(true);
@@ -90,7 +95,7 @@ describe('Poll Reducer', () => {
 
   it('should drop events with invalid signatures', async () => {
     const genesis = await createEvent(adminKeys, { type: 'POLL_CREATED', payload: mockMetadata });
-    const invalidEvent = await createEvent(voterKeys, { type: 'VOTE_UPSERT', payload: { participantName: "Evil" } as any });
+    const invalidEvent = await createEvent(voterKeys, { type: 'VOTE_UPSERT', payload: { responseId: "r1", participantName: "Evil" } as any });
     // Tamper with the action but keep the signature
     invalidEvent.action = { ...invalidEvent.action, type: 'POLL_UPDATED' } as any;
     

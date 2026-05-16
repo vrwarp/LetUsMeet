@@ -7,14 +7,12 @@ import {
   orderBy,
   serverTimestamp,
   getDocs,
-  where,
   limit,
   writeBatch,
   getDoc
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import type { 
-  BlindPoll, 
   BlindEvent, 
   DecryptedSignedEvent, 
   PollState, 
@@ -26,7 +24,6 @@ import type {
 import { 
   generateSymmetricKey, 
   exportSymmetricKey, 
-  importSymmetricKey, 
   encrypt, 
   decrypt, 
   generateIdentityKeyPair, 
@@ -70,7 +67,7 @@ const STORE_MASTER_KEYS = "master_keys";
 async function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (event: any) => {
+    request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_IDENTITIES)) {
         db.createObjectStore(STORE_IDENTITIES);

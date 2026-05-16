@@ -20,7 +20,6 @@ test.describe('Accessibility Audits', () => {
     await page.goto('/create');
     await page.waitForTimeout(2000);
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
-    await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill(`A11y Poll ${Date.now()}`);
     await page.getByTestId('add-slot-btn').click();
 
@@ -28,13 +27,11 @@ test.describe('Accessibility Audits', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    await page.waitForURL(/\/poll\/[^/]+$/);
+    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
     await page.waitForTimeout(2000);
 
     await page.waitForSelector('h1');
     const accessibilityScanResults = await new AxeBuilder({ page }).exclude('.firebase-emulator-warning').analyze();
-    // We might have some known issues like color contrast on certain generated elements,
-    // but the goal is to be clean.
     expect(accessibilityScanResults.violations).toEqual([]);
   });
 
@@ -43,7 +40,6 @@ test.describe('Accessibility Audits', () => {
     await page.goto('/create');
     await page.waitForTimeout(2000);
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
-    await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill(`A11y Poll Results ${Date.now()}`);
     await page.getByTestId('add-slot-btn').click();
 
@@ -51,12 +47,13 @@ test.describe('Accessibility Audits', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    await page.waitForURL(/\/poll\/[^/]+$/);
+    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
     await page.waitForTimeout(2000);
     const pollUrl = page.url();
 
     // Go to results
-    await page.goto(`${pollUrl}/results`);
+    const resultsUrl = pollUrl.replace(/\/poll\/([^#]+)/, '/poll/$1/results');
+    await page.goto(resultsUrl);
     await page.waitForSelector('h1');
     const accessibilityScanResults = await new AxeBuilder({ page }).exclude('.firebase-emulator-warning').analyze();
     expect(accessibilityScanResults.violations).toEqual([]);

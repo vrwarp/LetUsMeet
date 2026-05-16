@@ -7,15 +7,13 @@ test.describe('Vote Update Flow', () => {
     await page.waitForTimeout(2000);
 
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
-    await page.getByTestId('organizer-email-input').fill('organizer@example.com');
     await page.getByTestId('poll-title-input').fill(`Update Vote Poll ${Date.now()}`);
     await page.getByTestId('add-slot-btn').click();
     const submitBtn = page.getByTestId('create-submit-btn');
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    await page.waitForURL(/\/poll\/[^/]+$/);
-    await expect(page.locator('text=Loading poll details...')).not.toBeVisible();
+    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
 
     // Initial Vote
     await page.getByTestId('slot-card').nth(0).click(); // YES
@@ -23,9 +21,9 @@ test.describe('Vote Update Flow', () => {
     await page.getByTestId('vote-submit-btn').click();
 
     // Wait for success
-    await expect(page.locator('h2', { hasText: 'Vote Cast!' })).toBeVisible();
+    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
 
-    // Click "Back to poll" (renamed from Change my vote)
+    // Click "Back to poll"
     await page.getByRole('button', { name: /Back to poll/i }).click();
 
     // The form should be visible again
@@ -37,6 +35,6 @@ test.describe('Vote Update Flow', () => {
     await page.getByTestId('vote-submit-btn').click();
 
     // Should see success again
-    await expect(page.locator('h2', { hasText: /(Vote Cast!|Vote Updated!)/ })).toBeVisible();
+    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
   });
 });

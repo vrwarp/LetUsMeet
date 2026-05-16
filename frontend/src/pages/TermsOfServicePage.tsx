@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Scale, AlertTriangle, Gavel, FileText, ArrowLeft, Key } from "lucide-react";
+import { Scale, AlertTriangle, Gavel, FileText, ArrowLeft } from "lucide-react";
 
 export default function TermsOfServicePage() {
   const lastUpdated = "May 15, 2026";

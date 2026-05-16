@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle, Clock, X, Lock, ShieldCheck } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, Clock, X, Lock } from "lucide-react";
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
@@ -8,8 +8,7 @@ import {
   loadIdentity 
 } from "@/lib/pollService";
 import { importSymmetricKey, exportPublicKey } from "@/lib/crypto";
-import { useAuth } from "@/hooks/useAuth";
-import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot, TimeSlot } from "@/types";
+import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {
   id?: string;
@@ -27,7 +26,6 @@ function generateId() {
 export default function EditPollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");

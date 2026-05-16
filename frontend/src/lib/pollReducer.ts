@@ -1,7 +1,6 @@
 import type {
   PollState,
   DecryptedSignedEvent,
-  PollMetadata,
   VoteData
 } from '../types';
 import { verifySignature } from './crypto';

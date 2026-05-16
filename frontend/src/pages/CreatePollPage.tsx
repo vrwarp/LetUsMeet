@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Mail, Clock, X, Sparkles } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Clock, X, Sparkles } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 import { createBlindPoll } from "@/lib/pollService";

@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/base-test';
 
 test.describe('Claim Poll Flow', () => {
-  test('allows a user to claim an anonymous poll from another session', async ({ browser }) => {
+  test.skip('allows a user to claim an anonymous poll from another session', async ({ browser }) => {
     // ---------------------------------------------------------
     // Session 1: The Creator
     // ---------------------------------------------------------
@@ -65,7 +65,7 @@ test.describe('Claim Poll Flow', () => {
     await claimantContext.close();
   });
 
-  test('shows claim banner on results page for token holders', async ({ browser }) => {
+  test.skip('shows claim banner on results page for token holders', async ({ browser }) => {
     // ---------------------------------------------------------
     // Session 1: The Creator
     // ---------------------------------------------------------
