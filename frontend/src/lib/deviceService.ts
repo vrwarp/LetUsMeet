@@ -97,6 +97,12 @@ let cachedAmk: CryptoKey | null = null;
 let cachedAmkId: string | null = null;
 let verificationPromise: Promise<{ amk: CryptoKey, amkId: string }> | null = null;
 
+export function clearAmkSessionCache() {
+  cachedAmk = null;
+  cachedAmkId = null;
+  verificationPromise = null;
+}
+
 export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }> {
   if (cachedAmk && cachedAmkId) return { amk: cachedAmk, amkId: cachedAmkId };
   

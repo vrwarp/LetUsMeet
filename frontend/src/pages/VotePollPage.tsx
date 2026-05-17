@@ -7,7 +7,8 @@ import {
   appendSignedEvent, 
   loadIdentity,
   saveToIndexedDB,
-  saveToKeystore
+  saveToKeystore,
+  getShareableUrl
 } from "@/lib/pollService";
 import { 
   importSymmetricKey, 
@@ -20,6 +21,7 @@ import type { PollState, VoteValue, VoteData, PollAction } from "../types";
 import TimeSlotCard from "@/components/TimeSlotCard";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
+import ClaimBanner from "@/components/ClaimBanner";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
@@ -52,7 +54,7 @@ export default function VotePollPage() {
   }, [pollState?.metadata]);
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
+    navigator.clipboard.writeText(getShareableUrl());
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 3000);
   };
@@ -415,6 +417,7 @@ export default function VotePollPage() {
             </div>
           </div>
         </div>
+        <ClaimBanner />
       </div>
 
       {userVotes.length > 0 && (

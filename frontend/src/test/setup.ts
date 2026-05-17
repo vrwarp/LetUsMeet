@@ -76,6 +76,15 @@ vi.mock('@/lib/pollService', () => {
       return () => {};
     }),
     extractKeyFromFragment: vi.fn(() => 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+    getShareableUrl: vi.fn((url = '') => {
+      try {
+        const u = new URL(url || 'http://localhost');
+        u.searchParams.delete("adminToken");
+        return u.toString();
+      } catch {
+        return url;
+      }
+    }),
     appendSignedEvent: vi.fn(() => Promise.resolve()),
     loadIdentity: vi.fn(() => Promise.resolve({
       privateKey: mockIdentityPair.privateKey,
@@ -141,6 +150,15 @@ vi.mock('../lib/pollService', () => {
       return () => {};
     }),
     extractKeyFromFragment: vi.fn(() => 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+    getShareableUrl: vi.fn((url = '') => {
+      try {
+        const u = new URL(url || 'http://localhost');
+        u.searchParams.delete("adminToken");
+        return u.toString();
+      } catch {
+        return url;
+      }
+    }),
     appendSignedEvent: vi.fn(() => Promise.resolve()),
     loadIdentity: vi.fn(() => Promise.resolve({
       privateKey: mockIdentityPair.privateKey,

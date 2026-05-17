@@ -39,6 +39,7 @@ vi.mock('@/firebase', () => ({
 vi.mock('@/lib/deviceService', () => ({
   verifyAmk: vi.fn().mockResolvedValue(true),
   getDeviceId: vi.fn().mockReturnValue('test-device-id'),
+  clearAmkSessionCache: vi.fn(),
 }));
 
 // Mock @/lib/pollService

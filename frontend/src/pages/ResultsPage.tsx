@@ -22,7 +22,8 @@ import {
   extractKeyFromFragment, 
   subscribeToLedger, 
   appendSignedEvent, 
-  loadIdentity 
+  loadIdentity,
+  getShareableUrl
 } from "@/lib/pollService";
 import { importSymmetricKey, exportPublicKey } from "@/lib/crypto";
 import { useAuth } from "../hooks/useAuth";
@@ -208,7 +209,7 @@ export default function ResultsPage() {
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
+    navigator.clipboard.writeText(getShareableUrl());
     setShowShareCopied(true);
     setTimeout(() => setShowShareCopied(false), 3000);
   };
@@ -258,7 +259,7 @@ export default function ResultsPage() {
       bodyText += `LOCATION:\n${metadata.location}\n\n`;
     }
 
-    bodyText += `You can view the full results and the availability grid here: ${window.location.href}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
+    bodyText += `You can view the full results and the availability grid here: ${getShareableUrl()}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
 
     const mailtoUrl = `mailto:?bcc=${encodeURIComponent(toString)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
     window.location.href = mailtoUrl;

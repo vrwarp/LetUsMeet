@@ -35,6 +35,11 @@ export async function loadMasterKeyFromIndexedDB(uid: string): Promise<CryptoKey
 let prfPromise: Promise<{ masterKey: CryptoKey, usedCredentialId: string }> | null = null;
 let globalPrfLock: Promise<any> = Promise.resolve();
 
+export function clearPrfSessionCache() {
+  prfPromise = null;
+  globalPrfLock = Promise.resolve();
+}
+
 export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ masterKey: CryptoKey, usedCredentialId: string }> {
   // If we already have a successful derivation in this session, return it immediately
   if (prfPromise) return prfPromise;

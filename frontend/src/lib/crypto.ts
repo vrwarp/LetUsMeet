@@ -196,7 +196,9 @@ export function canonicalStringify(obj: any): string {
   if (Array.isArray(obj)) {
     return '[' + obj.map(item => canonicalStringify(item)).join(',') + ']';
   }
-  const keys = Object.keys(obj).sort();
+  const keys = Object.keys(obj)
+    .filter(key => obj[key] !== undefined)
+    .sort();
   return '{' + keys.map(key => `"${key}":${canonicalStringify(obj[key])}`).join(',') + '}';
 }
 

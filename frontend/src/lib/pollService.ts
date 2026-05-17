@@ -35,8 +35,10 @@ import {
 import { calculatePollState } from "./pollReducer";
 import { 
   saveToKeystore, 
-  loadFromKeystore
+  loadFromKeystore,
+  clearAmkSessionCache
 } from "./deviceService";
+import { clearPrfSessionCache } from "./prfService";
 export { 
   saveToKeystore, 
   loadFromKeystore,
@@ -69,6 +71,16 @@ export function extractKeyFromFragment(): string | null {
 
 export function setKeyInFragment(key: string) {
   window.location.hash = `key=${key}`;
+}
+
+export function getShareableUrl(urlStr: string = window.location.href): string {
+  try {
+    const url = new URL(urlStr);
+    url.searchParams.delete("adminToken");
+    return url.toString();
+  } catch (e) {
+    return urlStr;
+  }
 }
 
 // openDB is now imported from idb.ts
@@ -114,6 +126,10 @@ export async function resetKeystore() {
   tx.objectStore(STORE_IDENTITIES).clear();
   tx.objectStore(STORE_MASTER_KEYS).clear();
   tx.objectStore(STORE_DEVICE_KEYS).clear();
+
+  // Also clear session caches
+  clearAmkSessionCache();
+  clearPrfSessionCache();
 }
 
 // === LEDGER SERVICE ===

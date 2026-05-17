@@ -4,8 +4,8 @@ import type { User } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
-import { derivePrfMasterKey } from "@/lib/prfService";
-import { verifyAmk, getDeviceId, registerCurrentDevice } from "@/lib/deviceService";
+import { derivePrfMasterKey, clearPrfSessionCache } from "@/lib/prfService";
+import { verifyAmk, getDeviceId, registerCurrentDevice, clearAmkSessionCache } from "@/lib/deviceService";
 import { resetKeystore } from "@/lib/pollService";
 import { recoverAmkWithPhrase } from "@/lib/recoveryService";
 import type { PendingDevice } from "@/types";
@@ -21,6 +21,10 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      // Clear session caches on any auth state change to prevent cross-session leakage
+      clearAmkSessionCache();
+      clearPrfSessionCache();
+
       if (currentUser) {
         if (currentUser && !currentUser.isAnonymous) {
           verifyAmk().then((isMatch) => {

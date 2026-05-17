@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { Outlet, Link, useLocation, useSearchParams } from "react-router-dom";
-import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Key, Loader2, Monitor, Sparkles } from "lucide-react";
+import { Outlet, Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Key, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import ScrollToTop from "./ScrollToTop";
@@ -9,21 +9,11 @@ import {
   getDeviceId, 
   getLocalPublicKey, 
   requestDeviceAuthorization, 
-  approveDeviceAuthorization, 
-  saveToKeystore 
+  approveDeviceAuthorization
 } from "@/lib/deviceService";
 import { 
-  generateVerificationCode, 
-  exportPrivateKey, 
-  exportPublicKey, 
-  importSymmetricKey 
+  generateVerificationCode
 } from "@/lib/crypto";
-import { 
-  loadIdentity, 
-  extractKeyFromFragment, 
-  loadIdentityFromToken, 
-  saveToIndexedDB 
-} from "@/lib/pollService";
 import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import type { PendingDevice } from "@/types";
 
@@ -36,6 +26,9 @@ function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
 }
 
 export default function Layout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showPhraseInput, setShowPhraseInput] = useState(false);
   const [mnemonicInput, setMnemonicInput] = useState("");
   const [isRecovering, setIsRecovering] = useState(false);
@@ -44,6 +37,25 @@ export default function Layout() {
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isClaimed, setIsClaimed] = useState(false);
+  const [activeAdminToken, setActiveAdminToken] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    const token = searchParams.get("adminToken");
+    if (token) {
+      setActiveAdminToken(token);
+      
+      const cleanParams = new URLSearchParams(searchParams);
+      cleanParams.delete("adminToken");
+      const searchString = cleanParams.toString();
+      
+      navigate({
+        pathname: location.pathname,
+        search: searchString ? `?${searchString}` : "",
+        hash: location.hash
+      }, { replace: true });
+    }
+  }, [searchParams, location.pathname, location.hash, navigate]);
 
   useEffect(() => {
     if (!isWaitingForAuth || !user || !keyMismatchError) return;
@@ -99,8 +111,6 @@ export default function Layout() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   // Close menu on navigation
   useEffect(() => {
@@ -302,99 +312,10 @@ export default function Layout() {
           </div>
         )}
 
-        {(() => {
-          const adminToken = searchParams.get("adminToken");
-          if (!adminToken || isClaimed) return null;
-          const pollIdMatch = location.pathname.match(/\/poll\/([^/]+)/);
-          const pollId = pollIdMatch ? pollIdMatch[1] : null;
-          
-          if (!adminToken || !pollId) return null;
-          
-          return (
-            <div className="max-w-5xl mx-auto px-4 mt-6 animate-fade-in-up" data-testid="claim-banner">
-              <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-brand-green text-white rounded-2xl flex items-center justify-center shadow-lg shadow-brand-green/20">
-                    <Sparkles size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-neutral-900">Claim this Poll</h3>
-                    <p className="text-sm text-neutral-600">You have the administrative link. Add this poll to your dashboard to manage it from any device.</p>
-                  </div>
-                </div>
-                <button
-                  data-testid="claim-button"
-                  onClick={async () => {
-                    try {
-                      console.log("CLAIM DEBUG: Claim button clicked");
-                      if (!user || user.isAnonymous) {
-                        console.log("CLAIM DEBUG: User not signed in, redirecting to sign in...");
-                        await signInWithGoogle();
-                        return;
-                      }
-                      
-                      console.log("CLAIM DEBUG: pollId:", pollId, "adminToken:", adminToken);
-                      if (!pollId) {
-                        console.error("CLAIM DEBUG: No pollId found in path");
-                        return;
-                      }
-
-                      let id = await loadIdentity(pollId);
-                      const symKeyString = extractKeyFromFragment();
-                      console.log("CLAIM DEBUG: initial id:", id, "symKeyString present:", !!symKeyString);
-                      
-                      if (!id && symKeyString) {
-                         const symKey = await importSymmetricKey(symKeyString);
-                         console.log("CLAIM DEBUG: attempting loadIdentityFromToken...");
-                         id = await loadIdentityFromToken(pollId, adminToken, symKey);
-                         console.log("CLAIM DEBUG: loadIdentityFromToken result:", id);
-                      }
-
-                      if (id && symKeyString) {
-                        const priv = await exportPrivateKey(id.privateKey);
-                        const pub = await exportPublicKey(id.publicKey);
-                        console.log("CLAIM DEBUG: saving to keystore...");
-                        try {
-                          await saveToKeystore(pollId, {
-                            symmetricPollKey: symKeyString,
-                            ecdsaPrivateKey: priv,
-                            ecdsaPublicKey: pub
-                          });
-                        } catch (e) {
-                          console.warn("CLAIM DEBUG: saveToKeystore failed, falling back to IndexedDB:", e);
-                          await saveToIndexedDB(pollId, { 
-                            privateKey: priv, 
-                            publicKey: pub 
-                          });
-                        }
-                        
-                        console.log("CLAIM DEBUG: claim successful, updating state and URL");
-                        setIsClaimed(true);
-                        setSearchParams(prev => {
-                          const next = new URLSearchParams(prev);
-                          next.delete("adminToken");
-                          return next;
-                        }, { replace: true });
-                      } else {
-                        console.error("CLAIM DEBUG: Failed to recover identity or symKey missing. id:", id, "symKeyString:", !!symKeyString);
-                      }
-                    } catch (error) {
-                      console.error("CLAIM DEBUG: Error during claim process:", error);
-                    }
-                  }}
-                  className="bg-brand-green text-white px-8 py-3 rounded-2xl font-bold hover:bg-brand-green-dark transition-all shadow-md active:scale-95 whitespace-nowrap"
-                >
-                  Add to My Dashboard
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-        
-        <Outlet />
+        <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
       </main>
 
-      {keyMismatchError && !searchParams.get("adminToken") && (
+      {keyMismatchError && !activeAdminToken && (
         <div data-testid="mismatch-error" className="fixed inset-0 z-[200] bg-brand-charcoal/98 backdrop-blur-xl flex items-center justify-center p-6 text-white text-center">
           {!showPhraseInput ? (
             <div className="max-w-md w-full animate-fade-in-up">
