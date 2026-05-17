@@ -7,7 +7,7 @@ import {
   unwrapAmk
 } from './crypto';
 import { db, auth } from '../firebase';
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, runTransaction, getDoc } from 'firebase/firestore';
 import { getActiveAmk } from './deviceService';
 import type { AccountKeysDocument } from '@/types';
 
@@ -111,7 +111,7 @@ export async function recoverAmkWithPhrase(mnemonic: string): Promise<{ amk: Cry
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
 
   const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
-  const snap = await (await import('firebase/firestore')).getDoc(accountKeysRef);
+  const snap = await getDoc(accountKeysRef);
   if (!snap.exists()) throw new Error("Account keys not found.");
   
   const data = snap.data() as AccountKeysDocument;

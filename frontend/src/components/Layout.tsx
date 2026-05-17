@@ -5,8 +5,25 @@ import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import ScrollToTop from "./ScrollToTop";
 import { db } from "@/firebase";
-import { getDeviceId, getLocalPublicKey } from "@/lib/deviceService";
-import { generateVerificationCode } from "@/lib/crypto";
+import { 
+  getDeviceId, 
+  getLocalPublicKey, 
+  requestDeviceAuthorization, 
+  approveDeviceAuthorization, 
+  saveToKeystore 
+} from "@/lib/deviceService";
+import { 
+  generateVerificationCode, 
+  exportPrivateKey, 
+  exportPublicKey, 
+  importSymmetricKey 
+} from "@/lib/crypto";
+import { 
+  loadIdentity, 
+  extractKeyFromFragment, 
+  loadIdentityFromToken, 
+  saveToIndexedDB 
+} from "@/lib/pollService";
 import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import type { PendingDevice } from "@/types";
 
@@ -42,7 +59,6 @@ export default function Layout() {
   }, [isWaitingForAuth, user, keyMismatchError]);
 
   const handleRequestAuth = async () => {
-    const { requestDeviceAuthorization } = await import("@/lib/deviceService");
     try {
       setIsRecovering(true);
       await requestDeviceAuthorization();
@@ -62,7 +78,6 @@ export default function Layout() {
   };
 
   const handleApprove = async (req: PendingDevice) => {
-    const { approveDeviceAuthorization } = await import("@/lib/deviceService");
     try {
       setApprovingId(req.deviceId);
       await approveDeviceAuthorization(req);
@@ -318,10 +333,6 @@ export default function Layout() {
                         return;
                       }
                       
-                      const { exportPrivateKey, exportPublicKey } = await import("@/lib/crypto");
-                      const { loadIdentity, extractKeyFromFragment } = await import("@/lib/pollService");
-                      const { saveToKeystore } = await import("@/lib/deviceService");
-                      
                       console.log("CLAIM DEBUG: pollId:", pollId, "adminToken:", adminToken);
                       if (!pollId) {
                         console.error("CLAIM DEBUG: No pollId found in path");
@@ -333,8 +344,6 @@ export default function Layout() {
                       console.log("CLAIM DEBUG: initial id:", id, "symKeyString present:", !!symKeyString);
                       
                       if (!id && symKeyString) {
-                         const { importSymmetricKey } = await import("@/lib/crypto");
-                         const { loadIdentityFromToken } = await import("@/lib/pollService");
                          const symKey = await importSymmetricKey(symKeyString);
                          console.log("CLAIM DEBUG: attempting loadIdentityFromToken...");
                          id = await loadIdentityFromToken(pollId, adminToken, symKey);
@@ -353,7 +362,6 @@ export default function Layout() {
                           });
                         } catch (e) {
                           console.warn("CLAIM DEBUG: saveToKeystore failed, falling back to IndexedDB:", e);
-                          const { saveToIndexedDB } = await import("@/lib/pollService");
                           await saveToIndexedDB(pollId, { 
                             privateKey: priv, 
                             publicKey: pub 

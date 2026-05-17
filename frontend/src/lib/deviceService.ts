@@ -17,7 +17,7 @@ import {
   encrypt,
   decrypt
 } from "./crypto";
-import { derivePrfMasterKey } from "./prfService";
+import { derivePrfMasterKey, loadMasterKeyFromIndexedDB } from "./prfService";
 import type {
   AccountKeysDocument,
   DevicePublicKey,
@@ -225,7 +225,6 @@ async function opportunisticallyEnableRecovery() {
   // If the current device has a PRF key but it hasn't been used to seal the current AMK,
   // we do it automatically in the background.
   if (!isCurrentPrfSealed) {
-    const { loadMasterKeyFromIndexedDB } = await import("./prfService");
     const cachedPrfKey = await loadMasterKeyFromIndexedDB(user.uid);
     if (cachedPrfKey) {
       console.log("Current PRF key is available but not sealed for this AMK. Re-enabling...");
@@ -258,7 +257,6 @@ export async function getRecoveryStatus(): Promise<{
   const methods = activeMethodIds.map(id => data.recoveryMethods[id].label);
 
   // Check if current PRF key is sealed
-  const { loadMasterKeyFromIndexedDB } = await import("./prfService");
   const cachedPrfKey = await loadMasterKeyFromIndexedDB(user.uid);
   let isCurrentPrfSealed = false;
   if (cachedPrfKey) {

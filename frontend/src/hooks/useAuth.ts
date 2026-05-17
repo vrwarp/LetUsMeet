@@ -5,8 +5,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
 import { derivePrfMasterKey } from "@/lib/prfService";
-import { verifyAmk, getDeviceId } from "@/lib/deviceService";
+import { verifyAmk, getDeviceId, registerCurrentDevice } from "@/lib/deviceService";
 import { resetKeystore } from "@/lib/pollService";
+import { recoverAmkWithPhrase } from "@/lib/recoveryService";
 import type { PendingDevice } from "@/types";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 
@@ -135,9 +136,6 @@ export function useAuth() {
   };
 
   const recoverWithPhrase = async (mnemonic: string) => {
-    const { recoverAmkWithPhrase } = await import("@/lib/recoveryService");
-    const { registerCurrentDevice } = await import("@/lib/deviceService");
-
     const { amk, amkId } = await recoverAmkWithPhrase(mnemonic);
     await registerCurrentDevice(amk, amkId);
     setKeyMismatchError(null);

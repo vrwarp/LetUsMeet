@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { subscribeToUserKeystore, loadFromKeystore, getGenesisEvent } from "@/lib/pollService";
-import { getRecoveryStatus, enablePrfRecovery, getDeviceId } from "@/lib/deviceService";
+import { getRecoveryStatus, enablePrfRecovery, getDeviceId, approveDeviceAuthorization, revokeDevice } from "@/lib/deviceService";
 import { setupPhraseRecovery } from "@/lib/recoveryService";
 import { importSymmetricKey } from "@/lib/crypto";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,7 +35,6 @@ export default function DashboardPage() {
 
 
   const handleApprove = async (req: PendingDevice) => {
-    const { approveDeviceAuthorization } = await import("@/lib/deviceService");
     try {
       setApprovingId(req.deviceId);
       await approveDeviceAuthorization(req);
@@ -143,7 +142,6 @@ export default function DashboardPage() {
 
   const handleRevoke = async (deviceId: string) => {
     if (!confirm("Are you sure you want to revoke this device? It will lose access to all your polls immediately.")) return;
-    const { revokeDevice } = await import("@/lib/deviceService");
     try {
       await revokeDevice(deviceId);
       setShowRotationSuccess(true);
