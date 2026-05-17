@@ -35,7 +35,7 @@ test.describe('Accessibility Audits', () => {
     expect(accessibilityScanResults.violations).toEqual([]);
   });
 
-  test.skip('Results page should not have any automatically detectable accessibility issues', async ({ page }) => {
+  test('Results page should not have any automatically detectable accessibility issues', async ({ page }) => {
     // Navigate to create and create one quickly
     await page.goto('/create');
     await page.waitForTimeout(2000);
@@ -54,6 +54,7 @@ test.describe('Accessibility Audits', () => {
     // Go to results
     const resultsUrl = pollUrl.replace(/\/poll\/([^#]+)/, '/poll/$1/results');
     await page.goto(resultsUrl);
+    await page.waitForTimeout(2000);
     await page.waitForSelector('h1');
     const accessibilityScanResults = await new AxeBuilder({ page }).exclude('.firebase-emulator-warning').analyze();
     expect(accessibilityScanResults.violations).toEqual([]);
