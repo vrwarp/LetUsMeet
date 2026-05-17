@@ -18,7 +18,7 @@ test.describe('Vote Editing and Multiple Responses', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     const pollUrl = page.url();
 
     // 2. Initial Vote

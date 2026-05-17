@@ -13,7 +13,7 @@ test.describe('Vote Update Flow', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
 
     // Initial Vote
     await page.getByTestId('slot-card').nth(0).click(); // YES

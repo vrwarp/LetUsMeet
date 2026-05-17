@@ -274,7 +274,7 @@ export default function DashboardPage() {
 
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-neutral-900 tracking-tight">Your Polls</h1>
+          <h1 data-testid="dashboard-title" className="text-4xl font-black text-neutral-900 tracking-tight">Your Polls</h1>
           <p className="text-neutral-500 font-medium">Manage and finalize your created polls</p>
         </div>
 

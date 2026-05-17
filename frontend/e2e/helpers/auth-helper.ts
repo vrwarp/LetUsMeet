@@ -6,18 +6,18 @@ import { Page, expect } from '@playwright/test';
  */
 export async function mockGoogleSignIn(page: Page, email: string) {
   console.log(`[mockGoogleSignIn] Starting for ${email}`);
-  
+
   const signInBtn = page.getByTestId('google-signin-btn');
   await expect(signInBtn).toBeVisible({ timeout: 15000 });
-  
+
   const [popup] = await Promise.all([
     page.waitForEvent('popup', { timeout: 30000 }),
     signInBtn.click(),
   ]);
-  
+
   console.log(`[mockGoogleSignIn] Popup opened: ${popup.url()}`);
-  await popup.waitForLoadState('networkidle').catch(() => {});
-  
+  await popup.waitForLoadState('networkidle').catch(() => { });
+
   // 1. Race to click "Add Account" or an existing account in a list
   const initialAction = popup.locator('#add-account-button, ul div, button:has-text("Add account")').first();
   if (await initialAction.isVisible({ timeout: 5000 })) {
@@ -49,22 +49,22 @@ export async function mockGoogleSignIn(page: Page, email: string) {
     console.log(`[mockGoogleSignIn] Sign-in button missing. Clicking autogen as fallback.`);
     await autogenBtn.click();
   }
-  
+
   console.log(`[mockGoogleSignIn] Waiting for popup to close...`);
   await popup.waitForEvent('close', { timeout: 30000 }).catch(async () => {
     console.log(`[mockGoogleSignIn] Popup didn't close automatically.`);
     await page.waitForTimeout(3000);
     const loggedIn = await page.getByTestId('user-profile-btn').isVisible();
     if (loggedIn) {
-        console.log(`[mockGoogleSignIn] Main page is logged in. Closing popup.`);
-        await popup.close().catch(() => {});
+      console.log(`[mockGoogleSignIn] Main page is logged in. Closing popup.`);
+      await popup.close().catch(() => { });
     } else {
-        console.log(`[mockGoogleSignIn] Not logged in on main page. URL: ${popup.url()}`);
-        await popup.close().catch(() => {});
-        throw new Error("Login failed: User profile button not found.");
+      console.log(`[mockGoogleSignIn] Not logged in on main page. URL: ${popup.url()}`);
+      await popup.close().catch(() => { });
+      throw new Error("Login failed: User profile button not found.");
     }
   });
-  
+
   await expect(page.getByTestId('user-profile-btn')).toBeVisible({ timeout: 30000 });
   console.log(`[mockGoogleSignIn] Login successful for ${email}`);
 }

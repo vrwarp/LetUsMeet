@@ -29,13 +29,18 @@ export function useAuth() {
             } else {
               console.log(`[Auth] AMK verified successfully for ${currentUser.uid}.`);
             }
+            setUser(currentUser);
+            setLoading(false);
           }).catch((e) => {
             console.error("AMK verification failed on auth state change", e);
             setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
+            setUser(currentUser);
+            setLoading(false);
           });
+        } else {
+          setUser(currentUser);
+          setLoading(false);
         }
-        setUser(currentUser);
-        setLoading(false);
         isSigningIn = false;
       } else {
         if (isSigningIn) return;

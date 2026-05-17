@@ -5,7 +5,7 @@ import { mockGoogleSignIn } from './helpers/auth-helper';
 
 async function waitForDashboardReady(page: Page) {
   await expect(page.getByText('Decrypting your dashboard...')).not.toBeVisible({ timeout: 30000 });
-  await expect(page.locator('h2', { hasText: /No polls/i })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('dashboard-title')).toBeVisible({ timeout: 15000 });
 }
 
 function setupConsoleLogs(page: Page, label: string) {
@@ -118,7 +118,7 @@ test.describe('Device Management & Recovery', () => {
 
     const deviceItem = sponsorPage.getByTestId('device-item').filter({ hasNotText: '(Current)' });
     await expect(deviceItem).toBeVisible({ timeout: 15000 });
-    
+
     // Set up dialog handler BEFORE clicking
     sponsorPage.once('dialog', dialog => dialog.accept());
     await deviceItem.getByTestId('revoke-device-btn').click();

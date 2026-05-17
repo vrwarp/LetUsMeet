@@ -181,6 +181,10 @@ export async function getAmkById(targetAmkId: string): Promise<CryptoKey> {
   const user = auth.currentUser;
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
 
+  // Ensure the active AMK session is initialized. 
+  // This triggers silent recovery and device registration if needed.
+  await getActiveAmk();
+
   const deviceId = getDeviceId();
   const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
   const snap = await getDoc(accountKeysRef);

@@ -28,7 +28,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
     await page.getByTestId('create-submit-btn').click();
 
     // Wait for navigation to the poll page
-    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     const pollUrl = page.url();
     expect(pollUrl).toContain('#key=');
 
@@ -52,7 +52,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
 
     // Poll Success -> Results
     await page.getByTestId('view-results-link').click();
-    await page.waitForURL(/\/poll\/[^/?#]+\/results#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
 
     // Check results table
     await expect(page.getByTestId('results-matrix')).toBeVisible();

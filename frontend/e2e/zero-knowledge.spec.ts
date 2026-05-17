@@ -1,12 +1,33 @@
 import { test, expect } from './helpers/base-test';
 import { mockGoogleSignIn } from './helpers/auth-helper';
 import { setupWebAuthn } from './helpers/webauthn-helper';
+import { BrowserContext, Page } from '@playwright/test';
 
 test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
+  let sponsorContext: BrowserContext;
+  let newDeviceContext: BrowserContext;
+  let otherDeviceContext: BrowserContext;
 
-  test('Flow A: Initial Setup (The Genesis Device)', async ({ page, context }) => {
+  test.beforeEach(async ({ browser }, testInfo) => {
+    sponsorContext = await browser.newContext();
+    newDeviceContext = await browser.newContext();
+    otherDeviceContext = await browser.newContext();
+
+    await setupWebAuthn(sponsorContext, testInfo);
+    await setupWebAuthn(newDeviceContext, testInfo);
+    await setupWebAuthn(otherDeviceContext, testInfo);
+  });
+
+  test.afterEach(async () => {
+    await sponsorContext.close();
+    await newDeviceContext.close();
+    await otherDeviceContext.close();
+  });
+
+  test('Flow A: Initial Setup (The Genesis Device)', async ({ }) => {
+    const page = await sponsorContext.newPage();
     await page.goto('/');
-    
+
     // 1. Sign in as a new user
     const email = `genesis-${Date.now()}@example.com`;
     await mockGoogleSignIn(page, email);
@@ -17,58 +38,56 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await page.getByTestId('dashboard-link').click();
     await expect(page.getByTestId('recovery-status')).toContainText('Active');
     await expect(page.getByTestId('device-list')).toContainText('Current');
-    
+
     // 3. Create a poll to verify AMK is working (keystore write)
     await page.goto('/create');
     await page.getByTestId('organizer-name-input').fill('Genesis User');
     await page.getByTestId('poll-title-input').fill('Genesis Poll');
     await page.getByTestId('add-slot-btn').click();
     await page.getByTestId('create-submit-btn').click();
-    
+
     await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     await expect(page.getByTestId('poll-title')).toContainText('Genesis Poll');
-    
+
     // Verify we can see the results (keystore read)
     await page.getByTestId('view-results-link').click();
     await expect(page.getByTestId('results-empty-state')).toBeVisible();
   });
 
-  test('Flow B: Authorizing a New Device', async ({ browser, context: sponsorContext }) => {
+  test('Flow B: Authorizing a New Device', async ({ }) => {
     // 1. Setup Sponsor Device
     const sponsorPage = await sponsorContext.newPage();
     await sponsorPage.goto('/');
     const email = `multidevice-${Date.now()}@example.com`;
     await mockGoogleSignIn(sponsorPage, email);
-    
+
     // 2. Setup New Device
-    const newDeviceContext = await browser.newContext();
-    await setupWebAuthn(newDeviceContext, test.info());
     const newDevicePage = await newDeviceContext.newPage();
     await newDevicePage.goto('/');
-    
+
     // Sign in with SAME email
     await mockGoogleSignIn(newDevicePage, email);
-    
+
     // 3. New Device should see "Unrecognized Device" UI
     await expect(newDevicePage.getByTestId('mismatch-error')).toBeVisible();
     await expect(newDevicePage.getByTestId('request-auth-btn')).toBeVisible();
-    
+
     // 4. New Device requests authorization
     await newDevicePage.getByTestId('request-auth-btn').click();
     await expect(newDevicePage.getByTestId('auth-pending-msg')).toBeVisible();
-    
+
     // 5. Sponsor Device sees the request
     await sponsorPage.goto('/dashboard'); // Assuming dashboard shows requests
     const authRequest = sponsorPage.getByTestId('pending-auth-request').first();
     await expect(authRequest).toBeVisible();
-    
+
     // 6. Sponsor Device approves
     await authRequest.getByTestId('approve-auth-btn').click();
-    
+
     // 7. New Device should automatically detect authorization and reload
     await expect(newDevicePage.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 30000 });
     await expect(newDevicePage.getByTestId('user-profile-btn')).toBeVisible();
-    
+
     // 8. New Device verifies it can access existing data
     // (Create a poll on sponsor, read on new device)
     await sponsorPage.goto('/create');
@@ -78,40 +97,36 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.getByTestId('create-submit-btn').click();
     await sponsorPage.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     const pollUrl = sponsorPage.url();
-    
+
     await newDevicePage.goto(pollUrl);
     await expect(newDevicePage.getByTestId('poll-title')).toContainText('Shared Poll');
-    
-    await newDeviceContext.close();
   });
 
-  test('Flow C: Device Revocation & Data Migration', async ({ browser, context: sponsorContext }) => {
+  test('Flow C: Device Revocation & Data Migration', async ({ }) => {
     // 1. Setup two authorized devices
     const sponsorPage = await sponsorContext.newPage();
     await sponsorPage.goto('/');
     const email = `revocation-${Date.now()}@example.com`;
     await mockGoogleSignIn(sponsorPage, email);
-    
-    const otherDeviceContext = await browser.newContext();
-    await setupWebAuthn(otherDeviceContext, test.info());
+
     const otherDevicePage = await otherDeviceContext.newPage();
     await otherDevicePage.goto('/');
     // Set unique name for other device
     await otherDevicePage.evaluate(() => localStorage.setItem('deviceName', 'Other Device'));
     await mockGoogleSignIn(otherDevicePage, email);
-    
+
     // (Authorization dance)
     await otherDevicePage.getByTestId('request-auth-btn').click();
     await sponsorPage.goto('/dashboard');
     // Set unique name for sponsor device
     await sponsorPage.evaluate(() => localStorage.setItem('deviceName', 'Sponsor Device'));
     await sponsorPage.getByTestId('approve-auth-btn').click();
-    
+
     // Wait for approval to propagate to both pages
     await expect(otherDevicePage.getByTestId('user-profile-btn')).toBeVisible();
     await expect(sponsorPage.getByTestId('device-item')).toHaveCount(2);
     await expect(sponsorPage.getByTestId('pending-auth-request')).not.toBeVisible();
-    
+
     // 2. Create data before revocation
     await sponsorPage.goto('/create');
     await sponsorPage.getByTestId('organizer-name-input').fill('Sponsor');
@@ -120,27 +135,25 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.getByTestId('create-submit-btn').click();
     await sponsorPage.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     const oldPollUrl = sponsorPage.url();
-    
+
     // 3. Sponsor revokes the other device
     await sponsorPage.goto('/dashboard');
     const otherDeviceRow = sponsorPage.getByTestId('device-item').filter({ hasNotText: 'Current' });
-    
+
     // Confirm revocation (MUST be registered before the click)
     sponsorPage.once('dialog', dialog => dialog.accept());
     await otherDeviceRow.getByTestId('revoke-device-btn').click();
-    
+
     // 4. Verify AMK rotation (should be transparent to sponsor)
     await expect(sponsorPage.getByTestId('rotation-success-toast')).toBeVisible();
-    
+
     // 5. Verify sponsor can still access old data (migration check)
     await sponsorPage.goto(oldPollUrl);
     await expect(sponsorPage.getByTestId('poll-title')).toContainText('Old AMK Poll');
-    
+
     // 6. Verify other device is now locked out
     await otherDevicePage.reload();
     await expect(otherDevicePage.getByTestId('mismatch-error')).toBeVisible();
-    
-    await otherDeviceContext.close();
   });
 
 });

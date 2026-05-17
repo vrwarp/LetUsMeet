@@ -38,7 +38,7 @@ test.describe('Error & Edge Cases', () => {
     await expect(createBtn).toBeEnabled();
     await createBtn.click();
 
-    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
 
     // Ensure we are on the vote page
     const submitBtn = page.getByTestId('vote-submit-btn');

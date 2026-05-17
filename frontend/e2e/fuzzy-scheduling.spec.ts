@@ -29,7 +29,7 @@ test.describe('Fuzzy Scheduling', () => {
     await page.getByTestId('create-submit-btn').click();
     
     // Wait for navigation to poll page
-    await page.waitForURL(/\/poll\/[^/]+#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
     await expect(page.getByTestId('poll-title')).toHaveText(pollTitle);
     
     // 2. Vote on the poll
@@ -55,7 +55,7 @@ test.describe('Fuzzy Scheduling', () => {
     
     // 3. View Results
     await page.getByTestId('view-results-link').click();
-    await page.waitForURL(/\/poll\/[^/]+\/results#key=.+/);
+    await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
     
     // Check matrix for the vote
     const matrix = page.getByTestId('results-matrix');
