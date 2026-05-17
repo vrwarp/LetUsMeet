@@ -124,7 +124,7 @@ export default function ClaimBanner() {
           <Sparkles size={18} />
         </div>
         <div>
-          <h4 className="font-bold text-neutral-900 text-sm">Poll Administrative Link</h4>
+          <h2 className="font-bold text-neutral-900 text-sm">Poll Administrative Link</h2>
           <p className="text-xs text-neutral-600 leading-relaxed mt-1">
             You have the administrative token for this poll. Please choose one of the options on the right to secure your access.
           </p>

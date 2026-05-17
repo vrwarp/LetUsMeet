@@ -34,7 +34,8 @@ test.describe('Navigation Flows', () => {
 
     // Results -> Poll
     await page.getByRole('link', { name: /Back to Poll/i }).click();
-    await page.waitForURL(pollUrl);
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
+    await expect(page.getByTestId('poll-title')).toContainText('Nav Test Poll');
   });
 
   test('Direct URL access to /create works without going through home (G8)', async ({ page }) => {
