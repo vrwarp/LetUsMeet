@@ -1,8 +1,8 @@
-import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {defineJsonSecret} from "firebase-functions/params";
-import {GoogleGenAI, ThinkingLevel} from "@google/genai";
-import {getTimeSlotsPrompt} from "./prompts/timeSlots";
-import {getFuzzySlotsPrompt} from "./prompts/fuzzySlots";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineJsonSecret } from "firebase-functions/params";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { getTimeSlotsPrompt } from "./prompts/timeSlots";
+import { getFuzzySlotsPrompt } from "./prompts/fuzzySlots";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
@@ -17,7 +17,7 @@ const appConfig = defineJsonSecret("LETUSMEET_CONFIG");
  * Natural language time-slot extraction using Google Gemma.
  */
 export const extractTimeSlots = onCall(
-  {secrets: [appConfig]},
+  { secrets: [appConfig] },
   async (request) => {
     const userQuery = request.data.query;
     if (!userQuery) {
@@ -27,7 +27,7 @@ export const extractTimeSlots = onCall(
     const ai = new GoogleGenAI({ apiKey: appConfig.value().geminiApiKey });
     const now = new Date();
     const currentDate = now.toISOString().split("T")[0];
-    const dayOfWeek = now.toLocaleDateString("en-US", {weekday: "long"});
+    const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
 
     const config = {
       thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
@@ -56,7 +56,7 @@ export const extractTimeSlots = onCall(
  * Natural language fuzzy-slot extraction using Google Gemma.
  */
 export const extractFuzzySlots = onCall(
-  {secrets: [appConfig]},
+  { secrets: [appConfig] },
   async (request) => {
     const userQuery = request.data.query;
     if (!userQuery) {
@@ -66,7 +66,7 @@ export const extractFuzzySlots = onCall(
     const ai = new GoogleGenAI({ apiKey: appConfig.value().geminiApiKey });
     const now = new Date();
     const currentDate = now.toISOString().split("T")[0];
-    const dayOfWeek = now.toLocaleDateString("en-US", {weekday: "long"});
+    const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
 
     const config = {
       thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },

@@ -1,4 +1,4 @@
-/* eslint-disable max-len */
+ 
 export const getFuzzySlotsPrompt = (currentDate: string, dayOfWeek: string) => `You are an expert AI scheduling assistant for a scheduling application. Your task is to parse a user's natural language availability and convert it into structured JSON for flexible 'fuzzy' scheduling blocks.
 
 RULES:

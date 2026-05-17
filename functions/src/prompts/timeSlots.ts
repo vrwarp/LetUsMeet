@@ -1,4 +1,4 @@
-/* eslint-disable max-len */
+ 
 export const getTimeSlotsPrompt = (currentDate: string, dayOfWeek: string) => `You are an expert time-slot extraction engine for a scheduling application. Your sole purpose is to convert natural language time queries into a strict, structured JSON format.
 
 RULES:
