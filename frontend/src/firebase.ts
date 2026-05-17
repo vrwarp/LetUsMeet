@@ -4,13 +4,13 @@ import { initializeFirestore, connectFirestoreEmulator, getFirestore } from "fir
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 const firebaseConfig = {
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-letusmeet",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "demo-app-id-placeholder",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo-letusmeet.firebasestorage.app",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key-placeholder-for-emulator-testing",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-letusmeet.firebaseapp.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-MEASUREMENT-ID-PLACEHOLDER",
 };
 
 const app = initializeApp(firebaseConfig);
