@@ -97,29 +97,53 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       <div className="mt-4 flex items-center justify-center gap-3 w-full bg-neutral-50/50 rounded-xl py-2.5 px-4 border border-neutral-100 shadow-inner">
         <div className="flex items-center gap-4">
           {/* NO Icon State */}
-          <div className={`transition-all duration-300 ${
-            value === 'NO' 
-              ? 'text-neutral-700 scale-110' 
-              : 'text-neutral-200'
-          }`}>
+          <div 
+            onClick={(e) => {
+              if (disabled) return;
+              e.stopPropagation();
+              onChange('NO');
+            }}
+            data-testid="icon-NO"
+            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
+              value === 'NO' 
+                ? 'text-neutral-700 scale-110' 
+                : 'text-neutral-200 hover:text-neutral-500 hover:scale-110'
+            }`}
+          >
             <X size={18} strokeWidth={4} aria-hidden="true" />
           </div>
 
           {/* YES Icon State */}
-          <div className={`transition-all duration-300 ${
-            value === 'YES' 
-              ? 'text-brand-green scale-110' 
-              : 'text-neutral-200'
-          }`}>
+          <div 
+            onClick={(e) => {
+              if (disabled) return;
+              e.stopPropagation();
+              onChange('YES');
+            }}
+            data-testid="icon-YES"
+            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
+              value === 'YES' 
+                ? 'text-brand-green scale-110' 
+                : 'text-neutral-200 hover:text-brand-green hover:scale-110'
+            }`}
+          >
             <Check size={18} strokeWidth={4} aria-hidden="true" />
           </div>
 
           {/* IF_NEED_BE Icon State */}
-          <div className={`transition-all duration-300 ${
-            value === 'IF_NEED_BE'
-              ? 'text-amber-600 scale-110'
-              : 'text-neutral-200'
-          }`}>
+          <div 
+            onClick={(e) => {
+              if (disabled) return;
+              e.stopPropagation();
+              onChange('IF_NEED_BE');
+            }}
+            data-testid="icon-IF_NEED_BE"
+            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
+              value === 'IF_NEED_BE'
+                ? 'text-amber-600 scale-110'
+                : 'text-neutral-200 hover:text-amber-600 hover:scale-110'
+            }`}
+          >
             <AlertCircle size={18} strokeWidth={3} aria-hidden="true" />
           </div>
         </div>

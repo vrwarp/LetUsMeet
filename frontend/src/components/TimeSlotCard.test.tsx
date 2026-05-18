@@ -70,4 +70,28 @@ describe('TimeSlotCard', () => {
     expect(screen.getByRole('button')).toBeDisabled();
     expect(screen.getByRole('button')).toHaveClass('opacity-70');
   });
+
+  it('calls onChange with YES directly and does not bubble when the YES icon is clicked', () => {
+    const onChange = vi.fn();
+    render(<TimeSlotCard {...defaultProps} onChange={onChange} value="NO" />);
+    fireEvent.click(screen.getByTestId('icon-YES'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('YES');
+  });
+
+  it('calls onChange with IF_NEED_BE directly and does not bubble when the IF_NEED_BE icon is clicked', () => {
+    const onChange = vi.fn();
+    render(<TimeSlotCard {...defaultProps} onChange={onChange} value="YES" />);
+    fireEvent.click(screen.getByTestId('icon-IF_NEED_BE'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('IF_NEED_BE');
+  });
+
+  it('calls onChange with NO directly and does not bubble when the NO icon is clicked', () => {
+    const onChange = vi.fn();
+    render(<TimeSlotCard {...defaultProps} onChange={onChange} value="IF_NEED_BE" />);
+    fireEvent.click(screen.getByTestId('icon-NO'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('NO');
+  });
 });
