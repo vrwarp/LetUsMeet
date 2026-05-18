@@ -2,6 +2,7 @@ import React from "react";
 
 interface CompactActionCardProps {
   icon: React.ReactNode;
+  label?: string;
   onAction: () => void;
   isSuccess?: boolean;
   theme?: 'dark' | 'light';
@@ -11,13 +12,14 @@ interface CompactActionCardProps {
 
 const CompactActionCard: React.FC<CompactActionCardProps> = ({ 
   icon, 
+  label,
   onAction, 
   isSuccess, 
   theme = 'dark',
   className = "",
   "data-testid": dataTestId
 }) => {
-  const baseStyles = "relative w-[72px] h-[72px] md:w-[84px] md:h-[84px] flex items-center justify-center transition-all group overflow-hidden rounded-[1.5rem] md:rounded-[2rem] border active:scale-[0.98]";
+  const baseStyles = `relative ${label ? 'w-full px-4' : 'w-[72px] px-0'} md:w-[84px] md:px-0 h-[72px] md:h-[84px] flex items-center justify-center transition-all group overflow-hidden rounded-[1.5rem] md:rounded-[2rem] border active:scale-[0.98]`;
   
   const themeStyles = theme === 'dark' 
     ? (isSuccess 
@@ -38,16 +40,21 @@ const CompactActionCard: React.FC<CompactActionCardProps> = ({
       className={`${baseStyles} ${themeStyles} ${className}`}
     >
       {/* Original Content */}
-      <div className={`transition-all duration-300 ${isSuccess ? 'opacity-0 scale-75 translate-y-2' : 'opacity-100 scale-100 translate-y-0'}`}>
-        <div className={`p-3 rounded-2xl transition-all duration-300 group-hover:scale-110 ${iconBgStyles}`}>
+      <div className={`transition-all duration-300 flex items-center justify-center gap-3 md:gap-0 ${isSuccess ? 'opacity-0 scale-75 translate-y-2' : 'opacity-100 scale-100 translate-y-0'}`}>
+        <div className={`p-3 rounded-2xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${iconBgStyles}`}>
           {icon}
         </div>
+        {label && (
+          <span className="text-sm font-bold md:hidden pr-2">
+            {label}
+          </span>
+        )}
       </div>
 
       {/* Success Content Overlay */}
       <div className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-500 ${isSuccess ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-75 pointer-events-none'}`}>
         <div className={`flex flex-col items-center transition-all duration-500 delay-100 ${isSuccess ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}>
-          <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-brand-green' : 'text-white'}`}>
+          <span className={`text-[10px] md:text-xs font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-brand-green' : 'text-white'}`}>
             Copied!
           </span>
         </div>
@@ -57,3 +64,4 @@ const CompactActionCard: React.FC<CompactActionCardProps> = ({
 };
 
 export default CompactActionCard;
+

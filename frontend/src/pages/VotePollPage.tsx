@@ -452,7 +452,7 @@ export default function VotePollPage() {
             </div>
           </div>
           
-          {userVotes.length > 1 && (
+          {userVotes.length > 0 && (
             <div className="mt-5 pt-5 border-t border-indigo-100">
               <p className="text-[10px] font-bold text-neutral-600 uppercase tracking-wider mb-3">Switch between your responses:</p>
               <div className="flex flex-wrap gap-2">
@@ -551,13 +551,15 @@ export default function VotePollPage() {
             {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Vote"}
           </button>
           
-          <button
-            type="button"
-            onClick={handleRetract}
-            className="px-8 py-6 text-red-600 font-bold hover:bg-red-50 rounded-3xl transition-all"
-          >
-            Retract Vote
-          </button>
+          {userVotes.some(v => v.responseId === editingResponseId) && (
+            <button
+              type="button"
+              onClick={handleRetract}
+              className="px-8 py-6 text-red-600 font-bold hover:bg-red-50 rounded-3xl transition-all"
+            >
+              Retract Vote
+            </button>
+          )}
         </div>
       </form>
     </div>

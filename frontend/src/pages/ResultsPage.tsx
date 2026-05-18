@@ -439,10 +439,10 @@ export default function ResultsPage() {
           </div>
 
           {/* Bottom Row: Action Cards */}
-          <div className="grid grid-cols-[1fr_auto] md:flex md:flex-wrap lg:flex-nowrap items-stretch gap-4">
+          <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-[1fr_auto]'} md:flex md:flex-wrap lg:flex-nowrap items-stretch gap-4`}>
             {/* Location Card - Row 1, Col 1 (Mobile) / Pos 1 (Desktop) */}
             {metadata.location && (
-              <div className="order-1 flex-1 min-w-0">
+              <div className="order-1 col-span-2 md:col-span-1 flex-1 min-w-0">
                 <ActionCard 
                   icon={<MapPin className="w-5 h-5" />}
                   label="Location"
@@ -455,18 +455,8 @@ export default function ResultsPage() {
               </div>
             )}
 
-            {/* Share Button - Row 1, Col 2 (Mobile) / Pos 3 (Desktop) */}
-            <div className="order-2 md:order-3">
-              <CompactActionCard 
-                icon={<Share2 className="w-6 h-6" />}
-                onAction={handleShare}
-                isSuccess={showShareCopied}
-                theme="dark"
-              />
-            </div>
-
             {/* Participation Card - Row 2, Col 1 (Mobile) / Pos 2 (Desktop) */}
-            <div className="order-3 md:order-2 flex-1 min-w-0">
+            <div className={`order-2 flex-1 min-w-0 ${isAdmin ? 'col-span-2 md:order-2' : 'col-span-1 md:order-2'}`}>
               <ActionCard 
                 icon={pollState.isFinalized ? <CheckCircle2 className="w-5 h-5" /> : <Users className="w-5 h-5" />}
                 label={pollState.isFinalized ? "Confirmed Attendance" : "Participants"}
@@ -477,32 +467,47 @@ export default function ResultsPage() {
               />
             </div>
 
-            {/* Admin Action Button - Row 2, Col 2 (Mobile) / Pos 4 (Desktop) */}
+            {/* Admin Action Button - Row 3, Col 1 (Mobile) / Pos 4 (Desktop) */}
             {isAdmin && (
-              <div className="order-4 flex-initial">
+              <div className="order-3 col-span-1 md:order-4 flex-initial">
                 {pollState.isFinalized ? (
                   <button
                     onClick={handleUnfinalize}
-                    className="w-[72px] h-[72px] md:w-[84px] md:h-[84px] flex items-center justify-center rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl"
+                    className="w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl"
                     title="Unselect Date"
                   >
                     {unfinalizing ? (
                       <Loader2 size={24} className="animate-spin" />
                     ) : (
-                      <RotateCcw size={24} className="group-hover:rotate-[-45deg] transition-transform duration-500" />
+                      <>
+                        <RotateCcw size={24} className="group-hover:rotate-[-45deg] transition-transform duration-500 flex-shrink-0" />
+                        <span className="text-sm font-bold md:hidden">Change Date</span>
+                      </>
                     )}
                   </button>
                 ) : (
                   <Link
                     to={`/poll/${pollId}/edit${window.location.search}${window.location.hash}`}
-                    className="w-[72px] h-[72px] md:w-[84px] md:h-[84px] flex items-center justify-center rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl"
+                    className="w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl"
                     title="Edit Poll"
                   >
-                    <Edit3 size={24} className="group-hover:scale-110 transition-transform duration-500" />
+                    <Edit3 size={24} className="group-hover:scale-110 transition-transform duration-500 flex-shrink-0" />
+                    <span className="text-sm font-bold md:hidden">Edit Poll</span>
                   </Link>
                 )}
               </div>
             )}
+
+            {/* Share Button - Row 3, Col 2 (Mobile) / Pos 3 (Desktop) */}
+            <div className={`col-span-1 ${isAdmin ? 'order-4 md:order-3' : 'order-3 md:order-3'}`}>
+              <CompactActionCard 
+                icon={<Share2 className="w-6 h-6" />}
+                label={isAdmin ? "Share Poll" : undefined}
+                onAction={handleShare}
+                isSuccess={showShareCopied}
+                theme="dark"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -522,7 +527,7 @@ export default function ResultsPage() {
         </div>
         
         {voteArray.length === 0 ? (
-          <div data-testid="results-empty-state" className="text-center py-20 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
+          <div data-testid="results-empty-state" className="text-center py-20 px-6 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
             <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
             <p className="text-neutral-500 font-medium">No responses yet. Share the link to start tallying!</p>
           </div>

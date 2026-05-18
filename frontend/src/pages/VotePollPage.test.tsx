@@ -122,4 +122,77 @@ describe('VotePollPage', () => {
     
     expect(await screen.findByTestId('error-message')).toHaveTextContent('Vote Failed');
   });
+
+  it('hides Retract Vote button when there is nothing to retract', async () => {
+    renderPage();
+    await screen.findByText('Mock ZK Meeting');
+    expect(screen.queryByRole('button', { name: /Retract Vote/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Retract Vote button when there is a vote to retract', async () => {
+    const crypto = await import('@/lib/crypto');
+    vi.spyOn(crypto, 'exportPublicKey').mockResolvedValue('pub123');
+
+    const votes = new Map();
+    votes.set('pub123:r1', {
+      responseId: 'r1',
+      participantName: 'Test User',
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+      cb({
+        pollId: 'mock-poll-id-123',
+        metadata: {
+          title: 'Mock ZK Meeting',
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: false
+      } as any, 'Synced');
+      return () => {};
+    });
+
+    renderPage();
+    
+    await screen.findByText('Mock ZK Meeting');
+    expect(await screen.findByRole('button', { name: /Retract Vote/i })).toBeInTheDocument();
+  });
+
+  it('renders response switcher even when there is only one submitted response', async () => {
+    const crypto = await import('@/lib/crypto');
+    vi.spyOn(crypto, 'exportPublicKey').mockResolvedValue('pub123');
+
+    const votes = new Map();
+    votes.set('pub123:r1', {
+      responseId: 'r1',
+      participantName: 'Olive Orange',
+      selections: { t1: 'YES' },
+      clientTimestamp: 1778900000000
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+      cb({
+        pollId: 'mock-poll-id-123',
+        metadata: {
+          title: 'Mock ZK Meeting',
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: false
+      } as any, 'Synced');
+      return () => {};
+    });
+
+    renderPage();
+    
+    await screen.findByText('Mock ZK Meeting');
+    expect(screen.getByText(/Switch between your responses/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Olive Orange/i })).toBeInTheDocument();
+  });
 });
