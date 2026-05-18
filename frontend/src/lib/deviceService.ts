@@ -15,12 +15,14 @@ import {
   wrapAmk,
   unwrapAmk,
   encrypt,
-  decrypt
+  decrypt,
+  encryptPayload,
+  decryptPayload,
+  decryptHybrid
 } from "./crypto";
 import { derivePrfMasterKey, loadMasterKeyFromIndexedDB } from "./prfService";
 import type {
   AccountKeysDocument,
-  DevicePublicKey,
   KeystoreEntry,
   DecryptedKeystorePayload,
   PendingDevice
@@ -76,7 +78,7 @@ async function saveDeviceKeysToIndexedDB(keys: { privateKey: string, publicKey: 
   });
 }
 
-async function loadDeviceKeysFromIndexedDB(): Promise<{ privateKey: string, publicKey: string } | null> {
+export async function loadDeviceKeysFromIndexedDB(): Promise<{ privateKey: string, publicKey: string } | null> {
   const db = await openDB();
   const tx = db.transaction(STORE_DEVICE_KEYS, "readonly");
   const request = tx.objectStore(STORE_DEVICE_KEYS).get("current_device");
@@ -260,7 +262,25 @@ export async function getRecoveryStatus(): Promise<{
   
   const registeredMethodIds = Object.keys(data.recoveryMethods || {});
   const activeMethodIds = registeredMethodIds.filter(id => !!keyring[id]);
-  const methods = activeMethodIds.map(id => data.recoveryMethods[id].label);
+  
+  const methods: string[] = [];
+  if (activeMethodIds.length > 0) {
+    try {
+      const { amk } = await getActiveAmk();
+      for (const id of activeMethodIds) {
+        try {
+          const plainLabel = await decryptPayload(amk, data.recoveryMethods[id].encryptedLabel);
+          methods.push(plainLabel);
+        } catch (e) {
+          methods.push(data.recoveryMethods[id].type === 'prf' ? "Passkey Recovery" : "Phrase Recovery");
+        }
+      }
+    } catch (e) {
+      activeMethodIds.forEach(id => {
+        methods.push(data.recoveryMethods[id].type === 'prf' ? "Passkey Recovery" : "Phrase Recovery");
+      });
+    }
+  }
 
   // Check if current PRF key is sealed
   const cachedPrfKey = await loadMasterKeyFromIndexedDB(user.uid);
@@ -346,9 +366,10 @@ export async function registerCurrentDevice(amk: CryptoKey, amkId: string): Prom
     if (!snap.exists()) throw new Error("Account keys doc missing.");
     
     const data = snap.data() as AccountKeysDocument;
+    const encryptedDevName = await encryptPayload(amk, `${getDeviceName()} (Recovered ${new Date().toISOString().slice(0, 10)})`);
     data.devices[deviceId] = {
       deviceId,
-      deviceName: `${getDeviceName()} (Recovered ${new Date().toISOString().slice(0, 10)})`,
+      encryptedDeviceName: encryptedDevName,
       publicKey: pubB64,
       createdAt: Date.now()
     };
@@ -387,13 +408,16 @@ async function setupGenesisDevice(uid: string): Promise<{ amk: CryptoKey, amkId:
   const { ciphertext: prfCipher, iv: prfIv } = await encrypt(prfKey, amkB64);
   const wrappedForPrf = btoa(JSON.stringify({ ciphertext: prfCipher, iv: prfIv }));
 
+  const encryptedDevName = await encryptPayload(amk, getDeviceName());
+  const encryptedRecLabel = await encryptPayload(amk, `Passkey on ${getDeviceName()}`);
+
   // 5. Write to Firestore
   const accountKeysDoc: AccountKeysDocument = {
     activeAmkId: amkId,
     devices: {
       [deviceId]: {
         deviceId,
-        deviceName: getDeviceName(),
+        encryptedDeviceName: encryptedDevName,
         publicKey: pubB64,
         createdAt: Date.now()
       }
@@ -401,7 +425,7 @@ async function setupGenesisDevice(uid: string): Promise<{ amk: CryptoKey, amkId:
     recoveryMethods: {
       [methodId]: {
         type: 'prf',
-        label: `Passkey on ${getDeviceName()}`,
+        encryptedLabel: encryptedRecLabel,
         credentialId: credentialId,
         createdAt: Date.now()
       }
@@ -449,9 +473,10 @@ export async function enablePrfRecovery(): Promise<void> {
     if (!snap.exists()) throw new Error("Account keys doc missing.");
     
     const data = snap.data() as AccountKeysDocument;
+    const encryptedRecLabel = await encryptPayload(amk, `Passkey on ${getDeviceName()}`);
     data.recoveryMethods[methodId] = {
       type: 'prf',
-      label: `Passkey on ${getDeviceName()}`,
+      encryptedLabel: encryptedRecLabel,
       credentialId: credentialId,
       createdAt: Date.now()
     };
@@ -461,54 +486,7 @@ export async function enablePrfRecovery(): Promise<void> {
 }
 
 // === DEVICE AUTHORIZATION ===
-
-export async function registerPendingDevice() {
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) return;
-
-  const deviceId = getDeviceId();
-  const deviceKeyPair = await generateDeviceKeyPair();
-  const privB64 = await exportDevicePrivateKey(deviceKeyPair.privateKey);
-  const pubB64 = await exportDevicePublicKey(deviceKeyPair.publicKey);
-  await saveDeviceKeysToIndexedDB({ privateKey: privB64, publicKey: pubB64 });
-
-  const pendingRef = doc(db, "users", user.uid, "pending_devices", deviceId);
-  await setDoc(pendingRef, {
-    deviceId,
-    deviceName: getDeviceName(),
-    publicKey: pubB64,
-    createdAt: Date.now()
-  });
-}
-
-export async function authorizeDevice(pendingDeviceId: string) {
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) return;
-
-  const pendingRef = doc(db, "users", user.uid, "pending_devices", pendingDeviceId);
-  const pendingSnap = await getDoc(pendingRef);
-  if (!pendingSnap.exists()) throw new Error("Pending device not found.");
-
-  const pendingDevice = pendingSnap.data() as DevicePublicKey;
-  const { amk } = await getActiveAmk();
-  const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
-
-  const pendingPublicKey = await importDevicePublicKey(pendingDevice.publicKey);
-  const wrappedAmk = await wrapAmk(pendingPublicKey, rawAmk);
-
-  await runTransaction(db, async (transaction) => {
-    const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
-    const accountKeysSnap = await transaction.get(accountKeysRef);
-    if (!accountKeysSnap.exists()) throw new Error("Account keys doc missing.");
-
-    const data = accountKeysSnap.data() as AccountKeysDocument;
-    data.devices[pendingDeviceId] = pendingDevice;
-    data.keyring[data.activeAmkId][pendingDeviceId] = wrappedAmk;
-
-    transaction.set(accountKeysRef, data);
-    transaction.delete(pendingRef);
-  });
-}
+// Legacy dead code removed. Authorization is handled via requestDeviceAuthorization and approveDeviceAuthorization.
 
 // === REVOCATION & ROTATION ===
 
@@ -516,7 +494,7 @@ export async function revokeDevice(revokedDeviceId: string) {
   const user = auth.currentUser;
   if (!user || user.isAnonymous) return;
 
-  await getActiveAmk();
+  const { amk: oldAmk } = await getActiveAmk();
   const newAmk = await generateSymmetricKey(256);
   const newAmkId = `amk_${Date.now()}`;
   const rawNewAmk = await window.crypto.subtle.exportKey("raw", newAmk);
@@ -531,6 +509,20 @@ export async function revokeDevice(revokedDeviceId: string) {
 
     // Remove revoked device
     delete data.devices[revokedDeviceId];
+
+    // Re-encrypt all remaining Device Names with the NEW AMK
+    for (const deviceId in data.devices) {
+      const dev = data.devices[deviceId];
+      const plainName = await decryptPayload(oldAmk, dev.encryptedDeviceName);
+      dev.encryptedDeviceName = await encryptPayload(newAmk, plainName);
+    }
+
+    // Re-encrypt all Recovery Labels with the NEW AMK
+    for (const methodId in data.recoveryMethods) {
+      const method = data.recoveryMethods[methodId];
+      const plainLabel = await decryptPayload(oldAmk, method.encryptedLabel);
+      method.encryptedLabel = await encryptPayload(newAmk, plainLabel);
+    }
 
     // Create new keyring entry for the new AMK
     data.keyring[newAmkId] = {};
@@ -600,14 +592,13 @@ export async function saveToKeystore(pollId: string, payload: DecryptedKeystoreP
 
   const { amk, amkId } = await getActiveAmk();
   const json = JSON.stringify(payload);
-  const { ciphertext, iv } = await encrypt(amk, json);
+  const encrypted = await encryptPayload(amk, json);
 
   const entryRef = doc(db, "users", user.uid, "keystore", pollId);
   await setDoc(entryRef, {
     pollId,
     amkId,
-    wrappedPayload: ciphertext,
-    iv,
+    ...encrypted,
     updatedAt: Date.now()
   });
 }
@@ -622,7 +613,7 @@ export async function loadFromKeystore(pollId: string): Promise<DecryptedKeystor
 
   const data = snap.data() as KeystoreEntry;
   const amk = await getAmkById(data.amkId);
-  const json = await decrypt(amk, data.wrappedPayload, data.iv);
+  const json = await decryptPayload(amk, data);
   return JSON.parse(json);
 }
 
@@ -654,10 +645,33 @@ export async function requestDeviceAuthorization(): Promise<void> {
   // Save private key locally - it's useless until authorized.
   await saveDeviceKeysToIndexedDB({ privateKey: privB64, publicKey: pubB64 });
 
+  const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
+  const accountKeysSnap = await getDoc(accountKeysRef);
+  if (!accountKeysSnap.exists()) throw new Error("Account keys document missing.");
+  const accountKeysData = accountKeysSnap.data() as AccountKeysDocument;
+
+  const localDeviceName = getDeviceName();
+  const aesKey = await generateSymmetricKey(256);
+  const encryptedName = await encryptPayload(aesKey, localDeviceName);
+  const rawAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
+  const wrappedKeys: Record<string, string> = {};
+
+  for (const [sponsorId, sponsorDevice] of Object.entries(accountKeysData.devices)) {
+    try {
+      const recipientPubKey = await importDevicePublicKey(sponsorDevice.publicKey);
+      wrappedKeys[sponsorId] = await wrapAmk(recipientPubKey, rawAesKey);
+    } catch (e) {
+      console.error(`Failed to wrap ephemeral key for sponsor ${sponsorId}:`, e);
+    }
+  }
+
   const pendingRef = doc(db, "users", user.uid, "pending_devices", deviceId);
   const pendingData: PendingDevice = {
     deviceId,
-    deviceName: getDeviceName(),
+    encryptedDeviceName: {
+      ...encryptedName,
+      wrappedKeys
+    },
     publicKey: pubB64,
     status: 'pending',
     createdAt: Date.now(),
@@ -674,11 +688,26 @@ export async function approveDeviceAuthorization(pendingDevice: PendingDevice): 
   const user = auth.currentUser;
   if (!user) throw new Error("Must be signed in.");
 
+  const currentDeviceId = getDeviceId();
+  const localKeys = await loadDeviceKeysFromIndexedDB();
+  if (!localKeys) throw new Error("Local device keys missing.");
+
+  const wrappedKeyForUs = pendingDevice.encryptedDeviceName.wrappedKeys[currentDeviceId];
+  if (!wrappedKeyForUs) throw new Error("Pending request not wrapped for this device.");
+
+  const localPrivateKey = await importDevicePrivateKey(localKeys.privateKey);
+  const decryptedName = await decryptHybrid(
+    localPrivateKey,
+    pendingDevice.encryptedDeviceName,
+    wrappedKeyForUs
+  );
+
   const { amk, amkId } = await getActiveAmk();
   const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
   
   const targetPubKey = await importDevicePublicKey(pendingDevice.publicKey);
   const wrappedForNewDevice = await wrapAmk(targetPubKey, rawAmk);
+  const encryptedNameWithAmk = await encryptPayload(amk, decryptedName);
 
   const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
   const pendingRef = doc(db, "users", user.uid, "pending_devices", pendingDevice.deviceId);
@@ -690,7 +719,7 @@ export async function approveDeviceAuthorization(pendingDevice: PendingDevice): 
     const data = snap.data() as AccountKeysDocument;
     data.devices[pendingDevice.deviceId] = {
       deviceId: pendingDevice.deviceId,
-      deviceName: pendingDevice.deviceName,
+      encryptedDeviceName: encryptedNameWithAmk,
       publicKey: pendingDevice.publicKey,
       createdAt: Date.now()
     };

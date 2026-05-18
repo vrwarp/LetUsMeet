@@ -284,7 +284,7 @@ export default function Layout() {
                 <div className="flex-1 text-center sm:text-left">
                   <h3 className="text-base font-bold text-brand-green-dark">New Device Authorization</h3>
                   <p className="text-brand-green-dark/70 text-xs sm:text-sm">
-                    "{req.deviceName}" wants to access your polls.
+                    "{(req as any).decryptedDeviceName || "Unknown Device"}" wants to access your polls.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

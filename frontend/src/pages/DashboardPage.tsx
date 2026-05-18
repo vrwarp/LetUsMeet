@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { subscribeToUserKeystore, loadFromKeystore, getGenesisEvent } from "@/lib/pollService";
-import { getRecoveryStatus, enablePrfRecovery, getDeviceId, approveDeviceAuthorization, revokeDevice } from "@/lib/deviceService";
+import { getRecoveryStatus, enablePrfRecovery, getDeviceId, approveDeviceAuthorization, revokeDevice, getActiveAmk } from "@/lib/deviceService";
 import { setupPhraseRecovery } from "@/lib/recoveryService";
-import { importSymmetricKey } from "@/lib/crypto";
+import { importSymmetricKey, decryptPayload } from "@/lib/crypto";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, ShieldAlert, Key, Clipboard, CheckCircle2, Monitor, XCircle } from "lucide-react";
-import type { PollMetadata, PendingDevice } from "../types";
+import type { PollMetadata, PendingDevice, AccountKeysDocument } from "../types";
 import { db } from "@/firebase";
 import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import { generateVerificationCode } from "@/lib/crypto";
@@ -70,9 +70,39 @@ export default function DashboardPage() {
 
     // Listen to account keys for device list and recovery status
     const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
-    const unsubAccount = onSnapshot(accountKeysRef, (snap) => {
+    const unsubAccount = onSnapshot(accountKeysRef, async (snap) => {
       if (snap.exists()) {
-        const data = snap.data();
+        const data = snap.data() as AccountKeysDocument;
+        try {
+          const { amk } = await getActiveAmk();
+          const decryptedDevices: Record<string, any> = {};
+          for (const [deviceId, device] of Object.entries(data.devices)) {
+            try {
+              const plainName = await decryptPayload(amk, device.encryptedDeviceName);
+              decryptedDevices[deviceId] = {
+                ...device,
+                decryptedDeviceName: plainName
+              };
+            } catch (err) {
+              console.error(`Failed to decrypt device name for ${deviceId}:`, err);
+              decryptedDevices[deviceId] = {
+                ...device,
+                decryptedDeviceName: "Unreadable Device"
+              };
+            }
+          }
+          data.devices = decryptedDevices as any;
+        } catch (e) {
+          console.error("Failed to decrypt devices list:", e);
+          const fallbackDevices: Record<string, any> = {};
+          for (const [deviceId, device] of Object.entries(data.devices)) {
+            fallbackDevices[deviceId] = {
+              ...device,
+              decryptedDeviceName: device.deviceId === getDeviceId() ? "Current Device" : "Authorized Device"
+            };
+          }
+          data.devices = fallbackDevices as any;
+        }
         setAccountData(data);
         getRecoveryStatus().then(setRecoveryStatus);
       }
@@ -195,7 +225,7 @@ export default function DashboardPage() {
           <div className="flex-1 text-center md:text-left">
             <h3 className="text-lg font-bold text-brand-green-dark">Authorize New Device?</h3>
             <p className="text-brand-green-dark/70 text-sm">
-              A new device named <span className="font-bold">"{req.deviceName}"</span> is requesting access.
+              A new device named <span className="font-bold">"{(req as any).decryptedDeviceName || "Unknown Device"}"</span> is requesting access.
               Confirm code: <span className="font-mono font-bold bg-white/50 px-2 py-0.5 rounded border border-brand-green/20 ml-1"><PendingCodeDisplay publicKey={req.publicKey} /></span>
             </p>
           </div>
@@ -387,7 +417,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-neutral-800">
-                      {device.deviceName} {isCurrent && <span className="text-brand-green ml-2 text-xs uppercase tracking-widest">(Current)</span>}
+                      {device.decryptedDeviceName} {isCurrent && <span className="text-brand-green ml-2 text-xs uppercase tracking-widest">(Current)</span>}
                     </h3>
                     <p className="text-xs text-neutral-400 font-medium">
                       Authorized {new Date(device.createdAt).toLocaleDateString()}

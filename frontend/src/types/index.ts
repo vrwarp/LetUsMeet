@@ -18,7 +18,8 @@ import type {
   Vote,
   DevicePublicKey,
   AccountKeysDocument,
-  PendingDevice
+  PendingDevice,
+  EncryptedData
 } from '../../../shared/types';
 
 export type {
@@ -41,7 +42,8 @@ export type {
   Vote,
   DevicePublicKey,
   AccountKeysDocument,
-  PendingDevice
+  PendingDevice,
+  EncryptedData
 };
 
 // API request/response shapes (mostly legacy, will be removed)

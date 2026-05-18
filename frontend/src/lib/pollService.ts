@@ -22,8 +22,8 @@ import type {
 import { 
   generateSymmetricKey, 
   exportSymmetricKey, 
-  encrypt, 
-  decrypt, 
+  encryptPayload, 
+  decryptPayload, 
   generateIdentityKeyPair, 
   exportPrivateKey, 
   exportPublicKey, 
@@ -152,7 +152,7 @@ export async function createBlindPoll(metadata: PollMetadata) {
   // 2. Create genesis event
   const adminToken = generateId();
   const adminTokenKey = await deriveKeyFromPassword(adminToken);
-  const encryptedAdminPriv = await encrypt(adminTokenKey, privB64);
+  const encryptedAdminPriv = await encryptPayload(adminTokenKey, privB64);
   
   const action: PollAction = { type: "POLL_CREATED", payload: { 
     ...metadata, 
@@ -186,7 +186,7 @@ export async function loadIdentityFromToken(pollId: string, adminToken: string, 
   
   try {
     const adminTokenKey = await deriveKeyFromPassword(adminToken);
-    const privB64 = await decrypt(adminTokenKey, metadata.encryptedAdminPriv.ciphertext, metadata.encryptedAdminPriv.iv);
+    const privB64 = await decryptPayload(adminTokenKey, metadata.encryptedAdminPriv);
     
     return {
       privateKey: await importPrivateKey(privB64),
@@ -240,7 +240,7 @@ export async function appendSignedEvent(
   };
 
   const json = JSON.stringify(decryptedSignedEvent);
-  const { ciphertext, iv } = await encrypt(symmetricKey, json);
+  const encrypted = await encryptPayload(symmetricKey, json);
 
   const eventId = generateId();
   const eventRef = doc(db, "polls", pollId, "events", eventId);
@@ -248,8 +248,7 @@ export async function appendSignedEvent(
   await setDoc(eventRef, {
     eventId,
     createdAt: serverTimestamp(),
-    encryptedData: ciphertext,
-    iv
+    ...encrypted
   });
 }
 
@@ -271,7 +270,7 @@ export function subscribeToLedger(
     for (const doc of snapshot.docs) {
       try {
         const blind = doc.data() as BlindEvent;
-        const json = await decrypt(symmetricKey, blind.encryptedData, blind.iv);
+        const json = await decryptPayload(symmetricKey, blind);
         events.push(JSON.parse(json));
       } catch (e) {
         console.warn("Failed to decrypt event", doc.id, e);
@@ -325,7 +324,7 @@ export async function getGenesisEvent(pollId: string, symmetricPollKey: CryptoKe
     if (!snapshot.empty) {
       try {
         const blind = snapshot.docs[0].data() as BlindEvent;
-        const json = await decrypt(symmetricPollKey, blind.encryptedData, blind.iv);
+        const json = await decryptPayload(symmetricPollKey, blind);
         const decrypted = JSON.parse(json);
         
         if (decrypted.action && decrypted.action.type === "POLL_CREATED") {

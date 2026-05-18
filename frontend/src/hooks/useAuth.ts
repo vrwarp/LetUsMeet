@@ -5,9 +5,10 @@ import { doc, setDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
 import { derivePrfMasterKey, clearPrfSessionCache } from "@/lib/prfService";
-import { verifyAmk, getDeviceId, registerCurrentDevice, clearAmkSessionCache } from "@/lib/deviceService";
+import { verifyAmk, getDeviceId, registerCurrentDevice, clearAmkSessionCache, loadDeviceKeysFromIndexedDB } from "@/lib/deviceService";
 import { resetKeystore } from "@/lib/pollService";
 import { recoverAmkWithPhrase } from "@/lib/recoveryService";
+import { importDevicePrivateKey, decryptHybrid } from "@/lib/crypto";
 import type { PendingDevice } from "@/types";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 
@@ -74,12 +75,53 @@ export function useAuth() {
       where("status", "==", "pending")
     );
 
-    const unsubscribe = onSnapshot(q, (snap) => {
+    const unsubscribe = onSnapshot(q, async (snap) => {
       const now = Date.now();
-      const requests = snap.docs
+      const rawRequests = snap.docs
         .map(d => d.data() as PendingDevice)
         .filter(d => d.deviceId !== currentDeviceId && (!d.expiresAt || d.expiresAt > now));
-      setPendingRequests(requests);
+      
+      const decryptedRequests: PendingDevice[] = [];
+      
+      try {
+        const localKeys = await loadDeviceKeysFromIndexedDB();
+        if (localKeys) {
+          const localPrivateKey = await importDevicePrivateKey(localKeys.privateKey);
+          
+          for (const req of rawRequests) {
+            try {
+              const wrappedKeyForUs = req.encryptedDeviceName.wrappedKeys[currentDeviceId];
+              if (wrappedKeyForUs) {
+                const decryptedName = await decryptHybrid(
+                  localPrivateKey,
+                  req.encryptedDeviceName,
+                  wrappedKeyForUs
+                );
+                (req as any).decryptedDeviceName = decryptedName;
+              } else {
+                (req as any).decryptedDeviceName = "Unknown Device";
+              }
+            } catch (err) {
+              console.error("Failed to decrypt pending device name:", err);
+              (req as any).decryptedDeviceName = "Unreadable Device Name";
+            }
+            decryptedRequests.push(req);
+          }
+        } else {
+          rawRequests.forEach(req => {
+            (req as any).decryptedDeviceName = "Unregistered Device";
+            decryptedRequests.push(req);
+          });
+        }
+      } catch (e) {
+        console.error("Error decrypting pending requests:", e);
+        rawRequests.forEach(req => {
+          (req as any).decryptedDeviceName = "Unregistered Device";
+          decryptedRequests.push(req);
+        });
+      }
+      
+      setPendingRequests(decryptedRequests);
     });
 
     return () => unsubscribe();

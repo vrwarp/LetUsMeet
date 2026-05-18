@@ -1,3 +1,5 @@
+import type { EncryptedData } from "../types";
+
 /**
  * Generates a random AES-GCM symmetric key.
  */
@@ -280,6 +282,57 @@ export async function unwrapAmk(privateKey: CryptoKey, wrappedB64: string): Prom
     ["encrypt", "decrypt"]
   );
   return window.crypto.subtle.exportKey("raw", unwrapped);
+}
+
+/**
+ * Standard utility to symmetrically encrypt a plaintext string into an EncryptedData envelope.
+ */
+export async function encryptPayload(key: CryptoKey, plaintext: string): Promise<EncryptedData> {
+  const { ciphertext, iv } = await encrypt(key, plaintext);
+  return { encryptedData: ciphertext, iv };
+}
+
+/**
+ * Standard utility to symmetrically decrypt an EncryptedData envelope into a plaintext string.
+ */
+export async function decryptPayload(key: CryptoKey, payload: EncryptedData): Promise<string> {
+  return await decrypt(key, payload.encryptedData, payload.iv);
+}
+
+/**
+ * Asymmetrically encrypts a string using a hybrid scheme (RSA-OAEP + AES-GCM).
+ */
+export async function encryptHybrid(
+  recipientPublicKeyB64: string,
+  plaintext: string
+): Promise<EncryptedData & { wrappedKey: string }> {
+  const aesKey = await generateSymmetricKey(256);
+  const encrypted = await encryptPayload(aesKey, plaintext);
+  
+  const rawAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
+  const recipientPubKey = await importDevicePublicKey(recipientPublicKeyB64);
+  const wrappedKey = await wrapAmk(recipientPubKey, rawAesKey);
+  
+  return { ...encrypted, wrappedKey };
+}
+
+/**
+ * Asymmetrically decrypts a hybrid envelope using a local device private key.
+ */
+export async function decryptHybrid(
+  privateKey: CryptoKey,
+  payload: EncryptedData,
+  wrappedKeyB64: string
+): Promise<string> {
+  const rawAesKey = await unwrapAmk(privateKey, wrappedKeyB64);
+  const aesKey = await window.crypto.subtle.importKey(
+    "raw",
+    rawAesKey,
+    { name: "AES-GCM" },
+    true,
+    ["decrypt"]
+  );
+  return await decryptPayload(aesKey, payload);
 }
 
 // === PBKDF2 (for Token derivation) ===

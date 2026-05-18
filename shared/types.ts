@@ -22,35 +22,36 @@ export type TimeSlot = ExactTimeSlot | FuzzyTimeSlot;
 
 // === FIRESTORE SCHEMA (server-visible ciphertext) ===
 
+export interface EncryptedData {
+  encryptedData: string; // AES-GCM ciphertext (Base64)
+  iv: string;            // AES-GCM IV (Base64)
+}
+
 export interface BlindPoll {
   pollId: string;
 }
 
-export interface BlindEvent {
+export interface BlindEvent extends EncryptedData {
   eventId: string;
   createdAt: any; // Firestore serverTimestamp()
-  encryptedData: string; // AES-GCM ciphertext (Base64)
-  iv: string; // AES-GCM IV (Base64)
 }
 
-export interface KeystoreEntry {
+export interface KeystoreEntry extends EncryptedData {
   pollId: string;
   amkId: string; // NEW: Explicitly declare which AMK encrypted this payload
-  wrappedPayload: string; // AMK-encrypted ciphertext
-  iv: string;
   updatedAt: number;
 }
 
 export interface DevicePublicKey {
   deviceId: string;
-  deviceName: string; // e.g., "Benson's MacBook"
+  encryptedDeviceName: EncryptedData;
   publicKey: string; // Base64 SPKI (RSA-OAEP)
   createdAt: number;
 }
 
 export interface RecoveryMethod {
   type: 'prf' | 'phrase';
-  label: string; // e.g. "Google Passkey", "Primary Recovery Phrase"
+  encryptedLabel: EncryptedData;
   publicKey?: string; // Optional: For asymmetric recovery (e.g., RSA Public Key for phrases)
   credentialId?: string; // Optional: For PRF recovery (WebAuthn credential ID)
   createdAt: number;
@@ -66,7 +67,9 @@ export interface AccountKeysDocument {
 
 export interface PendingDevice {
   deviceId: string;
-  deviceName: string;
+  encryptedDeviceName: EncryptedData & {
+    wrappedKeys: Record<string, string>; // Maps sponsorDeviceId -> wrappedEphemeralKeyB64
+  };
   publicKey: string; // Base64 SPKI
   status: 'pending' | 'authorized' | 'rejected';
   createdAt: number;
@@ -97,7 +100,7 @@ export interface PollMetadata {
   schedulingMode: SchedulingMode;
   timeSlots: TimeSlot[];
   adminPublicKey?: string; // NEW: Store public key in genesis to allow recovery from token
-  encryptedAdminPriv?: { ciphertext: string, iv: string };
+  encryptedAdminPriv?: EncryptedData;
 }
 
 export interface VoteData {

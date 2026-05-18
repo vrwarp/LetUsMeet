@@ -25,7 +25,7 @@ describe('DashboardPage', () => {
       cb([{
         pollId: 'p1',
         amkId: 'amk_v1',
-        wrappedPayload: 'ciphertext',
+        encryptedData: 'ciphertext',
         iv: 'iv',
         updatedAt: Date.now()
       }]);

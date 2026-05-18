@@ -4,7 +4,8 @@ import {
   encrypt,
   decrypt,
   wrapAmk,
-  unwrapAmk
+  unwrapAmk,
+  encryptPayload
 } from './crypto';
 import { db, auth } from '../firebase';
 import { doc, runTransaction, getDoc } from 'firebase/firestore';
@@ -84,9 +85,10 @@ export async function setupPhraseRecovery(): Promise<string> {
     if (!snap.exists()) throw new Error("Account keys doc missing.");
     
     const data = snap.data() as AccountKeysDocument;
+    const encryptedRecLabel = await encryptPayload(amk, "Primary Recovery Phrase");
     data.recoveryMethods["__recovery_phrase"] = {
       type: 'phrase',
-      label: "Primary Recovery Phrase",
+      encryptedLabel: encryptedRecLabel,
       publicKey: pubKeyB64,
       createdAt: Date.now()
     };
