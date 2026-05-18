@@ -1,338 +1,348 @@
 import { 
   collection, 
   doc, 
-  addDoc, 
   setDoc, 
-  updateDoc, 
   onSnapshot, 
-  deleteDoc,
-  getDoc,
   query,
-  where,
   orderBy,
-  arrayUnion
+  getDocs,
+  limit,
+  writeBatch,
+  serverTimestamp
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
-import type { Poll, Vote } from "../types/index";
+import type { 
+  BlindEvent, 
+  DecryptedSignedEvent, 
+  PollState, 
+  PollMetadata, 
+  PollAction,
+  KeystoreEntry
+} from "../types";
+import { 
+  generateSymmetricKey, 
+  exportSymmetricKey, 
+  encrypt, 
+  decrypt, 
+  generateIdentityKeyPair, 
+  exportPrivateKey, 
+  exportPublicKey, 
+  signAction,
+  importPrivateKey,
+  importPublicKey,
+  deriveKeyFromPassword
+} from "./crypto";
+import { calculatePollState } from "./pollReducer";
+import { 
+  saveToKeystore, 
+  loadFromKeystore,
+  clearAmkSessionCache
+} from "./deviceService";
+import { clearPrfSessionCache } from "./prfService";
+export { 
+  saveToKeystore, 
+  loadFromKeystore,
+  verifyAmk
+} from "./deviceService";
+import { 
+  openDB, 
+  STORE_IDENTITIES, 
+  STORE_MASTER_KEYS, 
+  STORE_DEVICE_KEYS 
+} from "./idb";
 
 /**
- * Fallback for crypto.randomUUID() if not available in non-secure contexts.
+ * Fallback for crypto.randomUUID() if not available.
  */
 function generateId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
+  return Math.random().toString(36).substring(2, 15);
+}
+
+// === FRAGMENT HANDLING ===
+
+export function extractKeyFromFragment(): string | null {
+  const hash = window.location.hash;
+  const match = hash.match(/key=([a-zA-Z0-9-_]+)/);
+  return match ? match[1] : null;
+}
+
+export function setKeyInFragment(key: string) {
+  window.location.hash = `key=${key}`;
+}
+
+export function getShareableUrl(urlStr: string = window.location.href): string {
+  try {
+    const url = new URL(urlStr);
+    url.searchParams.delete("adminToken");
+    return url.toString();
+  } catch (e) {
+    return urlStr;
+  }
+}
+
+// openDB is now imported from idb.ts
+
+export async function saveToIndexedDB(pollId: string, keys: { privateKey: string, publicKey: string }) {
+  const db = await openDB();
+  const tx = db.transaction(STORE_IDENTITIES, "readwrite");
+  tx.objectStore(STORE_IDENTITIES).put(keys, pollId);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
   });
 }
 
+export async function loadFromIndexedDB(pollId: string): Promise<{ privateKey: string, publicKey: string } | null> {
+  const db = await openDB();
+  const tx = db.transaction(STORE_IDENTITIES, "readonly");
+  const request = tx.objectStore(STORE_IDENTITIES).get(pollId);
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function resetKeystore() {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return;
+
+  const keystoreRef = collection(db, "users", user.uid, "keystore");
+  const snap = await getDocs(keystoreRef);
+  
+  const batch = writeBatch(db);
+  snap.docs.forEach(d => batch.delete(d.ref));
+  
+  // Also delete account keys
+  batch.delete(doc(db, "users", user.uid, "account_keys", "default"));
+  
+  await batch.commit();
+
+  // Also clear IndexedDB
+  const idb = await openDB();
+  const tx = idb.transaction([STORE_IDENTITIES, STORE_MASTER_KEYS, STORE_DEVICE_KEYS], "readwrite");
+  tx.objectStore(STORE_IDENTITIES).clear();
+  tx.objectStore(STORE_MASTER_KEYS).clear();
+  tx.objectStore(STORE_DEVICE_KEYS).clear();
+
+  // Also clear session caches
+  clearAmkSessionCache();
+  clearPrfSessionCache();
+}
+
+// === LEDGER SERVICE ===
+
 /**
- * Creates a new poll in Firestore.
- * Generates an adminToken for client-side authorization of edits.
+ * Creates a new blind poll and its genesis event.
  */
-export async function createPoll(data: Omit<Poll, "id" | "pollId" | "status" | "createdAt" | "organizerUid">) {
-  const organizerUid = auth.currentUser?.uid || null;
+export async function createBlindPoll(metadata: PollMetadata) {
+  const pollId = generateId();
+  const symmetricKey = await generateSymmetricKey();
+  const keyPair = await generateIdentityKeyPair();
+  
+  const b64Key = await exportSymmetricKey(symmetricKey);
+  const privB64 = await exportPrivateKey(keyPair.privateKey);
+  const pubB64 = await exportPublicKey(keyPair.publicKey);
+  
+  // 1. Create poll doc (empty shell)
+  await setDoc(doc(db, "polls", pollId), { pollId });
+
+  // 2. Create genesis event
   const adminToken = generateId();
+  const adminTokenKey = await deriveKeyFromPassword(adminToken);
+  const encryptedAdminPriv = await encrypt(adminTokenKey, privB64);
   
-  const pollRef = collection(db, "polls");
-  const slotsWithIds = data.timeSlots.map(slot => ({
-    ...slot,
-    id: (slot as any).id || generateId()
-  }));
+  const action: PollAction = { type: "POLL_CREATED", payload: { 
+    ...metadata, 
+    adminPublicKey: pubB64,
+    encryptedAdminPriv: encryptedAdminPriv
+  } };
+  await appendSignedEvent(pollId, symmetricKey, keyPair.privateKey, keyPair.publicKey, action);
 
-  const docRef = await addDoc(pollRef, {
-    ...data,
-    timeSlots: slotsWithIds,
-    organizerUid,
-    status: "OPEN",
-    createdAt: new Date().toISOString(),
-  });
-
-  try {
-    const tokenRef = doc(db, "polls", docRef.id, "adminTokens", adminToken);
-    await setDoc(tokenRef, {
-      createdAt: new Date().toISOString(),
+  // 3. Save keys
+  const user = auth.currentUser;
+  if (user && !user.isAnonymous) {
+    await saveToKeystore(pollId, {
+      symmetricPollKey: b64Key,
+      ecdsaPrivateKey: privB64,
+      ecdsaPublicKey: pubB64
     });
-  } catch (err) {
-    throw err;
+  } else {
+    await saveToIndexedDB(pollId, { privateKey: privB64, publicKey: pubB64 });
   }
 
-  return { pollId: docRef.id, adminToken };
+  return { pollId, key: b64Key, adminToken };
 }
 
 /**
- * Ensures the user has an admin grant for the poll if they provide a valid token.
- * This is used to authorize admin operations without exposing the token in the poll doc.
+ * Recovers the admin identity from an adminToken by decrypting the private key
+ * stored in the genesis event.
  */
-export async function ensureAdminGrant(pollId: string, adminToken: string) {
-  await auth.authStateReady();
-  if (!auth.currentUser) {
-    for (let i = 0; i < 20; i++) {
-      if (auth.currentUser) break;
-      await new Promise(r => setTimeout(r, 100));
-    }
-  }
-  const userUid = auth.currentUser?.uid;
-  if (!userUid) return false;
+export async function loadIdentityFromToken(pollId: string, adminToken: string, symmetricPollKey: CryptoKey): Promise<{ privateKey: CryptoKey, publicKey: CryptoKey } | null> {
+  const metadata = await getGenesisEvent(pollId, symmetricPollKey);
+  if (!metadata || !metadata.encryptedAdminPriv) return null;
   
-  const grantRef = doc(db, "polls", pollId, "adminGrants", userUid);
   try {
-    const snap = await getDoc(grantRef);
-    if (snap.exists() && snap.data().adminToken === adminToken) return true;
-
-    await setDoc(grantRef, {
-      adminToken,
-      grantedAt: new Date().toISOString(),
-    });
-    return true;
-  } catch (error: any) {
-    return false;
-  }
-}
-
-/**
- * Explicitly claims an anonymous poll for a signed-in user.
- */
-export async function claimPoll(pollId: string, adminToken: string) {
-  await auth.authStateReady();
-  const userUid = auth.currentUser?.uid;
-  if (!userUid) throw new Error("Must be signed in to claim");
-
-  // 1. Create the grant
-  const grantRef = doc(db, "polls", pollId, "adminGrants", userUid);
-  await setDoc(grantRef, {
-    adminToken,
-    grantedAt: new Date().toISOString(),
-  });
-
-  // 2. Add to managers array in poll doc
-  const pollRef = doc(db, "polls", pollId);
-  await updateDoc(pollRef, {
-    managers: arrayUnion(userUid)
-  });
-}
-
-/**
- * Submits or updates a vote for a specific poll.
- */
-export async function submitVote(pollId: string, voteData: Omit<Vote, "participantUid" | "updatedAt" | "voteId" | "createdAt">, existingVoteId?: string | null) {
-  if (!auth.currentUser) throw new Error("Must be signed in to vote");
-
-  const id = existingVoteId || generateId();
-  const voteRef = doc(db, "polls", pollId, "votes", id);
-  const { participantEmail, ...publicData } = voteData as any;
-  
-  // Save public data (name and selections)
-  await setDoc(voteRef, {
-    ...publicData,
-    voteId: id,
-    participantUid: auth.currentUser.uid,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }, { merge: true });
-
-  // Save private data (email) in a restricted subcollection
-  if (participantEmail) {
-    const privateRef = doc(db, "polls", pollId, "votes", id, "private", "data");
-    await setDoc(privateRef, {
-      email: participantEmail,
-      participantUid: auth.currentUser.uid,
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
-  }
-}
-
-/**
- * Finalizes a poll with a selected time slot.
- */
-export async function finalizePoll(pollId: string, selectedTimeSlotId: string, _adminToken?: string) {
-  const pollRef = doc(db, "polls", pollId);
-  
-  // Security rules will verify adminToken or organizerUid
-  await updateDoc(pollRef, {
-    status: "FINALIZED",
-    finalizedSlotId: selectedTimeSlotId,
-  });
-}
-
-/**
- * Reopens a poll and removes the selected time slot.
- */
-export async function unfinalizePoll(pollId: string, _adminToken?: string) {
-  const pollRef = doc(db, "polls", pollId);
-  
-  // Security rules will verify adminToken or organizerUid
-  await updateDoc(pollRef, {
-    status: "OPEN",
-    finalizedSlotId: null,
-  });
-}
-
-/**
- * Updates an existing poll in Firestore.
- */
-export async function updatePoll(pollId: string, data: Partial<Poll>) {
-  const pollRef = doc(db, "polls", pollId);
-  
-  const updateData = { ...data, updatedAt: new Date().toISOString() };
-  if (updateData.timeSlots) {
-    updateData.timeSlots = updateData.timeSlots.map(slot => ({
-      ...slot,
-      id: (slot as any).id || generateId()
-    }));
-  }
-
-  await updateDoc(pollRef, updateData as any);
-}
-
-/**
- * Deletes a vote for a specific poll.
- */
-export async function deleteVote(pollId: string, voteId: string) {
-  const voteRef = doc(db, "polls", pollId, "votes", voteId);
-  await deleteDoc(voteRef);
-}
-
-/**
- * Fetches private data for a specific vote (e.g. email).
- * Only succeeds if authorized by security rules.
- */
-export async function getPrivateVoteData(pollId: string, voteId: string) {
-  try {
-    const privateRef = doc(db, "polls", pollId, "votes", voteId, "private", "data");
-    const snap = await getDoc(privateRef);
-    return snap.exists() ? snap.data() : null;
-  } catch (error) {
-    console.error("Error fetching private vote data:", error);
+    const adminTokenKey = await deriveKeyFromPassword(adminToken);
+    const privB64 = await decrypt(adminTokenKey, metadata.encryptedAdminPriv.ciphertext, metadata.encryptedAdminPriv.iv);
+    
+    return {
+      privateKey: await importPrivateKey(privB64),
+      publicKey: await importPublicKey(metadata.adminPublicKey!)
+    };
+  } catch (e) {
+    console.error("Failed to recover identity from token:", e);
     return null;
   }
 }
 
 /**
- * Hook-ready function to listen to poll updates and votes.
+ * Loads the user's identity (ECDSA keys) for a specific poll.
+ * Checks Keystore first, then IndexedDB.
  */
-export function subscribeToPoll(
-  pollId: string, 
-  onUpdate: (data: { poll: Poll | null, votes: Vote[], voteCounts: Record<string, any> }) => void
-) {
-  const pollRef = doc(db, "polls", pollId);
-  const votesRef = collection(db, "polls", pollId, "votes");
+export async function loadIdentity(pollId: string): Promise<{ privateKey: CryptoKey, publicKey: CryptoKey } | null> {
+  let keys: { privateKey: string, publicKey: string } | null = null;
+  
+  const keystoreData = await loadFromKeystore(pollId);
+  if (keystoreData) {
+    keys = { privateKey: keystoreData.ecdsaPrivateKey, publicKey: keystoreData.ecdsaPublicKey };
+  } else {
+    keys = await loadFromIndexedDB(pollId);
+  }
 
-  let currentPoll: Poll | null = null;
-  let currentVotes: Vote[] = [];
-  let hasPollFired = false;
-  let hasVotesFired = false;
+  if (!keys) return null;
 
-  const emit = () => {
-    // Only emit if we have something or both listeners have at least fired once
-    if (!hasPollFired && !hasVotesFired) return;
-
-    const voteCounts: Record<string, any> = {};
-    if (currentPoll) {
-      currentPoll.timeSlots.forEach(slot => {
-        voteCounts[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0 };
-      });
-    }
-
-    currentVotes.forEach(vote => {
-      Object.entries(vote.selections).forEach(([slotId, value]) => {
-        if (!voteCounts[slotId]) {
-          // If poll isn't loaded yet, still track counts if possible
-          if (!voteCounts[slotId]) voteCounts[slotId] = { YES: 0, NO: 0, IF_NEED_BE: 0 };
-          voteCounts[slotId][value]++;
-        } else {
-          voteCounts[slotId][value]++;
-        }
-      });
-    });
-
-    onUpdate({ poll: currentPoll, votes: currentVotes, voteCounts });
-  };
-
-  const unsubPoll = onSnapshot(pollRef, (doc) => {
-    hasPollFired = true;
-    if (doc.exists()) {
-      const data = doc.data();
-      // Remove adminToken if it somehow exists (defense-in-depth for legacy docs)
-      if (data && 'adminToken' in data) {
-        delete data.adminToken;
-      }
-      currentPoll = { id: doc.id, pollId: doc.id, ...data } as unknown as Poll;
-    } else {
-      currentPoll = null;
-    }
-    emit();
-  }, (err) => {
-    console.error("subscribeToPoll: Poll sub error", err);
-    hasPollFired = true;
-    emit();
-  });
-
-  const unsubVotes = onSnapshot(votesRef, (snapshot) => {
-    hasVotesFired = true;
-    currentVotes = snapshot.docs.map(doc => ({ voteId: doc.id, ...doc.data() }) as Vote);
-    emit();
-  }, (err) => {
-    console.error("subscribeToPoll: Votes sub error", err);
-    hasVotesFired = true;
-    emit();
-  });
-
-  return () => {
-    unsubPoll();
-    unsubVotes();
+  return {
+    privateKey: await importPrivateKey(keys.privateKey),
+    publicKey: await importPublicKey(keys.publicKey)
   };
 }
 
 /**
- * Listens to polls created by the current user.
+ * Appends a signed, encrypted event to the poll ledger.
  */
-export function subscribeToUserPolls(
-  uid: string,
-  onUpdate: (polls: Poll[]) => void
+export async function appendSignedEvent(
+  pollId: string,
+  symmetricKey: CryptoKey,
+  privateKey: CryptoKey,
+  publicKey: CryptoKey,
+  action: PollAction
 ) {
-  const pollsRef = collection(db, "polls");
+  const signature = await signAction(privateKey, action);
+  const pubB64 = await exportPublicKey(publicKey);
   
-  // Query 1: Organized polls
-  const q1 = query(
-    pollsRef,
-    where("organizerUid", "==", uid),
-    orderBy("createdAt", "desc")
-  );
-
-  // Query 2: Managed polls (claimed)
-  const q2 = query(
-    pollsRef,
-    where("managers", "array-contains", uid),
-    orderBy("createdAt", "desc")
-  );
-
-  let polls1: Poll[] = [];
-  let polls2: Poll[] = [];
-
-  const emit = () => {
-    const combined = [...polls1, ...polls2];
-    // De-duplicate by pollId
-    const unique = Array.from(new Map(combined.map(p => [p.pollId, p])).values());
-    // Re-sort by createdAt desc
-    unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    onUpdate(unique);
+  const decryptedSignedEvent: DecryptedSignedEvent = {
+    publicKey: pubB64,
+    signature,
+    action
   };
 
-  const unsub1 = onSnapshot(q1, (snap) => {
-    polls1 = snap.docs.map(doc => ({ pollId: doc.id, ...doc.data() } as Poll));
-    emit();
-  });
+  const json = JSON.stringify(decryptedSignedEvent);
+  const { ciphertext, iv } = await encrypt(symmetricKey, json);
 
-  const unsub2 = onSnapshot(q2, (snap) => {
-    polls2 = snap.docs.map(doc => ({ pollId: doc.id, ...doc.data() } as Poll));
-    emit();
+  const eventId = generateId();
+  const eventRef = doc(db, "polls", pollId, "events", eventId);
+  
+  await setDoc(eventRef, {
+    eventId,
+    createdAt: serverTimestamp(),
+    encryptedData: ciphertext,
+    iv
   });
+}
 
-  return () => {
-    unsub1();
-    unsub2();
-  };
+/**
+ * Subscribes to the poll ledger, decrypts and reduces it into UI state.
+ */
+export function subscribeToLedger(
+  pollId: string,
+  symmetricKey: CryptoKey,
+  onUpdate: (state: PollState | null, status: string) => void
+) {
+  const eventsRef = collection(db, "polls", pollId, "events");
+  const q = query(eventsRef, orderBy("createdAt", "asc"));
+
+  return onSnapshot(q, async (snapshot) => {
+    onUpdate(null, "Decrypting ledger...");
+    
+    const events: DecryptedSignedEvent[] = [];
+    for (const doc of snapshot.docs) {
+      try {
+        const blind = doc.data() as BlindEvent;
+        const json = await decrypt(symmetricKey, blind.encryptedData, blind.iv);
+        events.push(JSON.parse(json));
+      } catch (e) {
+        console.warn("Failed to decrypt event", doc.id, e);
+      }
+    }
+
+    if (events.length === 0) {
+      onUpdate(null, "No valid events found.");
+      return;
+    }
+
+    onUpdate(null, "Verifying signatures...");
+    const state = await calculatePollState(events);
+    onUpdate(state, "Syncing...");
+  });
+}
+
+/**
+ * Subscribes to the user's keystore to find polls they have access to.
+ */
+export function subscribeToUserKeystore(
+  uid: string,
+  onUpdate: (entries: KeystoreEntry[]) => void
+) {
+  const keystoreRef = collection(db, "users", uid, "keystore");
+  const q = query(keystoreRef, orderBy("updatedAt", "desc"));
+
+  return onSnapshot(q, (snapshot) => {
+    const entries = snapshot.docs.map(doc => doc.data() as KeystoreEntry);
+    onUpdate(entries);
+  });
+}
+
+// === LEGACY STUBS (to prevent breakage during migration) ===
+
+export async function submitVote() { throw new Error("Deprecated: Use appendSignedEvent"); }
+export async function finalizePoll() { throw new Error("Deprecated: Use appendSignedEvent"); }
+export async function submitPollUpdate() { throw new Error("Deprecated: Use appendSignedEvent"); }
+export function subscribeToPoll() { throw new Error("Deprecated: Use subscribeToLedger"); }
+export function subscribeToUserPolls() { throw new Error("Deprecated: Use Keystore query"); }
+
+/**
+ * Fetches and decrypts the genesis event (POLL_CREATED) for a poll.
+ */
+export async function getGenesisEvent(pollId: string, symmetricPollKey: CryptoKey): Promise<PollMetadata | null> {
+  const eventsRef = collection(db, "polls", pollId, "events");
+  const q = query(eventsRef, orderBy("createdAt", "asc"), limit(1));
+  
+  for (let i = 0; i < 10; i++) {
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      try {
+        const blind = snapshot.docs[0].data() as BlindEvent;
+        const json = await decrypt(symmetricPollKey, blind.encryptedData, blind.iv);
+        const decrypted = JSON.parse(json);
+        
+        if (decrypted.action && decrypted.action.type === "POLL_CREATED") {
+          console.log(`CLAIM DEBUG: Genesis event found and decrypted for poll ${pollId}`);
+          return {
+            ...decrypted.action.payload,
+            adminPublicKey: decrypted.publicKey
+          };
+        }
+      } catch (e) {
+        console.error(`CLAIM DEBUG: Error decrypting genesis event for poll ${pollId}:`, e);
+      }
+    }
+    console.log(`CLAIM DEBUG: Genesis event not found for poll ${pollId}, retrying... (${i + 1}/10)`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  console.error(`CLAIM DEBUG: Genesis event NOT found for poll ${pollId} after 10 retries`);
+  
+  return null;
 }

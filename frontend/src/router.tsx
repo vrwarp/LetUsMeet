@@ -6,6 +6,8 @@ import ResultsPage from "@/pages/ResultsPage";
 import Layout from "@/components/Layout";
 import DashboardPage from "@/pages/DashboardPage";
 import EditPollPage from "@/pages/EditPollPage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import TermsOfServicePage from "@/pages/TermsOfServicePage";
 
 export const router = createBrowserRouter([
   {
@@ -18,6 +20,8 @@ export const router = createBrowserRouter([
       { path: "/poll/:pollId/results", element: <ResultsPage /> },
       { path: "/poll/:pollId/edit", element: <EditPollPage /> },
       { path: "/dashboard", element: <DashboardPage /> },
+      { path: "/privacy", element: <PrivacyPolicyPage /> },
+      { path: "/terms", element: <TermsOfServicePage /> },
     ],
   },
 ]);

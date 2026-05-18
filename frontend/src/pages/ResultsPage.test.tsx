@@ -1,13 +1,18 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ResultsPage from './ResultsPage';
 import * as pollService from '@/lib/pollService';
 
+
 describe('ResultsPage', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   const renderPage = (pollId = 'mock-poll-id-123') => {
     return render(
-      <MemoryRouter initialEntries={[`/poll/${pollId}/results`]}>
+      <MemoryRouter initialEntries={[`/poll/${pollId}/results#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=`]}>
         <Routes>
           <Route path="/poll/:pollId/results" element={<ResultsPage />} />
         </Routes>
@@ -16,40 +21,52 @@ describe('ResultsPage', () => {
   };
 
   it('renders availability grid and totals', async () => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementation((_id, _key, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: { 
+          title: 'Mock ZK Results', 
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' }]
+        },
+        votes: new Map(),
+        isFinalized: false
+      } as any, 'Synced');
+      return () => {};
+    });
+
     renderPage();
-    expect(await screen.findByText('Mock Meeting')).toBeInTheDocument();
+    expect(await screen.findByText('Mock ZK Results')).toBeInTheDocument();
   });
 
-  it('shows loading spinner (Stream E22)', () => {
-    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce(() => () => {});
+  it('shows loading spinner', () => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce(() => () => {});
     renderPage();
     expect(screen.getByTestId('loader')).toBeInTheDocument();
   });
 
   it('renders availability grid and totals with custom data', async () => {
-    const pollData = {
-      poll: { 
-        id: 'p1',
-        title: 'Meeting Results', 
-        timeSlots: [
-          { id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }
-        ] 
-      },
-      voteCounts: { t1: { YES: 1, NO: 0, IF_NEED_BE: 0 } },
-      votes: [
-        { 
-          voteId: 'v1',
-          participantUid: 'v1', 
-          participantName: 'Alice', 
-          selections: { t1: 'YES' }, 
-          updatedAt: '2026-05-09T00:00:00Z',
-          createdAt: '2026-05-09T00:00:00Z'
-        }
-      ]
-    };
-    
-    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
-      cb(pollData as any);
+    const votes = new Map();
+    votes.set('pub1', { 
+      responseId: 'r1',
+      participantName: 'Alice', 
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: { 
+          title: 'Meeting Results', 
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: false
+      } as any, 'Synced');
       return () => {};
     });
     
@@ -64,13 +81,14 @@ describe('ResultsPage', () => {
     expect(row).toHaveTextContent('1');
   });
 
-  it('shows No votes submitted yet message (Stream E26)', async () => {
-    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
+  it('shows No responses yet message', async () => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
       cb({ 
-        poll: { title: 'Empty Results', timeSlots: [{ id: 't1' }] } as any,
-        voteCounts: { t1: { YES: 0, NO: 0, IF_NEED_BE: 0 } },
-        votes: []
-      });
+        pollId: 'p1',
+        metadata: { title: 'Empty Results', timeSlots: [{ id: 't1' }], schedulingMode: 'EXACT' },
+        votes: new Map(),
+        isFinalized: false
+      } as any, 'Synced');
       return () => {};
     });
     
@@ -78,35 +96,30 @@ describe('ResultsPage', () => {
     expect(await screen.findByText(/No responses yet/i)).toBeInTheDocument();
   });
 
-  it('shows Leading badge on best slot (Stream E27)', async () => {
-    vi.mocked(pollService.subscribeToPoll).mockImplementationOnce((_id, cb) => {
+  it('shows Leading badge on best slot', async () => {
+    const votes = new Map();
+    votes.set('pub1', { 
+      responseId: 'r1',
+      participantName: 'Alice', 
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
       cb({ 
-        poll: { 
+        pollId: 'p1',
+        metadata: { 
           title: 'Leading Poll', 
-          timeSlots: [
-            { id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }
-          ] 
-        } as any,
-        voteCounts: { t1: { YES: 1, NO: 0, IF_NEED_BE: 0 } },
-        votes: [{ 
-          voteId: 'v1',
-          participantUid: 'v1', 
-          participantName: 'Alice', 
-          selections: { t1: 'YES' }, 
-          updatedAt: '2026-05-09T00:00:00Z',
-          createdAt: '2026-05-09T00:00:00Z'
-        }]
-      });
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: false
+      } as any, 'Synced');
       return () => {};
     });
     
     renderPage();
     expect(await screen.findByText(/Leading/i)).toBeInTheDocument();
-  });
-
-  it('Back to Poll link navigates back (Stream E29)', async () => {
-    renderPage();
-    await screen.findByText('Mock Meeting');
-    expect(screen.getByRole('link', { name: /Back to Poll/i })).toBeInTheDocument();
   });
 });

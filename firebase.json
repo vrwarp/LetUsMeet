@@ -43,7 +43,7 @@
       "host": "0.0.0.0",
       "port": 4000
     },
-    "single_project_mode": true,
+    "singleProjectMode": false,
     "functions": {
       "host": "0.0.0.0",
       "port": 5001

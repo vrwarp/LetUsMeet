@@ -1,54 +1,50 @@
-// Enums
-export type SchedulingMode = "EXACT" | "FUZZY";
-export type VoteValue = "YES" | "NO" | "IF_NEED_BE";
-export type PollStatus = "OPEN" | "FINALIZED";
+import type {
+  SchedulingMode,
+  VoteValue,
+  PollStatus,
+  TimeSlot,
+  ExactTimeSlot,
+  FuzzyTimeSlot,
+  PollMetadata,
+  VoteData,
+  PollState,
+  BlindPoll,
+  BlindEvent,
+  KeystoreEntry,
+  DecryptedSignedEvent,
+  PollAction,
+  DecryptedKeystorePayload,
+  Poll,
+  Vote,
+  DevicePublicKey,
+  AccountKeysDocument,
+  PendingDevice
+} from '../../../shared/types';
 
-// Time slot for exact scheduling
-export interface ExactTimeSlot {
-  id: string;
-  startTime: string;  // ISO 8601
-  endTime: string;    // ISO 8601
-}
+export type {
+  SchedulingMode,
+  VoteValue,
+  PollStatus,
+  TimeSlot,
+  ExactTimeSlot,
+  FuzzyTimeSlot,
+  PollMetadata,
+  VoteData,
+  PollState,
+  BlindPoll,
+  BlindEvent,
+  KeystoreEntry,
+  DecryptedSignedEvent,
+  PollAction,
+  DecryptedKeystorePayload,
+  Poll,
+  Vote,
+  DevicePublicKey,
+  AccountKeysDocument,
+  PendingDevice
+};
 
-// Time slot for fuzzy scheduling
-export interface FuzzyTimeSlot {
-  id: string;
-  date: string; // YYYY-MM-DD
-  label: string; // Free text, e.g., "Dinner", "After work", "Morning"
-  time?: string; // Optional time string, e.g., "18:00" or "09:00"
-}
-
-export type TimeSlot = ExactTimeSlot | FuzzyTimeSlot;
-
-// Poll document
-export interface Poll {
-  pollId: string;
-  organizerUid?: string | null;
-  organizerName: string;
-  organizerEmail?: string;
-  title: string;
-  description?: string;
-  location: string;
-  schedulingMode: SchedulingMode;
-  timeSlots: TimeSlot[];
-  status: PollStatus;
-  finalizedSlotId?: string;
-  managers?: string[];
-  createdAt: string;  // ISO 8601
-}
-
-// Vote document
-export interface Vote {
-  voteId: string;
-  participantUid?: string | null;
-  participantName: string;
-  participantEmail?: string | null;
-  selections: Record<string, VoteValue>;  // timeSlotId → vote
-  createdAt: string;
-  updatedAt: string;
-}
-
-// API request/response shapes
+// API request/response shapes (mostly legacy, will be removed)
 export type CreateTimeSlotPayload =
   | Omit<ExactTimeSlot, "id">
   | Omit<FuzzyTimeSlot, "id">;

@@ -1,8 +1,11 @@
-import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {defineJsonSecret} from "firebase-functions/params";
-import {GoogleGenAI, ThinkingLevel} from "@google/genai";
-import {getTimeSlotsPrompt} from "./prompts/timeSlots";
-import {getFuzzySlotsPrompt} from "./prompts/fuzzySlots";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineJsonSecret } from "firebase-functions/params";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { getTimeSlotsPrompt } from "./prompts/timeSlots";
+import { getFuzzySlotsPrompt } from "./prompts/fuzzySlots";
+import * as admin from "firebase-admin";
+
+admin.initializeApp();
 
 // Declare a structured JSON secret to hold all app-wide configuration values.
 // This helps stay within the Cloud Secret Manager free tier.
@@ -12,168 +15,109 @@ const appConfig = defineJsonSecret("LETUSMEET_CONFIG");
 
 /**
  * Natural language time-slot extraction using Google Gemma.
- * This function takes a query like "next friday 6pm" and returns
- * structured JSON with reasoning and time slots.
  */
 export const extractTimeSlots = onCall(
-  {secrets: [appConfig]},
+  { secrets: [appConfig] },
   async (request) => {
-    // 1. Validate Input
     const userQuery = request.data.query;
     if (!userQuery) {
-      throw new HttpsError(
-        "invalid-argument",
-        "The function must be called with a 'query' argument."
-      );
+      throw new HttpsError("invalid-argument", "The function must be called with a 'query' argument.");
     }
 
-    // 2. Initialize the AI client using the structured secret
-    const ai = new GoogleGenAI({
-      apiKey: appConfig.value().geminiApiKey,
-    });
-
-    // 3. Prepare dynamic context for the prompt
+    const ai = new GoogleGenAI({ apiKey: appConfig.value().geminiApiKey });
     const now = new Date();
-    const currentDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
-    const dayOfWeek = now.toLocaleDateString("en-US", {weekday: "long"});
+    const currentDate = now.toISOString().split("T")[0];
+    const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
 
-    // 4. Configure the model and prompt
-    const modelName = "gemma-4-26b-a4b-it"; // Alternative "gemma-4-31b-it";
     const config = {
-      thinkingConfig: {
-        thinkingLevel: ThinkingLevel.MINIMAL,
-      },
-      systemInstruction: [
-        {
-          text: getTimeSlotsPrompt(currentDate, dayOfWeek),
-        },
-      ],
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+      systemInstruction: [{ text: getTimeSlotsPrompt(currentDate, dayOfWeek) }],
       responseMimeType: "application/json",
     };
 
     try {
-      // 5. Generate content (Non-streaming for stable JSON parsing)
       const response = await ai.models.generateContent({
-        model: modelName,
+        model: "gemma-4-26b-a4b-it",
         config,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: userQuery,
-              },
-            ],
-          },
-        ],
+        contents: [{ role: "user", parts: [{ text: userQuery }] }],
       });
 
-      // 6. Extract and clean the result
-      const resultText = response.text || "";
-
-      // Remove any potential markdown wrappers the model might still include
-      const cleanJson = resultText
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-
-      if (!cleanJson) {
-        throw new Error("AI returned an empty response.");
-      }
-
+      const cleanJson = (response.text || "").replace(/```json/g, "").replace(/```/g, "").trim();
+      if (!cleanJson) throw new Error("AI returned an empty response.");
       return JSON.parse(cleanJson);
     } catch (error: unknown) {
       console.error("AI Generation Error:", error);
-
-      // Map common errors or throw a general internal error
-      const message = error instanceof Error ?
-        error.message :
-        "Failed to parse time slots using AI.";
-
-      throw new HttpsError("internal", message);
+      throw new HttpsError("internal", error instanceof Error ? error.message : "Failed to parse time slots.");
     }
   }
 );
 
 /**
  * Natural language fuzzy-slot extraction using Google Gemma.
- * Takes a query like "Dinner next weekend" and returns
- * structured JSON with labels and inferred times.
  */
 export const extractFuzzySlots = onCall(
-  {secrets: [appConfig]},
+  { secrets: [appConfig] },
   async (request) => {
-    // 1. Validate Input
     const userQuery = request.data.query;
     if (!userQuery) {
-      throw new HttpsError(
-        "invalid-argument",
-        "The function must be called with a 'query' argument."
-      );
+      throw new HttpsError("invalid-argument", "The function must be called with a 'query' argument.");
     }
 
-    // 2. Initialize the AI client
-    const ai = new GoogleGenAI({
-      apiKey: appConfig.value().geminiApiKey,
-    });
-
-    // 3. Prepare dynamic context for the prompt
+    const ai = new GoogleGenAI({ apiKey: appConfig.value().geminiApiKey });
     const now = new Date();
-    const currentDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
-    const dayOfWeek = now.toLocaleDateString("en-US", {weekday: "long"});
+    const currentDate = now.toISOString().split("T")[0];
+    const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
 
-    // 4. Configure the model and prompt
-    const modelName = "gemma-4-26b-a4b-it";
     const config = {
-      thinkingConfig: {
-        thinkingLevel: ThinkingLevel.MINIMAL,
-      },
-      systemInstruction: [
-        {
-          text: getFuzzySlotsPrompt(currentDate, dayOfWeek),
-        },
-      ],
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+      systemInstruction: [{ text: getFuzzySlotsPrompt(currentDate, dayOfWeek) }],
       responseMimeType: "application/json",
     };
 
     try {
-      // 5. Generate content
       const response = await ai.models.generateContent({
-        model: modelName,
+        model: "gemma-4-26b-a4b-it",
         config,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: userQuery,
-              },
-            ],
-          },
-        ],
+        contents: [{ role: "user", parts: [{ text: userQuery }] }],
       });
 
-      // 6. Extract and clean the result
-      const resultText = response.text || "";
-
-      const cleanJson = resultText
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-
-      if (!cleanJson) {
-        throw new Error("AI returned an empty response.");
-      }
-
+      const cleanJson = (response.text || "").replace(/```json/g, "").replace(/```/g, "").trim();
+      if (!cleanJson) throw new Error("AI returned an empty response.");
       return JSON.parse(cleanJson);
     } catch (error: unknown) {
       console.error("AI Generation Error:", error);
-
-      const message = error instanceof Error ?
-        error.message :
-        "Failed to parse fuzzy slots using AI.";
-
-      throw new HttpsError("internal", message);
+      throw new HttpsError("internal", error instanceof Error ? error.message : "Failed to parse fuzzy slots.");
     }
   }
 );
+
+/**
+ * GDPR Account Deletion via Cryptographic Shredding.
+ * Deletes the user's document, keystore, and auth account.
+ */
+export const deleteUserAccount = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in to delete account.");
+  }
+
+  const uid = request.auth.uid;
+  console.log(`Starting account deletion for UID: ${uid}`);
+
+  try {
+    // 1. Delete Firestore user data (including Keystore)
+    // This recursively deletes everything under /users/{uid}
+    await admin.firestore().recursiveDelete(
+      admin.firestore().doc(`users/${uid}`)
+    );
+    console.log(`Firestore data for ${uid} deleted successfully.`);
+
+    // 2. Delete the Auth user account
+    await admin.auth().deleteUser(uid);
+    console.log(`Auth account for ${uid} deleted successfully.`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Account Deletion Error:", error);
+    throw new HttpsError("internal", "An error occurred during account deletion.");
+  }
+});

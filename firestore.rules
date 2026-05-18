@@ -1,96 +1,58 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper to check if user has an admin grant
-    function hasAdminGrant(pollId) {
-      return exists(/databases/$(database)/documents/polls/$(pollId)/adminGrants/$(request.auth.uid));
+
+    // 1. KEYSTORE — only collection using Firebase Auth for security
+    match /users/{userId}/keystore/{entryId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && (
+          // Standard poll keystore entry
+          request.resource.data.keys().hasAll(['pollId', 'wrappedPayload', 'iv', 'updatedAt', 'amkId']) ||
+          // Identity verification entry
+          (entryId == 'identity_verification' && request.resource.data.keys().hasAll(['ciphertext', 'iv', 'nonce', 'version'])) ||
+          // Master Keystore Key (MKK) entry
+          (entryId == 'mkk_wrapped' && request.resource.data.keys().hasAll(['wrappedKey', 'iv', 'createdAt']))
+        );
     }
 
-    // Helper to verify admin token
-    function isValidAdminToken(pollId, token) {
-      return exists(/databases/$(database)/documents/polls/$(pollId)/adminTokens/$(token));
+    // 2. ACCOUNT KEYS — multi-device encryption management
+    match /users/{userId}/account_keys/default {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['activeAmkId', 'devices', 'keyring']);
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // 2. BLIND LEDGER
     match /polls/{pollId} {
-      // Anyone can read (adminToken is NOT in this document)
+      // Anyone can read the metadata shell and the event stream.
+      // Privacy is enforced via client-side cryptography.
       allow read: if true;
       
-      // Authenticated users can create a poll (no adminToken allowed in doc)
-      allow create: if request.auth != null
-                    && request.resource.data.status == "OPEN"
-                    && request.resource.data.title.size() > 0
-                    && !("adminToken" in request.resource.data)
-                    && request.resource.data.organizerUid == request.auth.uid;
-      
-      allow update: if request.auth != null 
-                    && (
-                      request.auth.uid == resource.data.organizerUid
-                      || hasAdminGrant(pollId)
-                    )
-                    && request.resource.data.createdAt == resource.data.createdAt
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['adminToken', 'organizerUid']);
-      
-      allow delete: if false;
+      // Creating the namespace shell
+      allow create: if true;
+      allow update, delete: if false;
 
-      // Token storage — used for verification via exists()
-      match /adminTokens/{token} {
-        allow create: if request.auth != null 
-                      && get(/databases/$(database)/documents/polls/$(pollId)).data.organizerUid == request.auth.uid;
-        allow read, update, delete: if false;
-      }
-
-      // Admin grants — proof of token ownership
-      match /adminGrants/{grantUid} {
-        allow read: if request.auth != null && request.auth.uid == grantUid;
-        
-        // Create/update: must provide correct adminToken
-        allow create, update: if request.auth != null
-          && request.auth.uid == grantUid
-          && isValidAdminToken(pollId, request.resource.data.adminToken);
-        
-        allow delete: if false;
-      }
-
-      match /votes/{voteId} {
-        // Votes are public to read (excluding private data)
+      match /events/{eventId} {
         allow read: if true;
         
-        // Anyone can create their own vote if the poll is open
-        allow create: if request.auth != null
-          && request.resource.data.participantUid == request.auth.uid
-          && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
-
-        // Only the original voter can update their own vote
-        allow update: if request.auth != null
-          && resource.data.participantUid == request.auth.uid
-          && request.resource.data.participantUid == request.auth.uid
-          && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
-          
-        allow delete: if request.auth != null && resource.data.participantUid == request.auth.uid;
-
-        // Private data subcollection (e.g. emails)
-        match /private/data {
-          // Only the poll organizer, managers, or the voter themselves can read the private data
-          allow read: if request.auth != null 
-                      && (request.auth.uid == get(/databases/$(database)/documents/polls/$(pollId)).data.organizerUid
-                          || request.auth.uid == resource.data.participantUid
-                          || hasAdminGrant(pollId));
-          
-          allow create: if request.auth != null
-                      && request.auth.uid == request.resource.data.participantUid
-                      && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
-
-          allow update: if request.auth != null
-                      && resource.data.participantUid == request.auth.uid
-                      && request.auth.uid == request.resource.data.participantUid
-                      && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "OPEN";
-        }
+        // Append-only invariant
+        allow create: if request.resource.data.keys().hasAll(['eventId', 'createdAt', 'encryptedData', 'iv'])
+          && request.resource.data.createdAt == request.time;
+        
+        allow update, delete: if false;
       }
     }
 
+    // 3. USER PROFILES
     match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 4. PENDING DEVICES — P2P authorization requests
+    match /users/{userId}/pending_devices/{deviceId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }

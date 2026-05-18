@@ -17,59 +17,182 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 // Global mock for useAuth hook - cover both alias and relative paths
+const mockUseAuth = vi.fn(() => ({
+  user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
+  loading: false,
+  keyMismatchError: null,
+  pendingRequests: [],
+  signInWithGoogle: vi.fn(),
+  signOutUser: vi.fn(),
+  resetAccount: vi.fn(),
+  deleteAccount: vi.fn(),
+  recoverWithPhrase: vi.fn(),
+}));
+
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({
-    user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
-    loading: false,
-  })),
+  useAuth: mockUseAuth,
 }));
 
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({
-    user: { uid: 'user123', email: 'test@example.com', displayName: 'Test User' },
-    loading: false,
-  })),
+  useAuth: mockUseAuth,
 }));
+
+// Generate real keys for mocks to avoid ERR_INVALID_ARG_TYPE
+const mockSymmetricKey = await webcrypto.subtle.generateKey(
+  { name: 'AES-GCM', length: 256 },
+  true,
+  ['encrypt', 'decrypt']
+);
+
+const mockIdentityPair = await webcrypto.subtle.generateKey(
+  {
+    name: 'ECDSA',
+    namedCurve: 'P-256',
+  },
+  true,
+  ['sign', 'verify']
+);
 
 // Global mock for pollService
 vi.mock('@/lib/pollService', () => {
-  const mockSubscribe = vi.fn((pollId: string, callback: any) => {
-    callback({
-      poll: {
-        id: pollId,
-        pollId: pollId,
-        organizerUid: 'user123',
-        title: 'Mock Meeting',
-        location: 'Virtual',
-        status: 'OPEN',
-        schedulingMode: 'EXACT',
-        timeSlots: [
-          { id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' },
-        ],
-        createdAt: '2026-05-09T00:00:00Z'
-      },
-      votes: [],
-      voteCounts: { t1: { YES: 0, NO: 0, IF_NEED_BE: 0 } }
-    });
-    return () => {}; // Unsubscribe function
-  });
-
   return {
-    createPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' })),
-    subscribeToPoll: mockSubscribe,
-    subscribeToUserPolls: vi.fn((uid: string, callback: any) => {
-      callback([{
-        id: 'mock-poll-id-123',
+    createBlindPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', key: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=' })),
+    subscribeToLedger: vi.fn((pollId: string, _key: any, callback: any) => {
+      callback({
+        pollId: pollId,
+        metadata: {
+          title: 'Mock ZK Meeting',
+          location: 'Virtual',
+          organizerName: 'Test User',
+          schedulingMode: 'EXACT',
+          timeSlots: [
+            { id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' },
+          ],
+        },
+        votes: new Map(),
+        isFinalized: false,
+        adminPublicKey: 'mock-admin-pubkey'
+      }, 'Synced');
+      return () => {};
+    }),
+    extractKeyFromFragment: vi.fn(() => 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+    getShareableUrl: vi.fn((url = '') => {
+      try {
+        const u = new URL(url || 'http://localhost');
+        u.searchParams.delete("adminToken");
+        return u.toString();
+      } catch {
+        return url;
+      }
+    }),
+    appendSignedEvent: vi.fn(() => Promise.resolve()),
+    loadIdentity: vi.fn(() => Promise.resolve({
+      privateKey: mockIdentityPair.privateKey,
+      publicKey: mockIdentityPair.publicKey
+    })),
+    saveToIndexedDB: vi.fn(() => Promise.resolve()),
+    saveToKeystore: vi.fn(() => Promise.resolve()),
+    derivePrfMasterKey: vi.fn(() => Promise.resolve(mockSymmetricKey)),
+    loadFromKeystore: vi.fn(() => Promise.resolve({ 
+      symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=',
+      ecdsaPrivateKey: 'priv',
+      ecdsaPublicKey: 'pub'
+    })),
+    subscribeToUserKeystore: vi.fn((_uid: string, callback: any) => {
+      callback([{ 
         pollId: 'mock-poll-id-123',
-        organizerUid: uid,
-        title: 'Mock User Poll',
-        status: 'OPEN',
-        createdAt: '2026-05-09T00:00:00Z',
-        schedulingMode: 'EXACT',
-        timeSlots: []
+        amkId: 'amk_v1',
+        wrappedPayload: 'ciphertext',
+        iv: 'iv',
+        updatedAt: Date.now()
       }]);
       return () => {};
     }),
+    getGenesisEvent: vi.fn(() => Promise.resolve({
+      title: 'Mock ZK Meeting',
+      location: 'Virtual',
+      organizerName: 'Test User',
+      schedulingMode: 'EXACT',
+      timeSlots: [],
+    })),
+    verifyAmk: vi.fn(() => Promise.resolve(true)),
+    // Legacy support
+    createPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' })),
+    subscribeToPoll: vi.fn(() => () => {}),
+    submitVote: vi.fn(() => Promise.resolve()),
+    finalizePoll: vi.fn(() => Promise.resolve()),
+    updatePoll: vi.fn(() => Promise.resolve()),
+    deleteVote: vi.fn(() => Promise.resolve()),
+    claimPoll: vi.fn(() => Promise.resolve()),
+    ensureAdminGrant: vi.fn(() => Promise.resolve(true)),
+  };
+});
+
+vi.mock('../lib/pollService', () => {
+  return {
+    createBlindPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', key: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=' })),
+    subscribeToLedger: vi.fn((pollId: string, _key: any, callback: any) => {
+      callback({
+        pollId: pollId,
+        metadata: {
+          title: 'Mock ZK Meeting',
+          location: 'Virtual',
+          organizerName: 'Test User',
+          schedulingMode: 'EXACT',
+          timeSlots: [
+            { id: 't1', startTime: '2026-10-10T10:00:00Z', endTime: '2026-10-10T11:00:00Z' },
+          ],
+        },
+        votes: new Map(),
+        isFinalized: false,
+        adminPublicKey: 'mock-admin-pubkey'
+      }, 'Synced');
+      return () => {};
+    }),
+    extractKeyFromFragment: vi.fn(() => 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+    getShareableUrl: vi.fn((url = '') => {
+      try {
+        const u = new URL(url || 'http://localhost');
+        u.searchParams.delete("adminToken");
+        return u.toString();
+      } catch {
+        return url;
+      }
+    }),
+    appendSignedEvent: vi.fn(() => Promise.resolve()),
+    loadIdentity: vi.fn(() => Promise.resolve({
+      privateKey: mockIdentityPair.privateKey,
+      publicKey: mockIdentityPair.publicKey
+    })),
+    saveToIndexedDB: vi.fn(() => Promise.resolve()),
+    saveToKeystore: vi.fn(() => Promise.resolve()),
+    derivePrfMasterKey: vi.fn(() => Promise.resolve(mockSymmetricKey)),
+    loadFromKeystore: vi.fn(() => Promise.resolve({ 
+      symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=',
+      ecdsaPrivateKey: 'priv',
+      ecdsaPublicKey: 'pub'
+    })),
+    subscribeToUserKeystore: vi.fn((_uid: string, callback: any) => {
+      callback([{ 
+        pollId: 'mock-poll-id-123',
+        amkId: 'amk_v1',
+        wrappedPayload: 'ciphertext',
+        iv: 'iv',
+        updatedAt: Date.now()
+      }]);
+      return () => {};
+    }),
+    getGenesisEvent: vi.fn(() => Promise.resolve({
+      title: 'Mock ZK Meeting',
+      location: 'Virtual',
+      organizerName: 'Test User',
+      schedulingMode: 'EXACT',
+      timeSlots: [],
+    })),
+    verifyAmk: vi.fn(() => Promise.resolve(true)),
+    // Legacy support
+    createPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', adminToken: 'mock-admin-token' })),
+    subscribeToPoll: vi.fn(() => () => {}),
     submitVote: vi.fn(() => Promise.resolve()),
     finalizePoll: vi.fn(() => Promise.resolve()),
     updatePoll: vi.fn(() => Promise.resolve()),
@@ -97,17 +220,43 @@ vi.mock('firebase/auth', () => ({
   }),
   signInWithPopup: vi.fn(),
   GoogleAuthProvider: vi.fn(),
+  signOut: vi.fn(),
+  signInAnonymously: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(() => ({})),
   connectFirestoreEmulator: vi.fn(),
+  doc: vi.fn(() => ({})),
+  collection: vi.fn(() => ({})),
+  query: vi.fn(() => ({})),
+  where: vi.fn(() => ({})),
+  onSnapshot: vi.fn((_ref, callback) => {
+    if (typeof callback === 'function') {
+      // Mock a snapshot with some data if needed, or just an empty one
+      callback({
+        exists: () => false,
+        docs: [],
+        data: () => ({})
+      });
+    }
+    return () => {};
+  }),
+  setDoc: vi.fn(() => Promise.resolve()),
+  getDoc: vi.fn(() => Promise.resolve({ exists: () => false })),
+  deleteDoc: vi.fn(() => Promise.resolve()),
+  runTransaction: vi.fn((_db, updateFn) => updateFn({
+    get: vi.fn(() => Promise.resolve({ exists: () => false })),
+    set: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  })),
 }));
 
 vi.mock('firebase/functions', () => ({
   getFunctions: vi.fn(() => ({})),
   connectFunctionsEmulator: vi.fn(),
-  httpsCallable: vi.fn(),
+  httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} }))),
 }));
 
 // Mock localStorage

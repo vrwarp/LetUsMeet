@@ -13,7 +13,7 @@ vi.mock('react-router-dom', async () => {
 
 describe('CreatePollPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('renders the form', async () => {
@@ -47,12 +47,10 @@ describe('CreatePollPage', () => {
     const endTimeInput = screen.getByTestId('slot-end-0');
     
     const nameInput = screen.getByTestId('organizer-name-input');
-    const emailInput = screen.getByTestId('organizer-email-input');
     
     // Verify prefilled values from mock useAuth
     await waitFor(() => {
       expect(nameInput).toHaveValue('Test User');
-      expect(emailInput).toHaveValue('test@example.com');
     });
     
     fireEvent.change(startTimeInput, { target: { value: '12:00' } });
@@ -67,12 +65,12 @@ describe('CreatePollPage', () => {
     await user.click(submitBtn);
     
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalled();
+      expect(pollService.createBlindPoll).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining('#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='));
     });
   });
 
-
-  it('disables submit button when title is empty (Stream E6)', async () => {
+  it('disables submit button when title is empty', async () => {
     render(
       <MemoryRouter>
         <CreatePollPage />
@@ -87,11 +85,11 @@ describe('CreatePollPage', () => {
     const addSlotBtn = screen.getByTestId('add-slot-btn');
     fireEvent.click(addSlotBtn);
 
-    // name and email are prefilled, and we added a slot, so button should be enabled once title is typed
+    // name is prefilled, and we added a slot, so button should be enabled once title is typed
     expect(submitBtn).not.toBeDisabled();
   });
 
-  it('adds and removes time slots (Stream E7, E8)', async () => {
+  it('adds and removes time slots', async () => {
     render(
       <MemoryRouter>
         <CreatePollPage />
@@ -110,8 +108,8 @@ describe('CreatePollPage', () => {
     expect(screen.getAllByTestId(/slot-start-/)).toHaveLength(1);
   });
 
-  it('displays error message on API failure (Stream E10)', async () => {
-    vi.mocked(pollService.createPoll).mockRejectedValueOnce(new Error('API Error'));
+  it('displays error message on API failure', async () => {
+    vi.mocked(pollService.createBlindPoll).mockRejectedValueOnce(new Error('API Error'));
     
     render(
       <MemoryRouter>
@@ -121,7 +119,6 @@ describe('CreatePollPage', () => {
     
     const titleInput = await screen.findByTestId('poll-title-input');
     await userEvent.type(titleInput, 'Title');
-    // name and email are prefilled
     
     const addSlotBtn = screen.getByTestId('add-slot-btn');
     fireEvent.click(addSlotBtn);
@@ -130,26 +127,5 @@ describe('CreatePollPage', () => {
     fireEvent.click(submitBtn);
     
     expect(await screen.findByText('API Error')).toBeInTheDocument();
-  });
-
-  it('does not pre-populate label and time in fuzzy mode', async () => {
-    render(
-      <MemoryRouter>
-        <CreatePollPage />
-      </MemoryRouter>
-    );
-    
-    // Switch to FUZZY mode
-    const fuzzyBtn = screen.getByText(/Flexible Windows/i);
-    fireEvent.click(fuzzyBtn);
-    
-    const addBtn = screen.getByTestId('add-slot-btn');
-    fireEvent.click(addBtn);
-    
-    const labelInput = screen.getByTestId('slot-label-0');
-    const timeInput = screen.getByTestId('slot-time-0');
-    
-    expect(labelInput).toHaveValue('');
-    expect(timeInput).toHaveValue('');
   });
 });

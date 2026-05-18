@@ -26,6 +26,7 @@ export default function HomePage() {
             </h1>
             <Link
               to="/create"
+              data-testid="create-poll-btn"
               className="inline-flex items-center justify-center bg-[#5B8C3A] hover:bg-[#4A722F] text-white font-display font-bold text-xl sm:text-2xl px-10 py-5 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95 w-full sm:w-auto"
             >
               Start a Poll

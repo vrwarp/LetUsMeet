@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, AlertTriangle, Clock, X, ShieldCheck } from "lucide-react";
-import { subscribeToPoll, updatePoll, claimPoll, ensureAdminGrant } from "@/lib/pollService";
-import { useAuth } from "@/hooks/useAuth";
-import type { Poll, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, Clock, X, Lock } from "lucide-react";
+import { 
+  extractKeyFromFragment, 
+  subscribeToLedger, 
+  appendSignedEvent, 
+  loadIdentity 
+} from "@/lib/pollService";
+import { importSymmetricKey, exportPublicKey } from "@/lib/crypto";
+import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {
   id?: string;
@@ -14,100 +19,118 @@ interface TimeSlotInput {
   time?: string;     // for FUZZY
 }
 
+function generateId() {
+  return Math.random().toString(36).substring(2, 15);
+}
+
 export default function EditPollPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   
+  const [pollState, setPollState] = useState<PollState | null>(null);
+  const [syncStatus, setSyncStatus] = useState("Initializing...");
+  const [symmetricKey, setSymmetricKey] = useState<CryptoKey | null>(null);
+  const [identity, setIdentity] = useState<{ privateKey: CryptoKey, publicKey: CryptoKey } | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
-  const [schedulingMode, setSchedulingMode] = useState<"EXACT" | "FUZZY">("EXACT");
   const [slots, setSlots] = useState<TimeSlotInput[]>([]);
-  const [voteCounts, setVoteCounts] = useState<Record<string, any>>({});
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isClaiming, setIsClaiming] = useState(false);
-  const [isTokenAdmin, setIsTokenAdmin] = useState(false);
-  const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
-  const [poll, setPoll] = useState<Poll | null>(null);
 
-  const adminToken = searchParams.get("adminToken") || localStorage.getItem(`adminToken_${pollId}`);
-
+  // 1. Initialize and Subscribe
   useEffect(() => {
     if (!pollId) return;
-    
-    setIsLoading(true);
-    const unsubscribe = subscribeToPoll(pollId, (data) => {
-      const fetchedPoll = data.poll as Poll;
-      setPoll(fetchedPoll);
-      setTitle(fetchedPoll.title);
-      setDescription(fetchedPoll.description || "");
-      setLocation(fetchedPoll.location);
-      setSchedulingMode(fetchedPoll.schedulingMode);
-      setVoteCounts(data.voteCounts);
 
-      const initialSlots: TimeSlotInput[] = fetchedPoll.timeSlots.map(slot => {
-        if (fetchedPoll.schedulingMode === "EXACT") {
-          const exact = slot as ExactTimeSlot;
-          const start = new Date(exact.startTime);
-          const end = new Date(exact.endTime);
-          return {
-            id: exact.id,
-            date: start.toISOString().split('T')[0],
-            startTime: start.toTimeString().substring(0, 5),
-            endTime: end.toTimeString().substring(0, 5),
-          };
-        } else {
-          const fuzzy = slot as FuzzyTimeSlot;
-          return {
-            id: fuzzy.id,
-            date: fuzzy.date,
-            label: fuzzy.label,
-            time: fuzzy.time,
-          };
-        }
-      });
-      setSlots(initialSlots);
+    const b64Key = extractKeyFromFragment();
+    if (!b64Key) {
+      setError("Secret key missing.");
       setIsLoading(false);
-    });
+      return;
+    }
 
-    return () => unsubscribe();
-  }, [pollId]);
+    const init = async () => {
+      try {
+        const key = await importSymmetricKey(b64Key);
+        setSymmetricKey(key);
 
+        const id = await loadIdentity(pollId);
+        setIdentity(id);
+
+        const unsubscribe = subscribeToLedger(pollId, key, (state, status) => {
+          if (state) {
+            setPollState(state);
+            // Only update form if not already edited by user
+            // Simplified: always update on first load
+            if (isLoading) {
+               setTitle(state.metadata?.title || "");
+               setDescription(state.metadata?.description || "");
+               setLocation(state.metadata?.location || "");
+               
+               const initialSlots: TimeSlotInput[] = (state.metadata?.timeSlots || []).map(slot => {
+                 if (state.metadata?.schedulingMode === "EXACT") {
+                   const exact = slot as ExactTimeSlot;
+                   const start = new Date(exact.startTime);
+                   const end = new Date(exact.endTime);
+                   return {
+                     id: exact.id,
+                     date: start.toISOString().split('T')[0],
+                     startTime: start.toTimeString().substring(0, 5),
+                     endTime: end.toTimeString().substring(0, 5),
+                   };
+                 } else {
+                   const fuzzy = slot as FuzzyTimeSlot;
+                   return {
+                     id: fuzzy.id,
+                     date: fuzzy.date,
+                     label: fuzzy.label,
+                     time: fuzzy.time,
+                   };
+                 }
+               });
+               setSlots(initialSlots);
+            }
+          }
+          setSyncStatus(status);
+          setIsLoading(false);
+        });
+
+        // Verify Admin
+        if (id && pollState?.adminPublicKey) {
+           const pub = await exportPublicKey(id.publicKey);
+           setIsAdmin(pub === pollState.adminPublicKey);
+        }
+
+        return unsubscribe;
+      } catch (err: any) {
+        setError("Failed to initialize.");
+        setIsLoading(false);
+      }
+    };
+
+    const unsubPromise = init();
+    return () => { unsubPromise.then(unsub => unsub?.()); };
+  }, [pollId, pollState?.adminPublicKey]);
+
+  // Re-check admin when pollState is updated
   useEffect(() => {
-    if (adminToken && user && pollId) {
-      ensureAdminGrant(pollId, adminToken).then(valid => {
-        setIsTokenAdmin(valid);
+    if (identity && pollState?.adminPublicKey) {
+      exportPublicKey(identity.publicKey).then(pub => {
+        setIsAdmin(pub === pollState.adminPublicKey);
       });
-    } else {
-      setIsTokenAdmin(false);
     }
-  }, [user?.uid, pollId, adminToken]);
-
-  const handlePickerClick = (e: React.MouseEvent<HTMLInputElement>) => {
-    const el = e.currentTarget;
-    if (activeInput === el) {
-      el.blur();
-      setActiveInput(null);
-    } else {
-      (el as any).showPicker?.();
-      setActiveInput(el);
-    }
-  };
-
-  const handleBlur = () => {
-    setActiveInput(null);
-  };
+  }, [pollState?.adminPublicKey, identity]);
 
   const addSlot = () => {
     const lastSlot = slots[slots.length - 1];
     const defaultDate = new Date().toISOString().split('T')[0];
+    const mode = pollState?.metadata?.schedulingMode || "EXACT";
 
-    if (schedulingMode === "EXACT") {
+    if (mode === "EXACT") {
       setSlots([...slots, { 
         date: lastSlot?.date || defaultDate, 
         startTime: lastSlot?.startTime || "09:00", 
@@ -123,17 +146,6 @@ export default function EditPollPage() {
   };
 
   const removeSlot = (index: number) => {
-    const slot = slots[index];
-    if (slot.id && voteCounts[slot.id]) {
-      const counts = voteCounts[slot.id];
-      const hasVotes = (counts.YES || 0) + (counts.NO || 0) + (counts.IF_NEED_BE || 0) > 0;
-      if (hasVotes) {
-        if (!confirm("This time slot already has votes cast. Deleting it will remove those votes. Are you sure?")) {
-          return;
-        }
-      }
-    }
-    
     setSlots(slots.filter((_, i) => i !== index));
   };
 
@@ -145,52 +157,39 @@ export default function EditPollPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!symmetricKey || !identity || !pollId || !pollState?.metadata) return;
+
     setIsSubmitting(true);
     setError(null);
 
-    if (!pollId) return;
     try {
-      await updatePoll(pollId, {
+      const mode = pollState.metadata.schedulingMode;
+      const updatedMetadata = {
         title,
         description,
         location,
-        timeSlots: schedulingMode === "EXACT"
+        timeSlots: mode === "EXACT"
           ? slots.map(slot => ({
-            id: slot.id,
+            id: slot.id || generateId(),
             startTime: new Date(`${slot.date}T${slot.startTime || "09:00"}`).toISOString(),
             endTime: new Date(`${slot.date}T${slot.endTime || "10:00"}`).toISOString(),
           })) as any[]
           : slots.map(slot => ({
-            id: slot.id,
+            id: slot.id || generateId(),
             date: slot.date,
             label: slot.label || "General",
             time: slot.time || undefined,
           })) as any[],
-      });
+      };
 
-
-      navigate(`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`);
+      const action: PollAction = { type: "POLL_UPDATED", payload: updatedMetadata };
+      await appendSignedEvent(pollId, symmetricKey, identity.privateKey, identity.publicKey, action);
+      
+      navigate(`/poll/${pollId}${window.location.search}${window.location.hash}`);
     } catch (err: any) {
-      console.error("Failed to update poll", err);
-      setError(err.message || "Something went wrong. Please try again.");
+      setError("Failed to update poll.");
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleClaim = async () => {
-    if (!pollId || isClaiming) return;
-    if (!adminToken) return;
-
-    setIsClaiming(true);
-    try {
-      await claimPoll(pollId, adminToken);
-      // Re-render via subscription
-    } catch (err) {
-      console.error("Failed to claim poll:", err);
-      setError("Failed to claim poll. Please try again.");
-    } finally {
-      setIsClaiming(false);
     }
   };
 
@@ -198,53 +197,36 @@ export default function EditPollPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Loading poll details...</p>
+        <p className="text-neutral-500 font-medium">{syncStatus}</p>
       </div>
     );
   }
 
+  if (error || !pollState || !isAdmin) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
+        <h2 className="text-2xl font-bold text-neutral-800 mb-4">Admin Access Required</h2>
+        <p className="text-neutral-600 text-lg mb-8">{error || "You do not have the administrative key for this poll."}</p>
+        <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className="btn-primary-green inline-block">Back to Poll</Link>
+      </div>
+    );
+  }
+
+  const schedulingMode = pollState.metadata!.schedulingMode;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <Link 
-        to={`/poll/${pollId}${adminToken ? `?adminToken=${adminToken}` : ""}`}
-        className="inline-flex items-center gap-2 text-brand-green-dark hover:text-brand-green font-bold mb-8 transition-colors"
+        to={`/poll/${pollId}${window.location.search}${window.location.hash}`}
+        className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8"
       >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Poll
+        <ArrowLeft size={16} /> Back to Poll
       </Link>
-
-      {(() => {
-        if (!poll) return null;
-        const isActuallyOrganizer = user && poll.organizerUid === user.uid;
-        const isAlreadyManager = user && poll.managers?.includes(user.uid);
-        if (user && !isActuallyOrganizer && !isAlreadyManager && isTokenAdmin) {
-          return (
-            <div className="mb-8 p-6 bg-brand-green-light/30 border border-brand-green-light rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm animate-in fade-in slide-in-from-top-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-brand-charcoal text-lg">Claim this Poll</h2>
-                  <p className="text-neutral-600 text-sm">You have administrative access. Would you like to add this poll to your dashboard?</p>
-                </div>
-              </div>
-              <button
-                onClick={handleClaim}
-                disabled={isClaiming}
-                className="px-8 py-3 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-all shadow-md shadow-brand-green/10 whitespace-nowrap disabled:opacity-50"
-              >
-                {isClaiming ? "Adding to Dashboard..." : "Add to My Dashboard"}
-              </button>
-            </div>
-          );
-        }
-        return null;
-      })()}
 
       <div className="mb-10">
         <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Edit Your Poll</h1>
-        <p className="text-neutral-500">Update the details of "{title}"</p>
+        <p className="text-neutral-500">Update the details of "{pollState.metadata!.title}"</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -258,8 +240,7 @@ export default function EditPollPage() {
               id="poll-title"
               required
               type="text"
-              placeholder="e.g., Team Sync"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all text-lg"
+              className="w-full"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -268,12 +249,11 @@ export default function EditPollPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-description" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <Type size={16} className="text-brand-green" />
-              Description (Optional)
+              Description
             </label>
             <textarea
               id="poll-description"
-              placeholder="Add more details about the meeting..."
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all min-h-[100px] resize-none [field-sizing:content] [@supports(field-sizing:content)]:h-auto"
+              className="w-full min-h-[100px] resize-none"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -282,24 +262,16 @@ export default function EditPollPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-location" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <MapPin size={16} className="text-brand-green" />
-              Location (Optional)
+              Location
             </label>
             <input
               id="poll-location"
               type="text"
-              placeholder="e.g., Zoom, Office"
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
+              className="w-full"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
           </div>
-        </div>
-
-        <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
-           <div className="flex items-center gap-2 text-neutral-600 font-medium">
-              <AlertTriangle size={18} className="text-amber-500" />
-              <span>Scheduling mode is fixed to <strong>{schedulingMode === "EXACT" ? "Exact Times" : "Flexible Windows"}</strong></span>
-           </div>
         </div>
 
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm">
@@ -309,164 +281,140 @@ export default function EditPollPage() {
           </label>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {slots.map((slot, index) => {
-              const counts = slot.id ? voteCounts[slot.id] : null;
-              const hasVotes = counts && (counts.YES || 0) + (counts.NO || 0) + (counts.IF_NEED_BE || 0) > 0;
-              
-              return (
-                <div key={index} className="relative group">
-                    <div className="flex flex-col gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
-                      {hasVotes && (
-                        <div className="absolute -top-2 -left-2 bg-amber-100 text-amber-700 p-1.5 rounded-full shadow-sm z-20 border border-amber-200" title="This slot already has votes. Deleting it will remove them.">
-                          <AlertTriangle size={12} />
+            {slots.map((slot, index) => (
+              <div key={index} className="relative group">
+                <div className="flex flex-col gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
+                    <div className="flex items-center gap-2">
+                      <label className="relative group/date cursor-pointer flex-1 min-w-0">
+                        <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-brand-green group-focus-within/date:ring-2 group-focus-within/date:ring-brand-green/20 transition-all shadow-sm">
+                          <CalendarIcon size={14} className="text-brand-green/60 mr-2 flex-shrink-0" />
+                          <span className="truncate text-sm font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
                         </div>
-                      )}
+                        <input
+                          type="date"
+                          required
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                          value={slot.date}
+                          onChange={(e) => updateSlot(index, "date", e.target.value)}
+                        />
+                      </label>
 
-                      <div className="flex items-center gap-2">
-                        <label className="relative group/date cursor-pointer flex-1 min-w-0">
-                          <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                            <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
-                            <span className="truncate text-sm">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
-                          </div>
-                          <input
-                            type="date"
-                            required
-                            onClick={handlePickerClick}
-                            onBlur={handleBlur}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                            value={slot.date}
-                            onChange={(e) => updateSlot(index, "date", e.target.value)}
-                          />
-                        </label>
-
-                        {schedulingMode === "FUZZY" ? (
-                          <label className="relative group/time cursor-pointer flex-shrink-0">
-                            <div className="flex items-center px-3 h-10 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-[110px] shadow-sm hover:border-neutral-300">
-                              <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
-                              <span className="truncate text-sm">{slot.time || "--:--"}</span>
-                              {slot.time && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    updateSlot(index, "time", "");
-                                  }}
-                                  className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
-                                >
-                                  <X size={12} />
-                                </button>
-                               )}
-                            </div>
-                            <input
-                              type="time"
-                              onClick={handlePickerClick}
-                              onBlur={handleBlur}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                              value={slot.time || ""}
-                              onChange={(e) => updateSlot(index, "time", e.target.value)}
-                            />
-                          </label>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => removeSlot(index)}
-                            aria-label="Remove time slot"
-                            className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="w-full">
-                        {schedulingMode === "EXACT" ? (
-                          <div className="flex items-center gap-2">
-                            <label className="relative group/start cursor-pointer flex-1">
-                              <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-indigo-500 group-focus-within/start:ring-2 group-focus-within/start:ring-indigo-500/20 transition-all w-full shadow-sm">
-                                <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
-                                <span className="text-sm">{slot.startTime || "09:00"}</span>
-                              </div>
-                              <input
-                                type="time"
-                                required
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                value={slot.startTime}
-                                onChange={(e) => updateSlot(index, "startTime", e.target.value)}
-                              />
-                            </label>
-                            <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
-                            <label className="relative group/end cursor-pointer flex-1">
-                              <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full shadow-sm">
-                                <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
-                                <span className="text-sm">{slot.endTime || "10:00"}</span>
-                              </div>
-                              <input
-                                type="time"
-                                required
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                value={slot.endTime}
-                                onChange={(e) => updateSlot(index, "endTime", e.target.value)}
-                              />
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                placeholder="Label"
-                                className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
-                                value={slot.label}
-                                onChange={(e) => updateSlot(index, "label", e.target.value)}
-                              />
+                      {schedulingMode === "FUZZY" ? (
+                        <label className="relative group/time cursor-pointer flex-shrink-0">
+                          <div className="flex items-center px-3 h-10 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-brand-green group-focus-within/time:ring-2 group-focus-within/time:ring-brand-green/20 transition-all w-[110px] shadow-sm hover:border-neutral-300">
+                            <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
+                            <span className="truncate text-sm">{slot.time || "--:--"}</span>
+                            {slot.time && (
                               <button
                                 type="button"
-                                onClick={() => removeSlot(index)}
-                                aria-label="Remove time slot"
-                                className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  updateSlot(index, "time", "");
+                                }}
+                                className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
                               >
-                                <Trash2 size={16} />
+                                <X size={12} />
                               </button>
-                            </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                          <input
+                            type="time"
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                            value={slot.time || ""}
+                            onChange={(e) => updateSlot(index, "time", e.target.value)}
+                          />
+                        </label>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(index)}
+                          aria-label="Remove time slot"
+                          className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
+
+                  <div className="w-full">
+                    {schedulingMode === "EXACT" ? (
+                      <div className="flex items-center gap-2">
+                        <label className="relative group/start cursor-pointer flex-1">
+                          <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-brand-green group-focus-within/start:ring-2 group-focus-within/start:ring-brand-green/20 transition-all w-full shadow-sm">
+                            <Clock size={14} className="text-brand-green/40 mr-2 flex-shrink-0" />
+                            <span className="text-sm">{slot.startTime || "09:00"}</span>
+                          </div>
+                          <input
+                            type="time"
+                            required
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                            value={slot.startTime}
+                            onChange={(e) => updateSlot(index, "startTime", e.target.value)}
+                          />
+                        </label>
+                        <span className="text-neutral-300 font-bold">-</span>
+                        <label className="relative group/end cursor-pointer flex-1">
+                          <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-brand-green group-focus-within/end:ring-2 group-focus-within/end:ring-brand-green/20 transition-all w-full shadow-sm">
+                            <Clock size={14} className="text-brand-green/40 mr-2 flex-shrink-0" />
+                            <span className="text-sm">{slot.endTime || "10:00"}</span>
+                          </div>
+                          <input
+                            type="time"
+                            required
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                            value={slot.endTime}
+                            onChange={(e) => updateSlot(index, "endTime", e.target.value)}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 relative">
+                          <Type size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-green/40 pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="e.g. Evening, Session 1..."
+                            className="w-full pl-9 py-2 text-sm font-bold bg-white border border-neutral-200 rounded-xl focus:border-brand-green transition-all shadow-sm"
+                            value={slot.label}
+                            onChange={(e) => updateSlot(index, "label", e.target.value)}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(index)}
+                          className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
 
             <button
               type="button"
               onClick={addSlot}
-              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px]"
+              className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-neutral-200 rounded-2xl text-neutral-400 hover:border-brand-green hover:text-brand-green hover:bg-brand-green-light/20 transition-all font-bold text-sm bg-white/50 group"
             >
-              <Plus size={20} />
+              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center group-hover:bg-brand-green group-hover:text-white transition-all">
+                <Plus size={20} />
+              </div>
               Add time slot
             </button>
           </div>
         </div>
 
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium">
-            {error}
-          </div>
-        )}
+        {error && <div className="p-4 bg-red-50 text-red-600 rounded-xl font-bold">{error}</div>}
 
         <button
           type="submit"
           disabled={isSubmitting || !title || slots.length === 0}
-          className="w-full py-4 bg-brand-green text-white rounded-xl font-bold text-xl hover:bg-brand-green-dark transition-all shadow-lg shadow-brand-green/10 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="btn-primary-green w-full py-4 flex items-center justify-center gap-2"
         >
-          {isSubmitting ? (
-            <Loader2 className="animate-spin" size={24} />
-          ) : (
-            <>
-              <Save size={24} />
-              Save Changes
-            </>
-          )}
+          {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={24} /> Save Changes</>}
         </button>
       </form>
     </div>
