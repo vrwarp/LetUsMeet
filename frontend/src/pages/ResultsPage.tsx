@@ -15,7 +15,6 @@ import {
   Lock,
   MapPin,
   Share2,
-  ShieldCheck,
   Send
 } from "lucide-react";
 import { 
@@ -135,9 +134,9 @@ export default function ResultsPage() {
   }));
 
   const voteCounts = metadata.timeSlots.reduce((acc, slot) => {
-    acc[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0 };
+    acc[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0, BLANK: 0 };
     voteArray.forEach(v => {
-      const val = v.selections[slot.id] || "NO";
+      const val = v.selections[slot.id] || "BLANK";
       acc[slot.id][val]++;
     });
     return acc;
@@ -327,9 +326,15 @@ export default function ResultsPage() {
                   <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
                     vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark" :
                     vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-50 text-amber-800" :
+                    vote.selections[slot.id] === "BLANK" ? "bg-neutral-50 text-neutral-300" :
                     "bg-red-50 text-red-600"
                   }`}>
-                    {vote.selections[slot.id] === "YES" ? "✓" : vote.selections[slot.id] === "IF_NEED_BE" ? "?" : "×"}
+                    {
+                      vote.selections[slot.id] === "YES" ? "✓" : 
+                      vote.selections[slot.id] === "IF_NEED_BE" ? "?" : 
+                      vote.selections[slot.id] === "BLANK" ? "" : 
+                      "×"
+                    }
                   </div>
                 </td>
               ))}
@@ -383,10 +388,6 @@ export default function ResultsPage() {
                         WebkitMaskImage: (metadata.description && metadata.description.length > 100 && !isDescriptionExpanded) ? 'linear-gradient(to bottom, black 60%, transparent 100%)' : 'none'
                       }}
                     >
-                      <div className="flex items-center gap-2 mb-2 text-white/40">
-                         <ShieldCheck size={16} className="text-brand-green" />
-                         <span className="text-[10px] font-black uppercase tracking-widest text-brand-green">Zero-Knowledge Results</span>
-                      </div>
                       <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white drop-shadow-sm break-words leading-tight">
                         {metadata.title}
                       </h1>
@@ -459,10 +460,10 @@ export default function ResultsPage() {
             <div className={`order-2 flex-1 min-w-0 ${isAdmin ? 'col-span-2 md:order-2' : 'col-span-1 md:order-2'}`}>
               <ActionCard 
                 icon={pollState.isFinalized ? <CheckCircle2 className="w-5 h-5" /> : <Users className="w-5 h-5" />}
-                label={pollState.isFinalized ? "Confirmed Attendance" : "Participants"}
+                label={pollState.isFinalized ? "Confirmed Attendance" : "Responses"}
                 value={pollState.isFinalized 
                   ? `${voteArray.filter(v => v.selections[pollState.finalizedSlotId!] === "YES").length} People attending`
-                  : `${voteArray.length} participants registered`}
+                  : `${voteArray.length} ${voteArray.length === 1 ? 'response' : 'responses'}`}
                 theme="dark"
               />
             </div>

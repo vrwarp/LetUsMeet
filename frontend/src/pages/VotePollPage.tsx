@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, ShieldCheck, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
+import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
@@ -167,7 +167,7 @@ export default function VotePollPage() {
     setParticipantName(user?.displayName || "");
     setParticipantEmail(user?.email || "");
     const initial: Record<string, VoteValue> = {};
-    pollState?.metadata?.timeSlots.forEach(s => initial[s.id] = "NO");
+    pollState?.metadata?.timeSlots.forEach(s => initial[s.id] = "BLANK");
     setSelections(initial);
   };
 
@@ -330,10 +330,6 @@ export default function VotePollPage() {
                               WebkitMaskImage: (canExpand && !isDescriptionExpanded) ? 'linear-gradient(to bottom, black 60%, transparent 95%)' : 'none'
                             }}
                           >
-                            <div className="flex items-center gap-2 mb-2">
-                               <ShieldCheck size={16} className="text-brand-green" />
-                               <span className="text-[10px] font-black uppercase tracking-widest text-brand-green">Zero-Knowledge Poll</span>
-                            </div>
                             <h1 data-testid="poll-title" className="text-3xl md:text-5xl font-black tracking-tight text-brand-green-dark drop-shadow-sm break-words leading-tight">
                               {metadata.title}
                             </h1>
@@ -487,7 +483,7 @@ export default function VotePollPage() {
               <TimeSlotCard
                 key={slot.id}
                 slot={slot}
-                value={selections[slot.id] || "NO"}
+                value={selections[slot.id] || "BLANK"}
                 onChange={(val) => handleVoteChange(slot.id, val)}
               />
             ))}

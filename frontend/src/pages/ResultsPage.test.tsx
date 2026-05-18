@@ -74,7 +74,7 @@ describe('ResultsPage', () => {
     
     expect(await screen.findByText('Meeting Results')).toBeInTheDocument();
     expect(screen.getByText('Alice')).toBeInTheDocument();
-    expect(screen.getByText(/1 participants/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 response/i)).toBeInTheDocument();
     
     // Check vote counts
     const row = screen.getByText('TOTAL').closest('tr');

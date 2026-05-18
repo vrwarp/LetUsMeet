@@ -1,6 +1,6 @@
 // Enums
 export type SchedulingMode = "EXACT" | "FUZZY";
-export type VoteValue = "YES" | "NO" | "IF_NEED_BE";
+export type VoteValue = "YES" | "NO" | "IF_NEED_BE" | "BLANK";
 export type PollStatus = "OPEN" | "FINALIZED";
 
 // Time slot for exact scheduling

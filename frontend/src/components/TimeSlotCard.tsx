@@ -48,8 +48,10 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       case "IF_NEED_BE":
         return "bg-amber-100/50 border-amber-300 text-amber-900 border-dashed shadow-sm";
       case "NO":
-      default:
         return "bg-white border-neutral-200 text-brand-charcoal hover:bg-brand-light-gray/30 hover:border-neutral-300 shadow-sm";
+      case "BLANK":
+      default:
+        return "bg-neutral-50 border-neutral-200 text-brand-charcoal hover:bg-neutral-100/50 transition-colors shadow-sm";
     }
   };
 
@@ -58,6 +60,7 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       case "YES": return "Yes";
       case "IF_NEED_BE": return "If need be";
       case "NO": return "No";
+      case "BLANK":
       default: return "";
     }
   };
@@ -67,7 +70,8 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       case "YES": return "text-brand-green-dark";
       case "IF_NEED_BE": return "text-amber-900";
       case "NO": return "text-neutral-500";
-      default: return "";
+      case "BLANK":
+      default: return "text-neutral-400";
     }
   };
 
@@ -81,14 +85,24 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       className={`relative flex flex-col items-center p-6 rounded-2xl border-2 transition-all cursor-pointer select-none min-h-[140px] justify-between shadow-md active:scale-95 ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       <div className="flex flex-col items-center justify-center gap-1">
-        <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${value === 'NO' ? 'text-neutral-500' : (value === 'IF_NEED_BE' ? 'text-amber-900' : 'text-brand-green-dark')}`}>
+        <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${
+          value === 'BLANK' ? 'text-neutral-500' :
+          value === 'NO' ? 'text-neutral-500' : 
+          value === 'IF_NEED_BE' ? 'text-amber-900' : 
+          'text-brand-green-dark'
+        }`}>
           {dateStr}
         </span>
         <span className="text-xl font-black whitespace-nowrap">
           {timeRange}
         </span>
         {subtext && (
-          <span className={`text-[10px] font-bold ${value === 'NO' ? 'text-neutral-600' : (value === 'IF_NEED_BE' ? 'text-amber-700' : 'text-brand-green-dark')}`}>
+          <span className={`text-[10px] font-bold ${
+            value === 'BLANK' ? 'text-neutral-600' :
+            value === 'NO' ? 'text-neutral-600' : 
+            value === 'IF_NEED_BE' ? 'text-amber-700' : 
+            'text-brand-green-dark'
+          }`}>
             {subtext}
           </span>
         )}
@@ -96,23 +110,6 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
 
       <div className="mt-4 flex items-center justify-center gap-3 w-full bg-neutral-50/50 rounded-xl py-2.5 px-4 border border-neutral-100 shadow-inner">
         <div className="flex items-center gap-4">
-          {/* NO Icon State */}
-          <div 
-            onClick={(e) => {
-              if (disabled) return;
-              e.stopPropagation();
-              onChange('NO');
-            }}
-            data-testid="icon-NO"
-            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
-              value === 'NO' 
-                ? 'text-neutral-700 scale-110' 
-                : 'text-neutral-200 hover:text-neutral-500 hover:scale-110'
-            }`}
-          >
-            <X size={18} strokeWidth={4} aria-hidden="true" />
-          </div>
-
           {/* YES Icon State */}
           <div 
             onClick={(e) => {
@@ -124,7 +121,7 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
             className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
               value === 'YES' 
                 ? 'text-brand-green scale-110' 
-                : 'text-neutral-200 hover:text-brand-green hover:scale-110'
+                : 'text-neutral-400 hover:text-brand-green hover:scale-110'
             }`}
           >
             <Check size={18} strokeWidth={4} aria-hidden="true" />
@@ -141,10 +138,27 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
             className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
               value === 'IF_NEED_BE'
                 ? 'text-amber-600 scale-110'
-                : 'text-neutral-200 hover:text-amber-600 hover:scale-110'
+                : 'text-neutral-400 hover:text-amber-600 hover:scale-110'
             }`}
           >
             <AlertCircle size={18} strokeWidth={3} aria-hidden="true" />
+          </div>
+
+          {/* NO Icon State */}
+          <div 
+            onClick={(e) => {
+              if (disabled) return;
+              e.stopPropagation();
+              onChange('NO');
+            }}
+            data-testid="icon-NO"
+            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
+              value === 'NO' 
+                ? 'text-neutral-700 scale-110' 
+                : 'text-neutral-400 hover:text-neutral-700 hover:scale-110'
+            }`}
+          >
+            <X size={18} strokeWidth={4} aria-hidden="true" />
           </div>
         </div>
 

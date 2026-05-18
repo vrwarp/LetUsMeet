@@ -9,7 +9,7 @@ describe('TimeSlotCard', () => {
       startTime: '2026-10-10T10:00:00Z',
       endTime: '2026-10-10T11:00:00Z',
     },
-    value: 'NO' as const,
+    value: 'BLANK' as const,
     onChange: vi.fn(),
   };
 
@@ -26,18 +26,25 @@ describe('TimeSlotCard', () => {
     expect(screen.getByText(new RegExp(expectedEnd.replace(/\s/g, '.'), 'i'))).toBeInTheDocument();
   });
 
-  it('displays NO state styling by default', () => {
+  it('displays BLANK state styling by default', () => {
     render(<TimeSlotCard {...defaultProps} />);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('bg-white');
-    expect(button).toHaveClass('border-neutral-200');
+    expect(button).toHaveClass('bg-neutral-50');
+    expect(button).toHaveClass('text-brand-charcoal');
   });
 
-  it('calls onChange with YES when clicked from NO state', () => {
+  it('calls onChange with YES when clicked from BLANK state', () => {
     const onChange = vi.fn();
     render(<TimeSlotCard {...defaultProps} onChange={onChange} />);
     fireEvent.click(screen.getByRole('button'));
     expect(onChange).toHaveBeenCalledWith('YES');
+  });
+
+  it('calls onChange with BLANK when clicked from NO state', () => {
+    const onChange = vi.fn();
+    render(<TimeSlotCard {...defaultProps} value="NO" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(onChange).toHaveBeenCalledWith('BLANK');
   });
 
   it('displays YES state styling and always shows all three icons', () => {
@@ -59,6 +66,13 @@ describe('TimeSlotCard', () => {
     render(<TimeSlotCard {...defaultProps} value="NO" />);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-white');
+    expect(button.querySelectorAll('svg').length).toBe(3);
+  });
+
+  it('displays BLANK state styling and always shows all three icons', () => {
+    render(<TimeSlotCard {...defaultProps} value="BLANK" />);
+    const button = screen.getByRole('button');
+    expect(button).toHaveClass('bg-neutral-50');
     expect(button.querySelectorAll('svg').length).toBe(3);
   });
 

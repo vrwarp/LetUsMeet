@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-// No lucide-react imports used in this file currently
+import { ShieldCheck } from "lucide-react";
 import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
@@ -24,13 +24,22 @@ export default function HomePage() {
             <h1 className="text-5xl sm:text-8xl font-display font-bold text-white leading-tight tracking-tight px-2 sm:px-0">
               Let everyone meet.
             </h1>
-            <Link
-              to="/create"
-              data-testid="create-poll-btn"
-              className="inline-flex items-center justify-center bg-[#5B8C3A] hover:bg-[#4A722F] text-white font-display font-bold text-xl sm:text-2xl px-10 py-5 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95 w-full sm:w-auto"
-            >
-              Start a Poll
-            </Link>
+            <div className="flex flex-col items-center md:items-start gap-4">
+              <Link
+                to="/create"
+                data-testid="create-poll-btn"
+                className="inline-flex items-center justify-center bg-[#5B8C3A] hover:bg-[#4A722F] text-white font-display font-bold text-xl sm:text-2xl px-10 py-5 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95 w-full sm:w-auto"
+              >
+                Start a Poll
+              </Link>
+              <Link
+                to="/privacy"
+                className="inline-flex items-center gap-1.5 text-xs text-neutral-100 hover:text-white font-medium transition-colors mt-2"
+              >
+                <ShieldCheck size={14} className="text-[#A2D381] flex-shrink-0" />
+                <span>Zero-knowledge. Learn more.</span>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
