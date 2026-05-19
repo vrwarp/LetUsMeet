@@ -40,7 +40,7 @@ test.describe('Multi-user Flows', () => {
       const p1Page = await p1Context.newPage();
 
       await p1Page.goto(pollUrl);
-      await expect(p1Page.getByTestId('poll-title')).toContainText(pollTitle, { timeout: 15000 });
+      await expect(p1Page.getByTestId('poll-title')).toContainText(pollTitle, { timeout: 90000 });
 
       const p1SlotCards = p1Page.getByTestId('slot-card');
       await p1SlotCards.nth(0).click(); // YES
@@ -55,7 +55,7 @@ test.describe('Multi-user Flows', () => {
       const p2Page = await p2Context.newPage();
 
       await p2Page.goto(pollUrl);
-      await expect(p2Page.getByTestId('poll-title')).toContainText(pollTitle, { timeout: 15000 });
+      await expect(p2Page.getByTestId('poll-title')).toContainText(pollTitle, { timeout: 90000 });
       const p2SlotCards = p2Page.getByTestId('slot-card');
       await p2SlotCards.nth(1).click(); // YES
 

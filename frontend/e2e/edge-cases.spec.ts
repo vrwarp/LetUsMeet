@@ -16,13 +16,13 @@ test.describe('Error & Edge Cases', () => {
 
   test('displays privacy protection for non-existent poll or missing key', async ({ page }) => {
     await page.goto('/poll/invalid-poll-id-123');
-    await expect(page.getByText(/Privacy Protected/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Privacy Protected/i)).toBeVisible();
     await expect(page.getByText(/requires a secret key/i)).toBeVisible();
   });
 
   test('displays privacy protection for non-existent poll results or missing key', async ({ page }) => {
     await page.goto('/poll/invalid-poll-id-123/results');
-    await expect(page.getByText(/Privacy Protected/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Privacy Protected/i)).toBeVisible();
   });
 
   test('prevents voting without name', async ({ page }) => {

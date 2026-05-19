@@ -90,9 +90,13 @@ export default function ResultsPage() {
         setIdentity(id);
 
         const unsubscribe = subscribeToLedger(pollId, key, (state, status) => {
-          if (state) setPollState(state);
+          if (state) {
+            setPollState(state);
+            setIsLoading(false);
+          } else if (status === "No valid events found.") {
+            setIsLoading(false);
+          }
           setSyncStatus(status);
-          setIsLoading(false);
         });
 
         return unsubscribe;

@@ -107,19 +107,22 @@ export default function VotePollPage() {
           }
           id = pair;
         }
+        const pubB64 = await exportPublicKey(id.publicKey);
         if (mounted) {
           setIdentity(id);
-          exportPublicKey(id.publicKey).then(pub => {
-            if (mounted) setPublicKeyB64(pub);
-          });
+          setPublicKeyB64(pubB64);
         }
 
         // Subscribe to Ledger
         const unsubscribe = subscribeToLedger(pollId, key, (state, status) => {
           if (!mounted) return;
-          if (state) setPollState(state);
+          if (state) {
+            setPollState(state);
+            setIsLoading(false);
+          } else if (status === "No valid events found.") {
+            setIsLoading(false);
+          }
           setSyncStatus(status);
-          setIsLoading(false);
         });
 
         return unsubscribe;

@@ -13,6 +13,7 @@ import type { PendingDevice } from "@/types";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 
 let isSigningIn = false;
+let lastUid: string | null = null;
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -22,9 +23,13 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      // Clear session caches on any auth state change to prevent cross-session leakage
-      clearAmkSessionCache();
-      clearPrfSessionCache();
+      const currentUid = currentUser ? currentUser.uid : null;
+      if (currentUid !== lastUid) {
+        lastUid = currentUid;
+        // Clear session caches only on actual user change to prevent cross-session leakage and race conditions
+        clearAmkSessionCache();
+        clearPrfSessionCache();
+      }
 
       if (currentUser) {
         if (currentUser && !currentUser.isAnonymous) {

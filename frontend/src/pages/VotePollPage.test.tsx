@@ -74,7 +74,7 @@ describe('VotePollPage', () => {
   });
 
   it('shows Poll Finalized message', async () => {
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementation((_id, _key, cb) => {
       cb({ 
         pollId: 'mock-poll-id-123',
         isFinalized: true,

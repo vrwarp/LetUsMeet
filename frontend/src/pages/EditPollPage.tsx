@@ -94,9 +94,11 @@ export default function EditPollPage() {
                });
                setSlots(initialSlots);
             }
+            setIsLoading(false);
+          } else if (status === "No valid events found.") {
+            setIsLoading(false);
           }
           setSyncStatus(status);
-          setIsLoading(false);
         });
 
         // Verify Admin

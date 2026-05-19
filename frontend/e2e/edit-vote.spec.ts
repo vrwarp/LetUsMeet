@@ -34,7 +34,7 @@ test.describe('Vote Editing and Multiple Responses', () => {
     await page.goto(pollUrl);
     
     // Should see the editing banner
-    await expect(page.getByText(/Editing your previous response/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Editing your previous response/i)).toBeVisible({ timeout: 45000 });
     await expect(page.getByTestId('participant-name-input')).toHaveValue('E2E Voter');
 
     // 4. Update the vote

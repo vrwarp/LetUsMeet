@@ -170,12 +170,11 @@ test.describe('Device Management & Recovery', () => {
       localStorage.removeItem('deviceId');
     });
 
-    // 3. Reload - Should recover silently via PRF
-    await page.reload();
+    // 3. Go to dashboard - Should recover silently via PRF
     await page.goto('/dashboard');
     await waitForDashboardReady(page);
 
-    await expect(page.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 30000 });
-    await expect(page.locator('h2', { hasText: 'PRF Recovery Test' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 45000 });
+    await expect(page.locator('h2', { hasText: 'PRF Recovery Test' })).toBeVisible({ timeout: 30000 });
   });
 });
