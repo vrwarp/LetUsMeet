@@ -1,15 +1,7 @@
-import type {
-  PollState,
-  DecryptedSignedEvent,
-  VoteData
-} from '../types';
-import { verifySignature, importPublicKey } from './crypto';
+import type { DecryptedLedgerEvent } from "@letusmeet/zero-knowledge";
+import type { PollState, VoteData } from "../types";
 
-/**
- * Reducer that reconstructs the authoritative poll state from an encrypted ledger.
- * It enforces cryptographic security and business logic invariants.
- */
-export async function calculatePollState(events: DecryptedSignedEvent[]): Promise<PollState> {
+export function calculatePollState(events: DecryptedLedgerEvent[]): PollState {
   const state: PollState = {
     adminPublicKey: null,
     metadata: null,
@@ -17,81 +9,42 @@ export async function calculatePollState(events: DecryptedSignedEvent[]): Promis
     isFinalized: false
   };
 
-  for (const event of events) {
-    const { publicKey, signature, action } = event;
-
-    try {
-      // 1. Cryptographic Signature Verification
-      // Every event must be validly signed by the public key it claims to be from.
-      const pubKey = await importPublicKey(publicKey);
-      const isValid = await verifySignature(pubKey, signature, action);
-      if (!isValid) {
-        console.warn("Dropping event due to invalid signature", event);
-        continue;
-      }
-
-      // 2. State Transitions
-      switch (action.type) {
-        case "POLL_CREATED":
-          // Genesis block: The first valid POLL_CREATED event defines the admin and initial metadata.
-          // Subsequent POLL_CREATED events are ignored to prevent takeover.
-          if (state.adminPublicKey === null) {
-            state.adminPublicKey = publicKey;
-            state.metadata = action.payload;
-          }
-          break;
-
-        case "POLL_UPDATED":
-          // Only the admin can update poll metadata.
-          if (publicKey === state.adminPublicKey && state.metadata) {
-            state.metadata = {
-              ...state.metadata,
-              ...action.payload
-            };
-          }
-          break;
-
-        case "POLL_FINALIZED":
-          // Only the admin can finalize the poll.
-          if (publicKey === state.adminPublicKey) {
-            state.isFinalized = true;
-            state.finalizedSlotId = action.payload.finalizedSlotId;
-          }
-          break;
-
-        case "POLL_UNFINALIZED":
-          // Only the admin can unfinalize the poll.
-          if (publicKey === state.adminPublicKey) {
-            state.isFinalized = false;
-            state.finalizedSlotId = undefined;
-          }
-          break;
-
-        case "VOTE_UPSERT":
-          // Votes are accepted only if the poll is not finalized.
-          // The vote is keyed by the signer's public key + responseId to allow multiple responses.
-          if (!state.isFinalized) {
-            const voteKey = `${publicKey}:${action.payload.responseId}`;
-            state.votes.set(voteKey, action.payload);
-          }
-          break;
-
-        case "VOTE_RETRACTED":
-          // Only the voter can retract their own vote.
-          if (!state.isFinalized) {
-            const voteKey = `${publicKey}:${action.payload.responseId}`;
-            state.votes.delete(voteKey);
-          }
-          break;
-
-        default:
-          console.warn("Unknown action type", (action as any).type);
-      }
-    } catch (e) {
-      console.error("Error processing event:", e);
-      continue;
+  for (const { signerPublicKey, action } of events) {
+    switch (action.type) {
+      case "POLL_CREATED":
+        if (state.adminPublicKey === null) {
+          state.adminPublicKey = signerPublicKey;
+          state.metadata = action.payload;
+        }
+        break;
+      case "POLL_UPDATED":
+        if (signerPublicKey === state.adminPublicKey && state.metadata) {
+          state.metadata = { ...state.metadata, ...action.payload };
+        }
+        break;
+      case "POLL_FINALIZED":
+        if (signerPublicKey === state.adminPublicKey) {
+          state.isFinalized = true;
+          state.finalizedSlotId = action.payload.finalizedSlotId;
+        }
+        break;
+      case "POLL_UNFINALIZED":
+        if (signerPublicKey === state.adminPublicKey) {
+          state.isFinalized = false;
+          state.finalizedSlotId = undefined;
+        }
+        break;
+      case "VOTE_UPSERT":
+        if (!state.isFinalized) {
+          state.votes.set(`${signerPublicKey}:${action.payload.responseId}`, action.payload);
+        }
+        break;
+      case "VOTE_RETRACTED":
+        if (!state.isFinalized) {
+          state.votes.delete(`${signerPublicKey}:${action.payload.responseId}`);
+        }
+        break;
     }
   }
-
   return state;
 }

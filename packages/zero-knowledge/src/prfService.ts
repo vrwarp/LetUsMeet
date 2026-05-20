@@ -1,4 +1,4 @@
-import { auth } from "../firebase";
+import { getAuth } from "./config";
 
 import {
   openDB,
@@ -49,6 +49,7 @@ export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ ma
     await globalPrfLock;
 
     try {
+      const auth = getAuth();
       const user = auth.currentUser;
       if (!user) throw new Error("Must be signed in to derive PRF key.");
 

@@ -4,7 +4,6 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ResultsPage from './ResultsPage';
 import * as pollService from '@/lib/pollService';
 
-
 describe('ResultsPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -21,7 +20,7 @@ describe('ResultsPage', () => {
   };
 
   it('renders availability grid and totals', async () => {
-    vi.mocked(pollService.subscribeToLedger).mockImplementation((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementation((_session, cb) => {
       cb({
         pollId: 'p1',
         metadata: { 
@@ -55,7 +54,7 @@ describe('ResultsPage', () => {
       clientTimestamp: Date.now()
     });
 
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({
         pollId: 'p1',
         metadata: { 
@@ -82,7 +81,7 @@ describe('ResultsPage', () => {
   });
 
   it('shows No responses yet message', async () => {
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({ 
         pollId: 'p1',
         metadata: { title: 'Empty Results', timeSlots: [{ id: 't1' }], schedulingMode: 'EXACT' },
@@ -105,7 +104,7 @@ describe('ResultsPage', () => {
       clientTimestamp: Date.now()
     });
 
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({ 
         pollId: 'p1',
         metadata: { 

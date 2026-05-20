@@ -20,7 +20,7 @@ import {
   importDevicePrivateKey,
   wrapAmk,
   unwrapAmk
-} from './crypto';
+} from '@letusmeet/zero-knowledge';
 
 describe('Crypto Primitives', () => {
   describe('AES-GCM Symmetric Keys', () => {

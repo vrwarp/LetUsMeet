@@ -20,11 +20,10 @@ import {
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
-  appendSignedEvent, 
-  loadIdentity,
-  getShareableUrl
+  getShareableUrl,
+  getLedgerSession
 } from "@/lib/pollService";
-import { importSymmetricKey, exportPublicKey } from "@/lib/crypto";
+import type { LedgerSession } from "@letusmeet/zero-knowledge";
 import { useAuth } from "../hooks/useAuth";
 import type { PollState, VoteValue, PollAction } from "../types";
 import ActionCard from "@/components/ActionCard";
@@ -36,8 +35,7 @@ export default function ResultsPage() {
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
-  const [symmetricKey, setSymmetricKey] = useState<CryptoKey | null>(null);
-  const [identity, setIdentity] = useState<{ privateKey: CryptoKey, publicKey: CryptoKey } | null>(null);
+  const [session, setSession] = useState<LedgerSession | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,16 +48,12 @@ export default function ResultsPage() {
   const [showLocationCopied, setShowLocationCopied] = useState(false);
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (!identity || !pollState?.adminPublicKey) {
-        setIsAdmin(false);
-        return;
-      }
-      const pubKeyHex = await exportPublicKey(identity.publicKey);
-      setIsAdmin(pubKeyHex === pollState.adminPublicKey);
-    };
-    checkAdminStatus();
-  }, [identity, pollState?.adminPublicKey]);
+    if (session && pollState?.adminPublicKey) {
+      setIsAdmin(session.getSignerPublicKey() === pollState.adminPublicKey);
+    } else {
+      setIsAdmin(false);
+    }
+  }, [session, pollState?.adminPublicKey]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
@@ -83,13 +77,10 @@ export default function ResultsPage() {
 
     const init = async () => {
       try {
-        const key = await importSymmetricKey(b64Key);
-        setSymmetricKey(key);
+        const s = await getLedgerSession(pollId, { shareableKey: b64Key });
+        setSession(s);
 
-        const id = await loadIdentity(pollId);
-        setIdentity(id);
-
-        const unsubscribe = subscribeToLedger(pollId, key, (state, status) => {
+        const unsubscribe = subscribeToLedger(s, (state, status) => {
           if (state) {
             setPollState(state);
             setIsLoading(false);
@@ -184,11 +175,11 @@ export default function ResultsPage() {
   };
 
   const handleFinalize = async (slotId: string) => {
-    if (!symmetricKey || !identity || !pollId) return;
+    if (!session || !pollId) return;
     setFinalizing(slotId);
     try {
       const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
-      await appendSignedEvent(pollId, symmetricKey, identity.privateKey, identity.publicKey, action);
+      await session.appendEvent(action);
     } catch (err) {
       alert("Failed to finalize.");
     } finally {
@@ -197,13 +188,13 @@ export default function ResultsPage() {
   };
 
   const handleUnfinalize = async () => {
-    if (!symmetricKey || !identity || !pollId) return;
+    if (!session || !pollId) return;
     if (!confirm("Are you sure you want to unselect the confirmed date?")) return;
     
     setUnfinalizing(true);
     try {
       const action: PollAction = { type: "POLL_UNFINALIZED", payload: null };
-      await appendSignedEvent(pollId, symmetricKey, identity.privateKey, identity.publicKey, action);
+      await session.appendEvent(action);
     } catch (err) {
       alert("Failed to unselect date.");
     } finally {

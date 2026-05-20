@@ -7,7 +7,8 @@
   },
   "workspaces": [
     "frontend",
-    "functions"
+    "functions",
+    "packages/zero-knowledge"
   ],
   "description": "",
   "homepage": "https://github.com/vrwarp/LetUsMeet#readme",

@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { subscribeToUserKeystore, loadFromKeystore, getGenesisEvent } from "@/lib/pollService";
-import { getRecoveryStatus, enablePrfRecovery, getDeviceId, approveDeviceAuthorization, revokeDevice, getActiveAmk } from "@/lib/deviceService";
-import { setupPhraseRecovery } from "@/lib/recoveryService";
-import { importSymmetricKey, decryptPayload } from "@/lib/crypto";
+import { subscribeToUserKeystore, getLedgerSession } from "@/lib/pollService";
+import { getRecoveryStatus, enablePrfRecovery, getDeviceId, approveDeviceAuthorization, revokeDevice, getActiveAmk, decryptPayload, generateVerificationCode, setupPhraseRecovery } from "@letusmeet/zero-knowledge";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, ShieldAlert, Key, Clipboard, CheckCircle2, Monitor, XCircle } from "lucide-react";
 import type { PollMetadata, PendingDevice, AccountKeysDocument } from "../types";
 import { db } from "@/firebase";
 import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
-import { generateVerificationCode } from "@/lib/crypto";
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
   const [code, setCode] = useState<string>("......");
@@ -113,20 +110,17 @@ export default function DashboardPage() {
 
       for (const entry of keystoreEntries) {
         try {
-          const keystoreData = await loadFromKeystore(entry.pollId);
-          if (!keystoreData) continue;
-
-          const cryptoKey = await importSymmetricKey(keystoreData.symmetricPollKey);
-          const metadata = await getGenesisEvent(entry.pollId, cryptoKey);
-          if (metadata) {
+          const session = await getLedgerSession(entry.ledgerId);
+          const genesis = await session.getGenesisEvent();
+          if (genesis?.action?.type === "POLL_CREATED") {
             decryptedEntries.push({
-              pollId: entry.pollId,
-              symmetricKey: keystoreData.symmetricPollKey,
-              metadata
+              pollId: entry.ledgerId,
+              symmetricKey: session.exportSessionKey(),
+              metadata: genesis.action.payload
             });
           }
         } catch (e) {
-          console.warn("Failed to decrypt dashboard entry", entry.pollId, e);
+          console.warn("Failed to decrypt dashboard entry", entry.ledgerId, e);
         }
       }
 

@@ -4,18 +4,10 @@ import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as Cal
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
-  appendSignedEvent, 
-  loadIdentity,
-  saveToIndexedDB,
-  saveToKeystore,
-  getShareableUrl
+  getShareableUrl,
+  getLedgerSession
 } from "@/lib/pollService";
-import { 
-  importSymmetricKey, 
-  generateIdentityKeyPair, 
-  exportPrivateKey, 
-  exportPublicKey 
-} from "@/lib/crypto";
+import type { LedgerSession } from "@letusmeet/zero-knowledge";
 import { useAuth } from "@/hooks/useAuth";
 import type { PollState, VoteValue, VoteData, PollAction } from "../types";
 import TimeSlotCard from "@/components/TimeSlotCard";
@@ -29,9 +21,7 @@ export default function VotePollPage() {
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
-  const [symmetricKey, setSymmetricKey] = useState<CryptoKey | null>(null);
-  const [identity, setIdentity] = useState<{ privateKey: CryptoKey, publicKey: CryptoKey } | null>(null);
-  const [publicKeyB64, setPublicKeyB64] = useState<string | null>(null);
+  const [session, setSession] = useState<LedgerSession | null>(null);
   
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
   const [participantName, setParticipantName] = useState("");
@@ -84,37 +74,11 @@ export default function VotePollPage() {
 
     const init = async () => {
       try {
-        // Import Symmetric Key
-        const key = await importSymmetricKey(b64Key);
-        if (mounted) setSymmetricKey(key);
-
-        // Load Identity
-        let id = await loadIdentity(pollId);
-        if (!id) {
-          // Generate new identity for this poll
-          const pair = await generateIdentityKeyPair();
-          const priv = await exportPrivateKey(pair.privateKey);
-          const pub = await exportPublicKey(pair.publicKey);
-          
-          if (user && !user.isAnonymous) {
-             await saveToKeystore(pollId, {
-               symmetricPollKey: b64Key,
-               ecdsaPrivateKey: priv,
-               ecdsaPublicKey: pub
-             });
-          } else {
-             await saveToIndexedDB(pollId, { privateKey: priv, publicKey: pub });
-          }
-          id = pair;
-        }
-        const pubB64 = await exportPublicKey(id.publicKey);
-        if (mounted) {
-          setIdentity(id);
-          setPublicKeyB64(pubB64);
-        }
+        const s = await getLedgerSession(pollId, { shareableKey: b64Key });
+        if (mounted) setSession(s);
 
         // Subscribe to Ledger
-        const unsubscribe = subscribeToLedger(pollId, key, (state, status) => {
+        const unsubscribe = subscribeToLedger(s, (state, status) => {
           if (!mounted) return;
           if (state) {
             setPollState(state);
@@ -143,8 +107,8 @@ export default function VotePollPage() {
   }, [pollId, user?.uid]);
 
   // 2. Derive User Votes
-  const userVotes = (pollState && publicKeyB64) ? Array.from(pollState.votes.entries())
-    .filter(([key]) => key.startsWith(publicKeyB64 + ":"))
+  const userVotes = (pollState && session) ? Array.from(pollState.votes.entries())
+    .filter(([key]) => key.startsWith(session.getSignerPublicKey() + ":"))
     .map(([, vote]) => vote)
     .sort((a, b) => b.clientTimestamp - a.clientTimestamp)
     : [];
@@ -192,7 +156,7 @@ export default function VotePollPage() {
       return;
     }
     
-    if (!symmetricKey || !identity || !pollId) {
+    if (!session || !pollId) {
       setError("Cryptographic keys not ready.");
       return;
     }
@@ -210,7 +174,7 @@ export default function VotePollPage() {
       };
 
       const action: PollAction = { type: "VOTE_UPSERT", payload: voteData };
-      await appendSignedEvent(pollId, symmetricKey, identity.privateKey, identity.publicKey, action);
+      await session.appendEvent(action);
       
       setSuccess(true);
     } catch (err: any) {
@@ -222,13 +186,13 @@ export default function VotePollPage() {
   };
 
   const handleRetract = async () => {
-    if (!symmetricKey || !identity || !pollId) return;
+    if (!session || !pollId) return;
     if (!confirm("Are you sure you want to retract your vote?")) return;
 
     setIsSubmitting(true);
     try {
       const action: PollAction = { type: "VOTE_RETRACTED", payload: { responseId: editingResponseId } };
-      await appendSignedEvent(pollId, symmetricKey, identity.privateKey, identity.publicKey, action);
+      await session.appendEvent(action);
       setSuccess(true);
     } catch (err: any) {
       setError("Failed to retract vote.");

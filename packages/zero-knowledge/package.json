@@ -1,0 +1,27 @@
+{
+  "name": "@letusmeet/zero-knowledge",
+  "version": "1.0.0",
+  "description": "Zero-knowledge encryption and identity management library for LetUsMeet, built for Cloud Firestore.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "bip39": "^3.1.0"
+  },
+  "peerDependencies": {
+    "firebase": "^12.12.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

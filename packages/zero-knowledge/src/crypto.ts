@@ -1,4 +1,4 @@
-import type { EncryptedData } from "../types";
+import type { EncryptedData } from "./types";
 
 /**
  * Generates a random AES-GCM symmetric key.

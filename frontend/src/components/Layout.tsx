@@ -9,11 +9,9 @@ import {
   getDeviceId, 
   getLocalPublicKey, 
   requestDeviceAuthorization, 
-  approveDeviceAuthorization
-} from "@/lib/deviceService";
-import { 
+  approveDeviceAuthorization,
   generateVerificationCode
-} from "@/lib/crypto";
+} from "@letusmeet/zero-knowledge";
 import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import type { PendingDevice } from "@/types";
 

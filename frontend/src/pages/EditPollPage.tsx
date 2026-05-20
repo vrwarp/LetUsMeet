@@ -4,10 +4,9 @@ import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, Ar
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
-  appendSignedEvent, 
-  loadIdentity 
+  getLedgerSession
 } from "@/lib/pollService";
-import { importSymmetricKey, exportPublicKey } from "@/lib/crypto";
+import type { LedgerSession } from "@letusmeet/zero-knowledge";
 import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {
@@ -29,8 +28,7 @@ export default function EditPollPage() {
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
-  const [symmetricKey, setSymmetricKey] = useState<CryptoKey | null>(null);
-  const [identity, setIdentity] = useState<{ privateKey: CryptoKey, publicKey: CryptoKey } | null>(null);
+  const [session, setSession] = useState<LedgerSession | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [title, setTitle] = useState("");
@@ -55,13 +53,10 @@ export default function EditPollPage() {
 
     const init = async () => {
       try {
-        const key = await importSymmetricKey(b64Key);
-        setSymmetricKey(key);
+        const s = await getLedgerSession(pollId, { shareableKey: b64Key });
+        setSession(s);
 
-        const id = await loadIdentity(pollId);
-        setIdentity(id);
-
-        const unsubscribe = subscribeToLedger(pollId, key, (state, status) => {
+        const unsubscribe = subscribeToLedger(s, (state, status) => {
           if (state) {
             setPollState(state);
             // Only update form if not already edited by user
@@ -102,9 +97,8 @@ export default function EditPollPage() {
         });
 
         // Verify Admin
-        if (id && pollState?.adminPublicKey) {
-           const pub = await exportPublicKey(id.publicKey);
-           setIsAdmin(pub === pollState.adminPublicKey);
+        if (pollState?.adminPublicKey) {
+           setIsAdmin(s.getSignerPublicKey() === pollState.adminPublicKey);
         }
 
         return unsubscribe;
@@ -120,12 +114,10 @@ export default function EditPollPage() {
 
   // Re-check admin when pollState is updated
   useEffect(() => {
-    if (identity && pollState?.adminPublicKey) {
-      exportPublicKey(identity.publicKey).then(pub => {
-        setIsAdmin(pub === pollState.adminPublicKey);
-      });
+    if (session && pollState?.adminPublicKey) {
+      setIsAdmin(session.getSignerPublicKey() === pollState.adminPublicKey);
     }
-  }, [pollState?.adminPublicKey, identity]);
+  }, [pollState?.adminPublicKey, session]);
 
   const addSlot = () => {
     const lastSlot = slots[slots.length - 1];
@@ -159,7 +151,7 @@ export default function EditPollPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!symmetricKey || !identity || !pollId || !pollState?.metadata) return;
+    if (!session || !pollId || !pollState?.metadata) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -185,7 +177,7 @@ export default function EditPollPage() {
       };
 
       const action: PollAction = { type: "POLL_UPDATED", payload: updatedMetadata };
-      await appendSignedEvent(pollId, symmetricKey, identity.privateKey, identity.publicKey, action);
+      await session.appendEvent(action);
       
       navigate(`/poll/${pollId}${window.location.search}${window.location.hash}`);
     } catch (err: any) {

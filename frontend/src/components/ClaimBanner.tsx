@@ -3,18 +3,10 @@ import { useOutletContext, useLocation } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { 
-  loadIdentity, 
   extractKeyFromFragment, 
-  loadIdentityFromToken, 
-  saveToIndexedDB, 
-  saveToKeystore,
-  loadFromKeystore
+  getLedgerSession
 } from "@/lib/pollService";
-import { 
-  importSymmetricKey, 
-  exportPrivateKey, 
-  exportPublicKey 
-} from "@/lib/crypto";
+import { loadFromKeystore } from "@letusmeet/zero-knowledge";
 
 interface LayoutContext {
   activeAdminToken: string | null;
@@ -63,51 +55,18 @@ export default function ClaimBanner() {
   const handleClaim = async () => {
     try {
       setIsClaiming(true);
-      console.log("CLAIM DEBUG: Claim button clicked");
       if (!user || user.isAnonymous) {
-        console.log("CLAIM DEBUG: User not signed in, redirecting to sign in...");
         await signInWithGoogle();
         return;
       }
       
-      console.log("CLAIM DEBUG: pollId:", pollId, "adminToken:", activeAdminToken);
-      
-      let id = await loadIdentity(pollId);
       const symKeyString = extractKeyFromFragment();
-      console.log("CLAIM DEBUG: initial id:", id, "symKeyString present:", !!symKeyString);
+      if (!symKeyString) return;
       
-      if (!id && symKeyString) {
-         const symKey = await importSymmetricKey(symKeyString);
-         console.log("CLAIM DEBUG: attempting loadIdentityFromToken...");
-         id = await loadIdentityFromToken(pollId, activeAdminToken, symKey);
-         console.log("CLAIM DEBUG: loadIdentityFromToken result:", id);
-      }
-
-      if (id && symKeyString) {
-        const priv = await exportPrivateKey(id.privateKey);
-        const pub = await exportPublicKey(id.publicKey);
-        console.log("CLAIM DEBUG: saving to keystore...");
-        try {
-          await saveToKeystore(pollId, {
-            symmetricPollKey: symKeyString,
-            ecdsaPrivateKey: priv,
-            ecdsaPublicKey: pub
-          });
-        } catch (e) {
-          console.warn("CLAIM DEBUG: saveToKeystore failed, falling back to IndexedDB:", e);
-          await saveToIndexedDB(pollId, { 
-            privateKey: priv, 
-            publicKey: pub 
-          });
-        }
-        
-        console.log("CLAIM DEBUG: claim successful, updating state");
-        setIsClaimed(true);
-      } else {
-        console.error("CLAIM DEBUG: Failed to recover identity or symKey missing. id:", id, "symKeyString:", !!symKeyString);
-      }
+      await getLedgerSession(pollId, { shareableKey: symKeyString, ownershipToken: activeAdminToken });
+      setIsClaimed(true);
     } catch (error) {
-      console.error("CLAIM DEBUG: Error during claim process:", error);
+      console.error("Error during claim process:", error);
     } finally {
       setIsClaiming(false);
     }

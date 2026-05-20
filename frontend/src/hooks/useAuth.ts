@@ -4,11 +4,12 @@ import type { User } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
-import { derivePrfMasterKey, clearPrfSessionCache } from "@/lib/prfService";
-import { verifyAmk, getDeviceId, registerCurrentDevice, clearAmkSessionCache, loadDeviceKeysFromIndexedDB } from "@/lib/deviceService";
+import {
+  derivePrfMasterKey, clearPrfSessionCache,
+  verifyAmk, getDeviceId, registerCurrentDevice, clearAmkSessionCache, loadDeviceKeysFromIndexedDB,
+  importDevicePrivateKey, decryptHybrid, recoverAmkWithPhrase
+} from "@letusmeet/zero-knowledge";
 import { resetKeystore } from "@/lib/pollService";
-import { recoverAmkWithPhrase } from "@/lib/recoveryService";
-import { importDevicePrivateKey, decryptHybrid } from "@/lib/crypto";
 import type { PendingDevice } from "@/types";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 

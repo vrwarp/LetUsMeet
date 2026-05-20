@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 vi.mock('@/hooks/useAuth');
 
 describe('VotePollPage', () => {
+  let mockSession: any;
+
   beforeEach(() => {
     vi.resetAllMocks();
     (useAuth as any).mockReturnValue({
@@ -17,7 +19,29 @@ describe('VotePollPage', () => {
       signOutUser: vi.fn()
     });
 
-    vi.mocked(pollService.subscribeToLedger).mockImplementation((_id, _key, cb) => {
+    mockSession = {
+      appendEvent: vi.fn(() => Promise.resolve()),
+      subscribe: vi.fn(),
+      getGenesisEvent: vi.fn().mockResolvedValue({
+        signerPublicKey: 'mock-admin-pubkey',
+        action: {
+          type: 'POLL_CREATED',
+          payload: {
+            title: 'Mock ZK Meeting',
+            location: 'Virtual',
+            schedulingMode: 'EXACT',
+            organizerName: 'Test User',
+            timeSlots: []
+          }
+        }
+      }),
+      exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+      getSignerPublicKey: vi.fn().mockReturnValue('pub123'),
+    };
+
+    vi.spyOn(pollService, 'getLedgerSession').mockResolvedValue(mockSession as any);
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementation((_session, cb) => {
       cb({
         pollId: 'mock-poll-id-123',
         metadata: { 
@@ -31,8 +55,6 @@ describe('VotePollPage', () => {
       } as any, 'Synced');
       return () => {};
     });
-
-    vi.mocked(pollService.appendSignedEvent).mockResolvedValue(undefined);
   });
 
   const renderPage = (pollId = 'mock-poll-id-123') => {
@@ -63,7 +85,7 @@ describe('VotePollPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Vote Recorded!/i)).toBeInTheDocument();
-      expect(pollService.appendSignedEvent).toHaveBeenCalled();
+      expect(mockSession.appendEvent).toHaveBeenCalled();
     });
   });
 
@@ -74,7 +96,7 @@ describe('VotePollPage', () => {
   });
 
   it('shows Poll Finalized message', async () => {
-    vi.mocked(pollService.subscribeToLedger).mockImplementation((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementation((_session, cb) => {
       cb({ 
         pollId: 'mock-poll-id-123',
         isFinalized: true,
@@ -88,7 +110,7 @@ describe('VotePollPage', () => {
   });
 
   it('renders all time slots', async () => {
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({ 
         pollId: 'mock-poll-id-123',
         metadata: { 
@@ -112,7 +134,7 @@ describe('VotePollPage', () => {
     renderPage();
     await screen.findByText('Mock ZK Meeting');
     
-    vi.mocked(pollService.appendSignedEvent).mockRejectedValueOnce(new Error('Vote Failed'));
+    mockSession.appendEvent.mockRejectedValueOnce(new Error('Vote Failed'));
     
     const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
     
@@ -130,9 +152,6 @@ describe('VotePollPage', () => {
   });
 
   it('shows Retract Vote button when there is a vote to retract', async () => {
-    const crypto = await import('@/lib/crypto');
-    vi.spyOn(crypto, 'exportPublicKey').mockResolvedValue('pub123');
-
     const votes = new Map();
     votes.set('pub123:r1', {
       responseId: 'r1',
@@ -141,7 +160,7 @@ describe('VotePollPage', () => {
       clientTimestamp: Date.now()
     });
 
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({
         pollId: 'mock-poll-id-123',
         metadata: {
@@ -163,9 +182,6 @@ describe('VotePollPage', () => {
   });
 
   it('renders response switcher even when there is only one submitted response', async () => {
-    const crypto = await import('@/lib/crypto');
-    vi.spyOn(crypto, 'exportPublicKey').mockResolvedValue('pub123');
-
     const votes = new Map();
     votes.set('pub123:r1', {
       responseId: 'r1',
@@ -174,7 +190,7 @@ describe('VotePollPage', () => {
       clientTimestamp: 1778900000000
     });
 
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_id, _key, cb) => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({
         pollId: 'mock-poll-id-123',
         metadata: {

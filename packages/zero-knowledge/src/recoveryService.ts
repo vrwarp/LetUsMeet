@@ -7,10 +7,10 @@ import {
   unwrapAmk,
   encryptPayload
 } from './crypto';
-import { db, auth } from '../firebase';
+import { getDb, getAuth } from './config';
 import { doc, runTransaction, getDoc } from 'firebase/firestore';
 import { getActiveAmk } from './deviceService';
-import type { AccountKeysDocument } from '@/types';
+import type { AccountKeysDocument } from './types';
 
 /**
  * # Cryptographic Specification: Asymmetric Recovery Phrase (Symmetric-Wrapped RSA)
@@ -38,13 +38,9 @@ import type { AccountKeysDocument } from '@/types';
  * 3.  Fetch `encryptedPrivateKey` from Firestore.
  * 4.  Decrypt the **RSA Private Key**.
  * 5.  Unwrap the latest **AMK** from the `keyring`.
- * 
- * ## Advantages:
- * *   **Web Crypto Native:** No need for external ECC/RSA math libraries.
- * *   **Asymmetric Rotation:** Active devices never see the private recovery secret or the encrypted private key.
- * *   **Deterministic Recovery:** The user's access to the RSA key is deterministic based on the phrase.
  */
 export async function setupPhraseRecovery(): Promise<string> {
+  const auth = getAuth();
   const user = auth.currentUser;
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
 
@@ -79,8 +75,8 @@ export async function setupPhraseRecovery(): Promise<string> {
   const pubKeyB64 = await exportDevicePublicKey(rsaPair.publicKey);
 
   // 6. Save to Firestore
-  const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
-  await runTransaction(db, async (transaction) => {
+  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
+  await runTransaction(getDb(), async (transaction) => {
     const snap = await transaction.get(accountKeysRef);
     if (!snap.exists()) throw new Error("Account keys doc missing.");
     
@@ -109,10 +105,11 @@ export async function setupPhraseRecovery(): Promise<string> {
  * Recovers the AMK using a recovery phrase.
  */
 export async function recoverAmkWithPhrase(mnemonic: string): Promise<{ amk: CryptoKey, amkId: string }> {
+  const auth = getAuth();
   const user = auth.currentUser;
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
 
-  const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
+  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
   const snap = await getDoc(accountKeysRef);
   if (!snap.exists()) throw new Error("Account keys not found.");
   

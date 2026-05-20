@@ -3,14 +3,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './DashboardPage';
 import * as pollService from '@/lib/pollService';
-import * as deviceService from '@/lib/deviceService';
-import * as recoveryService from '@/lib/recoveryService';
+import * as deviceService from '@letusmeet/zero-knowledge';
 import { useAuth } from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth');
 vi.mock('@/lib/pollService');
-vi.mock('@/lib/deviceService');
-vi.mock('@/lib/recoveryService');
+vi.mock('@letusmeet/zero-knowledge', () => ({
+  initializeZK: vi.fn(),
+  getRecoveryStatus: vi.fn(),
+  getDeviceId: vi.fn(),
+  approveDeviceAuthorization: vi.fn(),
+  revokeDevice: vi.fn(),
+  getActiveAmk: vi.fn(),
+  enablePrfRecovery: vi.fn(),
+  decryptPayload: vi.fn(),
+  generateVerificationCode: vi.fn(),
+  getLedgerSession: vi.fn(),
+  setupPhraseRecovery: vi.fn(),
+}));
 
 describe('DashboardPage', () => {
   beforeEach(() => {
@@ -23,28 +33,34 @@ describe('DashboardPage', () => {
 
     vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((_uid, cb) => {
       cb([{
-        pollId: 'p1',
+        ledgerId: 'p1',
         amkId: 'amk_v1',
         encryptedData: 'ciphertext',
         iv: 'iv',
         updatedAt: Date.now()
-      }]);
+      } as any]);
       return () => { };
     });
 
-    vi.mocked(pollService.loadFromKeystore).mockResolvedValue({
-      symmetricPollKey: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=',
-      ecdsaPrivateKey: 'priv',
-      ecdsaPublicKey: 'pub'
-    });
-
-    vi.mocked(pollService.getGenesisEvent).mockResolvedValue({
-      title: 'Mock ZK Meeting',
-      location: 'Virtual',
-      schedulingMode: 'EXACT',
-      organizerName: 'Test User',
-      timeSlots: []
-    });
+    vi.mocked(pollService.getLedgerSession).mockResolvedValue({
+      appendEvent: vi.fn(),
+      subscribe: vi.fn(),
+      getGenesisEvent: vi.fn().mockResolvedValue({
+        signerPublicKey: 'pub',
+        action: {
+          type: 'POLL_CREATED',
+          payload: {
+            title: 'Mock ZK Meeting',
+            location: 'Virtual',
+            schedulingMode: 'EXACT',
+            organizerName: 'Test User',
+            timeSlots: []
+          }
+        }
+      }),
+      exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+      getSignerPublicKey: vi.fn().mockReturnValue('pub'),
+    } as any);
 
     vi.mocked(deviceService.getRecoveryStatus).mockResolvedValue({
       isSealed: true,
@@ -53,7 +69,7 @@ describe('DashboardPage', () => {
     });
 
     vi.mocked(deviceService.getDeviceId).mockReturnValue('test-device-id');
-    vi.mocked(recoveryService.setupPhraseRecovery).mockResolvedValue('mock mnemonic phrase');
+    vi.mocked(deviceService.setupPhraseRecovery).mockResolvedValue('mock mnemonic phrase');
   });
 
   it('renders decrypted polls from keystore', async () => {

@@ -35,11 +35,18 @@ vi.mock('@/firebase', () => ({
   db: {},
 }));
 
-// Mock @/lib/deviceService
-vi.mock('@/lib/deviceService', () => ({
+// Mock @letusmeet/zero-knowledge
+vi.mock('@letusmeet/zero-knowledge', () => ({
+  initializeZK: vi.fn(),
   verifyAmk: vi.fn().mockResolvedValue(true),
   getDeviceId: vi.fn().mockReturnValue('test-device-id'),
   clearAmkSessionCache: vi.fn(),
+  derivePrfMasterKey: vi.fn(),
+  clearPrfSessionCache: vi.fn(),
+  registerCurrentDevice: vi.fn(),
+  loadDeviceKeysFromIndexedDB: vi.fn(),
+  importDevicePrivateKey: vi.fn(),
+  decryptHybrid: vi.fn(),
 }));
 
 // Mock @/lib/pollService

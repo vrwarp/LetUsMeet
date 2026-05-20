@@ -18,6 +18,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@letusmeet/zero-knowledge": "*",
     "bip39": "^3.1.0",
     "buffer": "^5.7.1",
     "firebase": "^12.12.1",

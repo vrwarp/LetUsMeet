@@ -13,6 +13,8 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-MEASUREMENT-ID-PLACEHOLDER",
 };
 
+import { initializeZK } from "@letusmeet/zero-knowledge";
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 const isLocalhost = typeof window !== 'undefined' && 
@@ -32,6 +34,9 @@ try {
 
 export const db = dbInstance;
 export const functions = getFunctions(app);
+
+// Initialize Zero-Knowledge Library
+initializeZK({ db, auth });
 
 // Connect to emulators if in development OR if running on localhost (common for E2E tests)
 if (useEmulator) {
