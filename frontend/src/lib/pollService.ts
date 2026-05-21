@@ -22,11 +22,37 @@ export function setKeyInFragment(key: string) {
 
 export function getShareableUrl(urlStr: string = window.location.href): string {
   try {
+    // Attempt parsing as an absolute URL first
     const url = new URL(urlStr);
     url.searchParams.delete("adminToken");
     return url.toString();
   } catch {
-    return urlStr;
+    try {
+      // If it fails, try parsing it as a relative URL using a dummy base
+      const dummyBase = 'http://dummy.local';
+      const url = new URL(urlStr, dummyBase);
+      url.searchParams.delete("adminToken");
+
+      // Check if it resolved to a different origin (e.g., protocol-relative URL)
+      if (url.origin !== dummyBase) {
+        throw new Error("Origin mismatch, fallback to regex");
+      }
+
+      const absoluteResult = url.toString();
+      const relativeResult = absoluteResult.substring(dummyBase.length);
+
+      // Keep the original starting format (whether it started with '/' or not)
+      if (!urlStr.startsWith('/') && relativeResult.startsWith('/')) {
+        return relativeResult.substring(1);
+      }
+      return relativeResult;
+    } catch {
+      // Safe fallback if URL parsing still fails or for protocol-relative URLs
+      return urlStr
+        .replace(/([?&])adminToken=[^&#]*/gi, (match, prefix) => prefix === '?' ? '?' : '')
+        .replace(/\?&/, '?')
+        .replace(/\?($|#)/, '$1');
+    }
   }
 }
 
