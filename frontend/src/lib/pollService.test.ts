@@ -30,11 +30,13 @@ describe('pollService URL utilities', () => {
       const originalLocation = window.location;
       // @ts-ignore
       delete window.location;
+      // @ts-ignore
       window.location = { ...originalLocation, href: 'https://example.com/poll/123?adminToken=abc#key=123' } as any;
 
       const result = getShareableUrl();
       expect(result).toBe('https://example.com/poll/123#key=123');
 
+      // @ts-ignore
       window.location = originalLocation;
     });
   });
