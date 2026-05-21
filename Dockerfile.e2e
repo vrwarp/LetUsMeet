@@ -16,6 +16,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 COPY functions/package.json ./functions/
+COPY packages/zero-knowledge/package.json ./packages/zero-knowledge/
 
 # Install dependencies (will install for all workspaces using root lockfile)
 RUN npm ci
