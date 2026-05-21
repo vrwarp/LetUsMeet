@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DB_NAME, DB_VERSION, STORE_IDENTITIES, STORE_MASTER_KEYS, STORE_DEVICE_KEYS, openDB } from "./idb";
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
@@ -45,9 +45,11 @@ describe("idb", () => {
   it("should handle indexedDB errors", async () => {
     const originalOpen = globalThis.indexedDB.open;
     globalThis.indexedDB.open = vi.fn().mockImplementation(() => {
-      const request = {} as IDBOpenDBRequest;
+      const request = {
+        get error() { return new DOMException("Test error"); }
+      } as unknown as IDBOpenDBRequest;
+
       setTimeout(() => {
-        request.error = new DOMException("Test error");
         if (request.onerror) request.onerror(new Event("error"));
       }, 0);
       return request;
