@@ -18,13 +18,13 @@ export function createCerebrasProvider(apiKey: string, model: string): AIProvide
       // Use strict JSON schema when a schema is provided, otherwise fall back to json_object
       const responseFormat = req.jsonSchema
         ? {
-            type: "json_schema" as const,
-            json_schema: {
-              name: req.jsonSchema.name,
-              strict: true,
-              schema: req.jsonSchema.schema,
-            },
-          }
+          type: "json_schema" as const,
+          json_schema: {
+            name: req.jsonSchema.name,
+            strict: true,
+            schema: req.jsonSchema.schema,
+          },
+        }
         : req.jsonMode
           ? { type: "json_object" as const }
           : undefined;
@@ -33,10 +33,10 @@ export function createCerebrasProvider(apiKey: string, model: string): AIProvide
         model,
         messages,
         ...(responseFormat && { response_format: responseFormat }),
-        max_completion_tokens: 2048,
+        max_completion_tokens: 4096,
         temperature: 0.2,
         top_p: 1,
-      })) as any;
+      })) as unknown as { choices: Array<{ message: { content: string | null } }> };
 
       const text = completion.choices[0]?.message?.content || "";
 

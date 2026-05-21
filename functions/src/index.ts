@@ -17,20 +17,31 @@ admin.initializeApp();
 // and provide a JSON string: {"geminiApiKey": "your_key"}
 const appConfig = defineJsonSecret("LETUSMEET_CONFIG");
 
+interface AppConfig {
+  geminiApiKey?: string;
+  cerebrasApiKey?: string;
+  ai?: {
+    primary?: string;
+    fallback?: string;
+    cerebrasModel?: string;
+    geminiModel?: string;
+  };
+}
+
 // Helper to create the right provider from config
-function resolveProvider(cfg: any, name: string): AIProvider {
+function resolveProvider(cfg: AppConfig, name: string): AIProvider {
   switch (name) {
-    case "cerebras":
-      return createCerebrasProvider(
-        cfg.cerebrasApiKey || "",
-        cfg.ai?.cerebrasModel || "gpt-oss-120b"
-      );
-    case "gemini":
-    default:
-      return createGeminiProvider(
-        cfg.geminiApiKey || "",
-        cfg.ai?.geminiModel || "gemma-4-26b-a4b-it"
-      );
+  case "cerebras":
+    return createCerebrasProvider(
+      cfg.cerebrasApiKey || "",
+      cfg.ai?.cerebrasModel || "gpt-oss-120b"
+    );
+  case "gemini":
+  default:
+    return createGeminiProvider(
+      cfg.geminiApiKey || "",
+      cfg.ai?.geminiModel || "gemma-4-26b-a4b-it"
+    );
   }
 }
 
@@ -45,7 +56,7 @@ export const extractTimeSlots = onCall(
       throw new HttpsError("invalid-argument", "The function must be called with a 'query' argument.");
     }
 
-    const cfg = appConfig.value() as any;
+    const cfg = appConfig.value() as unknown as AppConfig;
     const router = createAIRouter({
       primary: resolveProvider(cfg, cfg.ai?.primary || "cerebras"),
       fallback: cfg.ai?.fallback ? resolveProvider(cfg, cfg.ai.fallback) : null,
@@ -83,7 +94,7 @@ export const extractFuzzySlots = onCall(
       throw new HttpsError("invalid-argument", "The function must be called with a 'query' argument.");
     }
 
-    const cfg = appConfig.value() as any;
+    const cfg = appConfig.value() as unknown as AppConfig;
     const router = createAIRouter({
       primary: resolveProvider(cfg, cfg.ai?.primary || "cerebras"),
       fallback: cfg.ai?.fallback ? resolveProvider(cfg, cfg.ai.fallback) : null,

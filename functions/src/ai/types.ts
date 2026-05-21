@@ -12,10 +12,10 @@ export interface AIGenerateRequest {
 
 export interface AIGenerateResponse {
   text: string;
-  provider: 'gemini' | 'cerebras';
+  provider: "gemini" | "cerebras";
 }
 
 export interface AIProvider {
-  name: 'gemini' | 'cerebras';
+  name: "gemini" | "cerebras";
   generate(request: AIGenerateRequest): Promise<AIGenerateResponse>;
 }
