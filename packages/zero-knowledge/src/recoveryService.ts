@@ -5,13 +5,28 @@ import {
   decrypt,
   wrapAmk,
   unwrapAmk,
-  encryptPayload
-} from './crypto';
-import { getDb, getAuth } from './config';
-import { doc, runTransaction, getDoc } from 'firebase/firestore';
+  encryptPayload,
+  getCrypto,
+  generateDeviceKeyPair,
+  exportDevicePrivateKey,
+  importDevicePrivateKey
+} from './core/crypto';
 import { getActiveAmk } from './deviceService';
-import type { AccountKeysDocument } from './types';
-import type { AesGcmKey, RsaOaepPublicKey, RsaOaepPrivateKey } from './core/interfaces';
+import type { AccountKeysDocument } from './core/types';
+import type { AesGcmKey, RsaOaepPublicKey, RsaOaepPrivateKey, AccountKeyStore, AuthProvider, RawKeyBytes, PlaintextBytes } from './core/interfaces';
+import { FirestoreAccountKeyStore } from "./browser/FirestoreAccountKeyStore";
+import { FirebaseAuthProvider } from "./browser/FirebaseAuthProvider";
+
+let store: AccountKeyStore = new FirestoreAccountKeyStore();
+let auth: AuthProvider = new FirebaseAuthProvider();
+
+export function setRecoveryProviders(providers: {
+  accountKeyStore?: AccountKeyStore;
+  authProvider?: AuthProvider;
+}) {
+  if (providers.accountKeyStore) store = providers.accountKeyStore;
+  if (providers.authProvider) auth = providers.authProvider;
+}
 
 /**
  * # Cryptographic Specification: Asymmetric Recovery Phrase (Symmetric-Wrapped RSA)
@@ -41,47 +56,32 @@ import type { AesGcmKey, RsaOaepPublicKey, RsaOaepPrivateKey } from './core/inte
  * 5.  Unwrap the latest **AMK** from the `keyring`.
  */
 export async function setupPhraseRecovery(): Promise<string> {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const user = auth.getCurrentUser();
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
 
   // 1. Generate mnemonic
   const mnemonic = bip39.generateMnemonic(256);
   
-  // 2. Generate random RSA-OAEP key pair for recovery
-  const rsaPair = await window.crypto.subtle.generateKey(
-    {
-      name: "RSA-OAEP",
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-      hash: "SHA-256",
-    },
-    true,
-    ["encrypt", "decrypt"]
-  );
+  // 2. Generate random RSA-OAEP key pair for recovery using getCrypto()
+  const rsaPair = await getCrypto().generateDeviceKeyPair();
 
   // 3. Derive symmetric key from phrase
   const protector = await deriveProtectorFromPhrase(mnemonic);
   
   // 4. Encrypt Private Key with protector
-  const privKeyRaw = await window.crypto.subtle.exportKey("pkcs8", rsaPair.privateKey);
+  const privKeyRaw = await getCrypto().exportDevicePrivateKey(rsaPair.privateKey);
   const privKeyB64 = btoa(String.fromCharCode(...new Uint8Array(privKeyRaw)));
   const { ciphertext: encryptedPrivKey, iv } = await encrypt(protector, privKeyB64);
   
   // 5. Wrap AMK with the new RSA Public Key
   const { amk, amkId } = await getActiveAmk();
-  const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
-  const wrappedAmk = await wrapAmk(rsaPair.publicKey as unknown as RsaOaepPublicKey, rawAmk);
+  const rawAmk = await getCrypto().exportSymmetricKey(amk);
+  const wrappedAmk = await wrapAmk(rsaPair.publicKey, rawAmk.buffer as ArrayBuffer);
   
-  const pubKeyB64 = await exportDevicePublicKey(rsaPair.publicKey as unknown as RsaOaepPublicKey);
+  const pubKeyB64 = await exportDevicePublicKey(rsaPair.publicKey);
 
-  // 6. Save to Firestore
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  await runTransaction(getDb(), async (transaction) => {
-    const snap = await transaction.get(accountKeysRef);
-    if (!snap.exists()) throw new Error("Account keys doc missing.");
-    
-    const data = snap.data() as AccountKeysDocument;
+  // 6. Save to Firestore via AccountKeyStore transaction
+  await store.transactAccountKeys(async (data) => {
     const encryptedRecLabel = await encryptPayload(amk, "Primary Recovery Phrase");
     data.recoveryMethods["__recovery_phrase"] = {
       type: 'phrase',
@@ -96,7 +96,7 @@ export async function setupPhraseRecovery(): Promise<string> {
     });
     
     data.keyring[amkId]["__recovery_phrase"] = wrappedAmk;
-    transaction.set(accountKeysRef, data);
+    return data;
   });
 
   return mnemonic;
@@ -106,15 +106,12 @@ export async function setupPhraseRecovery(): Promise<string> {
  * Recovers the AMK using a recovery phrase.
  */
 export async function recoverAmkWithPhrase(mnemonic: string): Promise<{ amk: AesGcmKey, amkId: string }> {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const user = auth.getCurrentUser();
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
 
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  const snap = await getDoc(accountKeysRef);
-  if (!snap.exists()) throw new Error("Account keys not found.");
+  const data = await store.getAccountKeys();
+  if (!data) throw new Error("Account keys not found.");
   
-  const data = snap.data() as AccountKeysDocument;
   const method = data.recoveryMethods["__recovery_phrase"];
   if (!method || !method.publicKey) throw new Error("Recovery phrase method not set up.");
   
@@ -130,51 +127,22 @@ export async function recoverAmkWithPhrase(mnemonic: string): Promise<{ amk: Aes
   const privKeyB64 = await decrypt(protector, ciphertext, iv);
   const privKeyRaw = Uint8Array.from(atob(privKeyB64), c => c.charCodeAt(0));
   
-  const privateKey = await window.crypto.subtle.importKey(
-    "pkcs8",
-    privKeyRaw,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    true,
-    ["decrypt"]
-  );
+  const privateKey = await getCrypto().importDevicePrivateKey(privKeyRaw as any);
 
   // 3. Unwrap AMK
   const amkId = data.activeAmkId;
   const wrappedAmk = data.keyring[amkId]["__recovery_phrase"];
   if (!wrappedAmk) throw new Error("Recovery wrapper missing from keyring.");
   
-  const amkBuffer = await unwrapAmk(privateKey as unknown as RsaOaepPrivateKey, wrappedAmk);
-  const amk = (await window.crypto.subtle.importKey(
-    "raw",
-    amkBuffer,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  const amkBuffer = await unwrapAmk(privateKey, wrappedAmk);
+  const amk = await getCrypto().importSymmetricKey(new Uint8Array(amkBuffer) as RawKeyBytes);
 
   return { amk, amkId };
 }
 
 async function deriveProtectorFromPhrase(mnemonic: string): Promise<AesGcmKey> {
   const seed = await bip39.mnemonicToSeed(mnemonic);
-  const baseKey = await window.crypto.subtle.importKey(
-    "raw",
-    seed.slice(0, 32),
-    "PBKDF2",
-    false,
-    ["deriveKey"]
-  );
-
-  return (await window.crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: new TextEncoder().encode("LetUsMeet-Recovery-Salt-v1"),
-      iterations: 100000,
-      hash: "SHA-256",
-    },
-    baseKey,
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  const password = new Uint8Array(seed.slice(0, 32)) as PlaintextBytes;
+  const salt = new TextEncoder().encode("LetUsMeet-Recovery-Salt-v1") as PlaintextBytes;
+  return (await getCrypto().deriveKeyFromPassword(password, salt, 100000)) as unknown as AesGcmKey;
 }

@@ -138,3 +138,15 @@ export interface LocalDeviceStore {
 export interface AuthProvider {
   getCurrentUser(): { uid: string; isAnonymous: boolean; email?: string; displayName?: string } | null;
 }
+
+export interface PrfProvider {
+  createCredential(
+    userId: string,
+    userName: string,
+    displayName: string
+  ): Promise<{ credentialId: string; prfResult: Uint8Array }>;
+  
+  getAssertion(
+    credentialIds: string[]
+  ): Promise<{ usedCredentialId: string; prfResult: Uint8Array }>;
+}

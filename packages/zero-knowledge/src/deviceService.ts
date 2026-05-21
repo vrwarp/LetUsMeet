@@ -1,18 +1,19 @@
 import {
-  generateSymmetricKey,
-  exportSymmetricKey,
-  generateDeviceKeyPair,
+  encrypt,
+  encryptPayload,
+  decrypt,
+  decryptPayload,
   exportDevicePrivateKey,
   exportDevicePublicKey,
-  importDevicePublicKey,
+  exportSymmetricKey,
+  generateDeviceKeyPair,
+  generateSymmetricKey,
+  base64UrlToUint8,
+  getCrypto,
   importDevicePrivateKey,
-  wrapAmk,
+  importDevicePublicKey,
   unwrapAmk,
-  encryptPayload,
-  decryptPayload,
-  decrypt,
-  encrypt,
-  base64UrlToUint8
+  wrapAmk
 } from "./core/crypto";
 import {
   unwrapActiveAmk,
@@ -32,7 +33,7 @@ import type {
   LedgerCredentials,
   KeystoreEntry
 } from "./core/types";
-import type { AesGcmKey } from "./core/interfaces";
+import type { AesGcmKey, AccountKeyStore, LocalDeviceStore, AuthProvider, RawKeyBytes } from "./core/interfaces";
 
 import { FirestoreAccountKeyStore } from "./browser/FirestoreAccountKeyStore";
 import { BrowserLocalDeviceStore } from "./browser/BrowserLocalDeviceStore";
@@ -40,9 +41,19 @@ import { FirebaseAuthProvider } from "./browser/FirebaseAuthProvider";
 
 import { derivePrfMasterKey } from "./prfService";
 
-const store = new FirestoreAccountKeyStore();
-const local = new BrowserLocalDeviceStore();
-const auth = new FirebaseAuthProvider();
+let store: AccountKeyStore = new FirestoreAccountKeyStore();
+let local: LocalDeviceStore = new BrowserLocalDeviceStore();
+let auth: AuthProvider = new FirebaseAuthProvider();
+
+export function setDeviceServiceProviders(providers: {
+  accountKeyStore?: AccountKeyStore;
+  localDeviceStore?: LocalDeviceStore;
+  authProvider?: AuthProvider;
+}) {
+  if (providers.accountKeyStore) store = providers.accountKeyStore;
+  if (providers.localDeviceStore) local = providers.localDeviceStore;
+  if (providers.authProvider) auth = providers.authProvider;
+}
 
 export function getDeviceId(): string {
   return local.getDeviceId();
@@ -59,8 +70,8 @@ export function setDeviceName(name: string) {
 // === PRF HELPERS ===
 
 async function getPrfMethodId(prfKey: AesGcmKey): Promise<string> {
-  const rawKey = await window.crypto.subtle.exportKey("raw", prfKey as any);
-  const hash = await window.crypto.subtle.digest("SHA-256", rawKey);
+  const rawKey = await getCrypto().exportSymmetricKey(prfKey);
+  const hash = await getCrypto().digest("SHA-256", rawKey);
   const hashArray = Array.from(new Uint8Array(hash));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   return `__recovery_prf_${hashHex.slice(0, 16)}`;
@@ -121,13 +132,7 @@ export async function getActiveAmk(): Promise<{ amk: AesGcmKey, amkId: string }>
 
       const amkBuffer = await unwrapAmkById(accountKeys, deviceId, deviceKeys.privateKey, amkId);
 
-      cachedAmk = (await window.crypto.subtle.importKey(
-        "raw",
-        amkBuffer,
-        { name: "AES-GCM" },
-        true,
-        ["encrypt", "decrypt"]
-      )) as unknown as AesGcmKey;
+      cachedAmk = await getCrypto().importSymmetricKey(new Uint8Array(amkBuffer) as RawKeyBytes);
       cachedAmkId = amkId;
 
       opportunisticallyEnableRecovery().catch(e => console.warn("Opportunistic recovery check failed:", e));
@@ -161,13 +166,7 @@ export async function getAmkById(targetAmkId: string): Promise<AesGcmKey> {
 
   const amkBuffer = await unwrapAmkById(accountKeys, deviceId, deviceKeys.privateKey, targetAmkId);
 
-  return (await window.crypto.subtle.importKey(
-    "raw",
-    amkBuffer,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  return await getCrypto().importSymmetricKey(new Uint8Array(amkBuffer) as RawKeyBytes);
 }
 
 async function opportunisticallyEnableRecovery() {
@@ -248,13 +247,7 @@ async function tryRecoverAmkWithPrf(data: AccountKeysDocument): Promise<{ amk: A
     const recovered = await tryRecoverAmkWithPrfKey(data, masterKey, usedMethodId);
     if (!recovered) return null;
 
-    const amk = (await window.crypto.subtle.importKey(
-      "raw",
-      recovered.amkRaw,
-      { name: "AES-GCM" },
-      true,
-      ["encrypt", "decrypt"]
-    )) as unknown as AesGcmKey;
+    const amk = await getCrypto().importSymmetricKey(new Uint8Array(recovered.amkRaw) as RawKeyBytes);
 
     return { amk, amkId: recovered.amkId };
   } catch (e) {
@@ -314,13 +307,7 @@ async function setupGenesisDevice(uid: string): Promise<{ amk: AesGcmKey, amkId:
 
   await store.setAccountKeys(doc);
 
-  const amk = (await window.crypto.subtle.importKey(
-    "raw",
-    rawAmk,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  const amk = await getCrypto().importSymmetricKey(new Uint8Array(rawAmk) as RawKeyBytes);
 
   return { amk, amkId: doc.activeAmkId };
 }
@@ -330,7 +317,7 @@ export async function enablePrfRecovery(): Promise<void> {
   if (!user) throw new Error("Must be signed in.");
 
   const { amk, amkId } = await getActiveAmk();
-  const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
+  const rawAmk = await getCrypto().exportSymmetricKey(amk);
   
   const { masterKey: prfKey } = await derivePrfMasterKey();
   const prfMethodId = await getPrfMethodId(prfKey);
@@ -380,13 +367,7 @@ export async function revokeDevice(revokedDeviceId: string) {
   const rawNewAmk = await exportSymmetricKey(newAmk);
   const amkBuffer = base64UrlToUint8(rawNewAmk);
 
-  cachedAmk = (await window.crypto.subtle.importKey(
-    "raw",
-    amkBuffer.buffer as ArrayBuffer,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  cachedAmk = await getCrypto().importSymmetricKey(new Uint8Array(amkBuffer.buffer as ArrayBuffer) as RawKeyBytes);
   cachedAmkId = newAmkId;
 }
 

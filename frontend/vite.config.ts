@@ -23,7 +23,7 @@ export default defineConfig({
         inline: [/src\/lib/],
       },
     },
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', '../packages/zero-knowledge/src/**/*.{test,spec}.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
