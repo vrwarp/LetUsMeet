@@ -1,3 +1,4 @@
+import type { AesGcmKey } from "./core/interfaces";
 import { getAuth } from "./config";
 
 import {
@@ -5,7 +6,7 @@ import {
   STORE_MASTER_KEYS
 } from "./idb";
 
-async function saveMasterKeyToIndexedDB(uid: string, key: CryptoKey) {
+async function saveMasterKeyToIndexedDB(uid: string, key: AesGcmKey) {
   const db = await openDB();
   const tx = db.transaction(STORE_MASTER_KEYS, "readwrite");
   tx.objectStore(STORE_MASTER_KEYS).put(key, uid);
@@ -15,13 +16,13 @@ async function saveMasterKeyToIndexedDB(uid: string, key: CryptoKey) {
   });
 }
 
-export async function loadMasterKeyFromIndexedDB(uid: string): Promise<CryptoKey | null> {
+export async function loadMasterKeyFromIndexedDB(uid: string): Promise<AesGcmKey | null> {
   const db = await openDB();
   const tx = db.transaction(STORE_MASTER_KEYS, "readonly");
   const request = tx.objectStore(STORE_MASTER_KEYS).get(uid);
   return new Promise((resolve) => {
     request.onsuccess = () => {
-      const key = request.result as CryptoKey | null;
+      const key = request.result as AesGcmKey | null;
       if (key && !key.extractable) {
         resolve(null); // Treat non-extractable keys as missing to force a fresh derivation
       } else {
@@ -32,7 +33,7 @@ export async function loadMasterKeyFromIndexedDB(uid: string): Promise<CryptoKey
   });
 }
 
-let prfPromise: Promise<{ masterKey: CryptoKey, usedCredentialId: string }> | null = null;
+let prfPromise: Promise<{ masterKey: AesGcmKey, usedCredentialId: string }> | null = null;
 let globalPrfLock: Promise<any> = Promise.resolve();
 
 export function clearPrfSessionCache() {
@@ -40,7 +41,7 @@ export function clearPrfSessionCache() {
   globalPrfLock = Promise.resolve();
 }
 
-export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ masterKey: CryptoKey, usedCredentialId: string }> {
+export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ masterKey: AesGcmKey, usedCredentialId: string }> {
   // If we already have a successful derivation in this session, return it immediately
   if (prfPromise) return prfPromise;
 
@@ -119,13 +120,13 @@ export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ ma
       }
 
       const prfResult = new Uint8Array(results.prf.results.first);
-      const masterKey = await window.crypto.subtle.importKey(
+      const masterKey = (await window.crypto.subtle.importKey(
         "raw",
         prfResult.slice(0, 16),
         { name: "AES-GCM" },
         true,
         ["encrypt", "decrypt"]
-      );
+      )) as unknown as AesGcmKey;
 
       const usedId = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
 

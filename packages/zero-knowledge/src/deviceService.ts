@@ -1,103 +1,76 @@
 import {
-  doc,
-  getDoc,
-  setDoc,
-  runTransaction
-} from "firebase/firestore";
-import { getDb, getAuth } from "./config";
-import {
-  generateDeviceKeyPair,
-  exportDevicePublicKey,
-  exportDevicePrivateKey,
-  importDevicePrivateKey,
-  importDevicePublicKey,
   generateSymmetricKey,
+  exportSymmetricKey,
+  generateDeviceKeyPair,
+  exportDevicePrivateKey,
+  exportDevicePublicKey,
+  importDevicePublicKey,
+  importDevicePrivateKey,
   wrapAmk,
   unwrapAmk,
-  encrypt,
-  decrypt,
   encryptPayload,
   decryptPayload,
-  decryptHybrid
-} from "./crypto";
-import { derivePrfMasterKey, loadMasterKeyFromIndexedDB } from "./prfService";
+  decrypt,
+  encrypt,
+  base64UrlToUint8
+} from "./core/crypto";
+import {
+  unwrapActiveAmk,
+  unwrapAmkById,
+  tryRecoverAmkWithPrfKey,
+  prepareGenesisDocument,
+  prepareRegistrationData,
+  rotateKeys,
+  preparePendingDeviceRequest,
+  preparePendingDeviceApproval
+} from "./core/deviceLogic";
 import type {
   AccountKeysDocument,
-  KeystoreEntry,
-  LedgerCredentials,
   PendingDevice,
+  DevicePublicKey,
   RecoveryMethod,
-  DevicePublicKey
-} from "./types";
+  LedgerCredentials,
+  KeystoreEntry
+} from "./core/types";
+import type { AesGcmKey } from "./core/interfaces";
 
-import {
-  openDB,
-  STORE_DEVICE_KEYS
-} from "./idb";
+import { FirestoreAccountKeyStore } from "./browser/FirestoreAccountKeyStore";
+import { BrowserLocalDeviceStore } from "./browser/BrowserLocalDeviceStore";
+import { FirebaseAuthProvider } from "./browser/FirebaseAuthProvider";
 
-/**
- * Gets or generates a unique device ID for this browser.
- */
+import { derivePrfMasterKey } from "./prfService";
+
+const store = new FirestoreAccountKeyStore();
+const local = new BrowserLocalDeviceStore();
+const auth = new FirebaseAuthProvider();
+
 export function getDeviceId(): string {
-  let deviceId = localStorage.getItem("deviceId");
-  if (!deviceId) {
-    deviceId = crypto.randomUUID();
-    localStorage.setItem("deviceId", deviceId);
-  }
-  return deviceId;
+  return local.getDeviceId();
 }
 
-/**
- * Gets or generates a human-readable device name.
- */
 export function getDeviceName(): string {
-  return localStorage.getItem("deviceName") || "Unknown Device";
+  return local.getDeviceName();
 }
 
 export function setDeviceName(name: string) {
-  localStorage.setItem("deviceName", name);
+  local.setDeviceName(name);
 }
 
 // === PRF HELPERS ===
 
-async function getPrfMethodId(prfKey: CryptoKey): Promise<string> {
-  const rawKey = await window.crypto.subtle.exportKey("raw", prfKey);
+async function getPrfMethodId(prfKey: AesGcmKey): Promise<string> {
+  const rawKey = await window.crypto.subtle.exportKey("raw", prfKey as any);
   const hash = await window.crypto.subtle.digest("SHA-256", rawKey);
   const hashArray = Array.from(new Uint8Array(hash));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   return `__recovery_prf_${hashHex.slice(0, 16)}`;
 }
 
-async function saveDeviceKeysToIndexedDB(keys: { privateKey: string, publicKey: string }) {
-  const db = await openDB();
-  const tx = db.transaction(STORE_DEVICE_KEYS, "readwrite");
-  tx.objectStore(STORE_DEVICE_KEYS).put(keys, "current_device");
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-}
+// === AMK LIFECYCLE CACHE ===
 
-export async function loadDeviceKeysFromIndexedDB(): Promise<{ privateKey: string, publicKey: string } | null> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_DEVICE_KEYS, "readonly");
-  const request = tx.objectStore(STORE_DEVICE_KEYS).get("current_device");
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-export async function getLocalPublicKey(): Promise<string | null> {
-  const keys = await loadDeviceKeysFromIndexedDB();
-  return keys?.publicKey || null;
-}
-
-// === AMK MANAGEMENT ===
-
-let cachedAmk: CryptoKey | null = null;
+let cachedAmk: AesGcmKey | null = null;
 let cachedAmkId: string | null = null;
-let verificationPromise: Promise<{ amk: CryptoKey, amkId: string }> | null = null;
+let verificationPromise: Promise<{ amk: AesGcmKey, amkId: string }> | null = null;
 
 export function clearAmkSessionCache() {
   cachedAmk = null;
@@ -105,40 +78,33 @@ export function clearAmkSessionCache() {
   verificationPromise = null;
 }
 
-export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }> {
+export async function getActiveAmk(): Promise<{ amk: AesGcmKey, amkId: string }> {
   if (cachedAmk && cachedAmkId) return { amk: cachedAmk, amkId: cachedAmkId };
-  
-  // Deduplicate concurrent verification requests
   if (verificationPromise) return verificationPromise;
 
   verificationPromise = (async () => {
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const user = auth.getCurrentUser();
       if (!user || user.isAnonymous) throw new Error("Must be signed in to access AMK.");
 
       const deviceId = getDeviceId();
-      const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-      const snap = await getDoc(accountKeysRef);
+      const accountKeys = await store.getAccountKeys();
 
-      if (!snap.exists()) {
-        // Flow A: Initial Setup (Genesis Device)
+      if (!accountKeys) {
+        // Genesis device setup
         const result = await setupGenesisDevice(user.uid);
         cachedAmk = result.amk;
         cachedAmkId = result.amkId;
         return result;
       }
 
-      const data = snap.data() as AccountKeysDocument;
-      const amkId = data.activeAmkId;
-      const wrappedAmkBase64 = data.keyring[amkId]?.[deviceId];
+      const deviceKeys = await local.loadDeviceKeys();
+      const amkId = accountKeys.activeAmkId;
+      const wrappedAmkBase64 = accountKeys.keyring[amkId]?.[deviceId];
 
-      // Check device keys
-      const deviceKeysB64 = await loadDeviceKeysFromIndexedDB();
-
-      if (!wrappedAmkBase64 || !deviceKeysB64) {
-        // Attempt Silent PRF Recovery & Auto-Registration
-        const recovered = await tryRecoverAmkWithPrf(data);
+      if (!wrappedAmkBase64 || !deviceKeys) {
+        // Attempt PRF recovery
+        const recovered = await tryRecoverAmkWithPrf(accountKeys);
         if (recovered) {
           console.log("Silent recovery successful. Auto-registering device...");
           await registerCurrentDevice(recovered.amk, recovered.amkId);
@@ -147,31 +113,26 @@ export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }>
           return recovered;
         }
 
-        // Fallback: If no PRF recovery possible, we throw to trigger the mismatch UI.
         if (!wrappedAmkBase64) {
           throw new Error("UNRECOGNIZED_DEVICE: This browser instance has not been authorized to access your encrypted data.");
         }
         throw new Error("IDENTITY_MISMATCH: The passkey used does not match the one registered for this device.");
       }
 
-      const privateKey = await importDevicePrivateKey(deviceKeysB64.privateKey);
-      const amkBuffer = await unwrapAmk(privateKey, wrappedAmkBase64);
+      const amkBuffer = await unwrapAmkById(accountKeys, deviceId, deviceKeys.privateKey, amkId);
 
-      cachedAmk = await window.crypto.subtle.importKey(
+      cachedAmk = (await window.crypto.subtle.importKey(
         "raw",
         amkBuffer,
         { name: "AES-GCM" },
         true,
         ["encrypt", "decrypt"]
-      );
+      )) as unknown as AesGcmKey;
       cachedAmkId = amkId;
 
-      const result = { amk: cachedAmk, amkId: cachedAmkId as string };
-      
-      // Opportunistic Recovery
       opportunisticallyEnableRecovery().catch(e => console.warn("Opportunistic recovery check failed:", e));
 
-      return result;
+      return { amk: cachedAmk, amkId: cachedAmkId };
     } finally {
       verificationPromise = null;
     }
@@ -180,58 +141,42 @@ export async function getActiveAmk(): Promise<{ amk: CryptoKey, amkId: string }>
   return verificationPromise;
 }
 
-/**
- * Retrieves a specific AMK by its ID. Used for decrypting older keystore entries
- * after an AMK rotation has occurred.
- */
-export async function getAmkById(targetAmkId: string): Promise<CryptoKey> {
-  const auth = getAuth();
-  const user = auth.currentUser;
+export async function getAmkById(targetAmkId: string): Promise<AesGcmKey> {
+  const user = auth.getCurrentUser();
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
 
-  // Ensure the active AMK session is initialized.
   await getActiveAmk();
 
   const deviceId = getDeviceId();
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  const snap = await getDoc(accountKeysRef);
+  const accountKeys = await store.getAccountKeys();
+  if (!accountKeys) throw new Error("Account keys missing.");
 
-  if (!snap.exists()) throw new Error("Account keys missing.");
-  
-  const data = snap.data() as AccountKeysDocument;
-  const wrappedAmkBase64 = data.keyring[targetAmkId]?.[deviceId];
-
+  const wrappedAmkBase64 = accountKeys.keyring[targetAmkId]?.[deviceId];
   if (!wrappedAmkBase64) {
     throw new Error(`AMK ${targetAmkId} not found or not wrapped for this device.`);
   }
 
-  const deviceKeysB64 = await loadDeviceKeysFromIndexedDB();
-  if (!deviceKeysB64) throw new Error("Device keys missing.");
+  const deviceKeys = await local.loadDeviceKeys();
+  if (!deviceKeys) throw new Error("Device keys missing.");
 
-  const privateKey = await importDevicePrivateKey(deviceKeysB64.privateKey);
-  const amkBuffer = await unwrapAmk(privateKey, wrappedAmkBase64);
+  const amkBuffer = await unwrapAmkById(accountKeys, deviceId, deviceKeys.privateKey, targetAmkId);
 
-  return await window.crypto.subtle.importKey(
+  return (await window.crypto.subtle.importKey(
     "raw",
     amkBuffer,
     { name: "AES-GCM" },
     true,
     ["encrypt", "decrypt"]
-  );
+  )) as unknown as AesGcmKey;
 }
 
-/**
- * Checks if PRF recovery is missing for the current AMK and re-enables it if a PRF key is available.
- */
 async function opportunisticallyEnableRecovery() {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const user = auth.getCurrentUser();
   if (!user || user.isAnonymous) return;
 
   const { isCurrentPrfSealed } = await getRecoveryStatus();
-  
   if (!isCurrentPrfSealed) {
-    const cachedPrfKey = await loadMasterKeyFromIndexedDB(user.uid);
+    const cachedPrfKey = await local.loadMasterKey(user.uid);
     if (cachedPrfKey) {
       console.log("Current PRF key is available but not sealed for this AMK. Re-enabling...");
       await enablePrfRecovery();
@@ -239,27 +184,21 @@ async function opportunisticallyEnableRecovery() {
   }
 }
 
-/**
- * Checks if the current AMK is "sealed" with a recovery method.
- */
 export async function getRecoveryStatus(): Promise<{ 
   isSealed: boolean, 
   methods: string[], 
   isCurrentPrfSealed: boolean 
 }> {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const user = auth.getCurrentUser();
   if (!user || user.isAnonymous) return { isSealed: false, methods: [], isCurrentPrfSealed: false };
 
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  const snap = await getDoc(accountKeysRef);
-  if (!snap.exists()) return { isSealed: false, methods: [], isCurrentPrfSealed: false };
+  const accountKeys = await store.getAccountKeys();
+  if (!accountKeys) return { isSealed: false, methods: [], isCurrentPrfSealed: false };
 
-  const data = snap.data() as AccountKeysDocument;
-  const amkId = data.activeAmkId;
-  const keyring = data.keyring[amkId] || {};
+  const amkId = accountKeys.activeAmkId;
+  const keyring = accountKeys.keyring[amkId] || {};
   
-  const registeredMethodIds = Object.keys(data.recoveryMethods || {});
+  const registeredMethodIds = Object.keys(accountKeys.recoveryMethods || {});
   const activeMethodIds = registeredMethodIds.filter(id => !!keyring[id]);
   
   const methods: string[] = [];
@@ -268,21 +207,20 @@ export async function getRecoveryStatus(): Promise<{
       const { amk } = await getActiveAmk();
       for (const id of activeMethodIds) {
         try {
-          const plainLabel = await decryptPayload(amk, data.recoveryMethods[id].encryptedLabel);
+          const plainLabel = await decryptPayload(amk, accountKeys.recoveryMethods[id].encryptedLabel);
           methods.push(plainLabel);
         } catch (e) {
-          methods.push(data.recoveryMethods[id].type === 'prf' ? "Passkey Recovery" : "Phrase Recovery");
+          methods.push(accountKeys.recoveryMethods[id].type === 'prf' ? "Passkey Recovery" : "Phrase Recovery");
         }
       }
     } catch (e) {
       activeMethodIds.forEach(id => {
-        methods.push(data.recoveryMethods[id].type === 'prf' ? "Passkey Recovery" : "Phrase Recovery");
+        methods.push(accountKeys.recoveryMethods[id].type === 'prf' ? "Passkey Recovery" : "Phrase Recovery");
       });
     }
   }
 
-  // Check if current PRF key is sealed
-  const cachedPrfKey = await loadMasterKeyFromIndexedDB(user.uid);
+  const cachedPrfKey = await local.loadMasterKey(user.uid);
   let isCurrentPrfSealed = false;
   if (cachedPrfKey) {
     const methodId = await getPrfMethodId(cachedPrfKey);
@@ -296,296 +234,168 @@ export async function getRecoveryStatus(): Promise<{
   };
 }
 
-async function tryRecoverAmkWithPrf(data: AccountKeysDocument): Promise<{ amk: CryptoKey, amkId: string } | null> {
-  const amkId = data.activeAmkId;
-  const keyring = data.keyring[amkId] || {};
-  
+async function tryRecoverAmkWithPrf(data: AccountKeysDocument): Promise<{ amk: AesGcmKey, amkId: string } | null> {
   const prfMethods = (Object.values(data.recoveryMethods || {}) as RecoveryMethod[]).filter(
     (m: RecoveryMethod) => m.type === 'prf' && m.credentialId
   );
   const credentialIds = prfMethods.map(m => m.credentialId as string);
-
   if (credentialIds.length === 0) return null;
 
   try {
     const { masterKey, usedCredentialId } = await derivePrfMasterKey(credentialIds);
-    
     const usedMethodId = await getPrfMethodId(masterKey);
-    const wrappedAmk = keyring[usedMethodId];
 
-    if (!wrappedAmk) {
-      console.warn(`PRF key derived for ${usedCredentialId} but no wrapper found for method ${usedMethodId}`);
-      return null;
-    }
+    const recovered = await tryRecoverAmkWithPrfKey(data, masterKey, usedMethodId);
+    if (!recovered) return null;
 
-    const { ciphertext, iv } = JSON.parse(atob(wrappedAmk));
-    const amkBufferB64 = await decrypt(masterKey, ciphertext, iv);
-    const amkBuffer = Uint8Array.from(atob(amkBufferB64), c => c.charCodeAt(0));
-
-    const amk = await window.crypto.subtle.importKey(
+    const amk = (await window.crypto.subtle.importKey(
       "raw",
-      amkBuffer,
+      recovered.amkRaw,
       { name: "AES-GCM" },
       true,
       ["encrypt", "decrypt"]
-    );
+    )) as unknown as AesGcmKey;
 
-    cachedAmk = amk;
-    cachedAmkId = amkId;
-    return { amk, amkId };
+    return { amk, amkId: recovered.amkId };
   } catch (e) {
     console.warn("PRF Recovery failed:", e);
     return null;
   }
 }
 
-/**
- * Registers the current device with an existing AMK.
- * Used during recovery flows (PRF or Phrase).
- */
-export async function registerCurrentDevice(amk: CryptoKey, amkId: string): Promise<void> {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) throw new Error("Must be signed in.");
+export async function registerCurrentDevice(amk: AesGcmKey, amkId: string): Promise<void> {
+  const user = auth.getCurrentUser();
+  if (!user) throw new Error("Must be signed in.");
 
   const deviceKeyPair = await generateDeviceKeyPair();
   const privB64 = await exportDevicePrivateKey(deviceKeyPair.privateKey);
   const pubB64 = await exportDevicePublicKey(deviceKeyPair.publicKey);
-  await saveDeviceKeysToIndexedDB({ privateKey: privB64, publicKey: pubB64 });
+  await local.saveDeviceKeys({ privateKey: privB64, publicKey: pubB64 });
 
   const deviceId = getDeviceId();
-  const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
-  const wrappedForNewDevice = await wrapAmk(deviceKeyPair.publicKey, rawAmk);
+  const currentDoc = await store.getAccountKeys();
+  if (!currentDoc) throw new Error("Account keys missing.");
 
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  await runTransaction(getDb(), async (transaction) => {
-    const snap = await transaction.get(accountKeysRef);
-    if (!snap.exists()) throw new Error("Account keys doc missing.");
-    
-    const data = snap.data() as AccountKeysDocument;
-    const encryptedDevName = await encryptPayload(amk, `${getDeviceName()} (Recovered ${new Date().toISOString().slice(0, 10)})`);
-    data.devices[deviceId] = {
-      deviceId,
-      encryptedDeviceName: encryptedDevName,
-      publicKey: pubB64,
-      createdAt: Date.now()
-    };
-    data.keyring[amkId][deviceId] = wrappedForNewDevice;
-    transaction.set(accountKeysRef, data);
-  });
+  const updatedDoc = await prepareRegistrationData(
+    amk,
+    amkId,
+    getDeviceName(),
+    deviceId,
+    pubB64,
+    currentDoc
+  );
+
+  await store.setAccountKeys(updatedDoc);
 
   cachedAmk = amk;
   cachedAmkId = amkId;
 }
 
-async function setupGenesisDevice(uid: string): Promise<{ amk: CryptoKey, amkId: string }> {
-  // 1. Generate device key pair
+async function setupGenesisDevice(uid: string): Promise<{ amk: AesGcmKey, amkId: string }> {
   const deviceKeyPair = await generateDeviceKeyPair();
   const privB64 = await exportDevicePrivateKey(deviceKeyPair.privateKey);
   const pubB64 = await exportDevicePublicKey(deviceKeyPair.publicKey);
-  await saveDeviceKeysToIndexedDB({ privateKey: privB64, publicKey: pubB64 });
+  await local.saveDeviceKeys({ privateKey: privB64, publicKey: pubB64 });
 
-  // 2. Generate initial AMK (amk_v1)
-  const amk = await generateSymmetricKey(256);
-  const amkId = "amk_v1";
-  const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
-
-  // 3. Wrap AMK for this device
   const deviceId = getDeviceId();
-  const wrappedAmk = await wrapAmk(deviceKeyPair.publicKey, rawAmk);
-
-  // 4. Wrap for PRF Recovery
   const { masterKey: prfKey } = await derivePrfMasterKey();
-  const methodId = await getPrfMethodId(prfKey);
+  const prfMethodId = await getPrfMethodId(prfKey);
 
-  const storageKey = `prf_cred_${uid}`;
-  const credentialId = localStorage.getItem(storageKey) || "default_prf";
+  const credentialId = local.getPrfCredentialId(uid) || "default_prf";
 
-  const amkB64 = btoa(String.fromCharCode(...new Uint8Array(rawAmk)));
-  const { ciphertext: prfCipher, iv: prfIv } = await encrypt(prfKey, amkB64);
-  const wrappedForPrf = btoa(JSON.stringify({ ciphertext: prfCipher, iv: prfIv }));
+  const { doc, rawAmk } = await prepareGenesisDocument(
+    deviceId,
+    getDeviceName(),
+    pubB64,
+    credentialId,
+    prfKey,
+    prfMethodId
+  );
 
-  const encryptedDevName = await encryptPayload(amk, getDeviceName());
-  const encryptedRecLabel = await encryptPayload(amk, `Passkey on ${getDeviceName()}`);
+  await store.setAccountKeys(doc);
 
-  // 5. Write to Firestore
-  const accountKeysDoc: AccountKeysDocument = {
-    activeAmkId: amkId,
-    devices: {
-      [deviceId]: {
-        deviceId,
-        encryptedDeviceName: encryptedDevName,
-        publicKey: pubB64,
-        createdAt: Date.now()
-      }
-    },
-    recoveryMethods: {
-      [methodId]: {
-        type: 'prf',
-        encryptedLabel: encryptedRecLabel,
-        credentialId: credentialId,
-        createdAt: Date.now()
-      }
-    },
-    keyring: {
-      [amkId]: {
-        [deviceId]: wrappedAmk,
-        [methodId]: wrappedForPrf
-      }
-    }
-  };
+  const amk = (await window.crypto.subtle.importKey(
+    "raw",
+    rawAmk,
+    { name: "AES-GCM" },
+    true,
+    ["encrypt", "decrypt"]
+  )) as unknown as AesGcmKey;
 
-  await setDoc(doc(getDb(), "users", uid, "account_keys", "default"), accountKeysDoc);
-
-  cachedAmk = amk;
-  cachedAmkId = amkId;
-
-  return { amk, amkId };
+  return { amk, amkId: doc.activeAmkId };
 }
 
-/**
- * Re-enables PRF recovery for the current AMK.
- * This should be called by the user after a revocation event.
- */
 export async function enablePrfRecovery(): Promise<void> {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) throw new Error("Must be signed in.");
+  const user = auth.getCurrentUser();
+  if (!user) throw new Error("Must be signed in.");
 
   const { amk, amkId } = await getActiveAmk();
   const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
   
   const { masterKey: prfKey } = await derivePrfMasterKey();
-  const methodId = await getPrfMethodId(prfKey);
-  
-  const storageKey = `prf_cred_${user.uid}`;
-  const credentialId = localStorage.getItem(storageKey) || "default_prf";
+  const prfMethodId = await getPrfMethodId(prfKey);
+  const credentialId = local.getPrfCredentialId(user.uid) || "default_prf";
 
   const amkB64 = btoa(String.fromCharCode(...new Uint8Array(rawAmk)));
   const { ciphertext: prfCipher, iv: prfIv } = await encrypt(prfKey, amkB64);
   const wrappedForPrf = btoa(JSON.stringify({ ciphertext: prfCipher, iv: prfIv }));
 
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  await runTransaction(getDb(), async (transaction) => {
-    const snap = await transaction.get(accountKeysRef);
-    if (!snap.exists()) throw new Error("Account keys doc missing.");
-    
-    const data = snap.data() as AccountKeysDocument;
+  await store.transactAccountKeys(async (current) => {
     const encryptedRecLabel = await encryptPayload(amk, `Passkey on ${getDeviceName()}`);
-    data.recoveryMethods[methodId] = {
+    current.recoveryMethods[prfMethodId] = {
       type: 'prf',
       encryptedLabel: encryptedRecLabel,
       credentialId: credentialId,
       createdAt: Date.now()
     };
-    data.keyring[amkId][methodId] = wrappedForPrf;
-    transaction.set(accountKeysRef, data);
+    current.keyring[amkId][prfMethodId] = wrappedForPrf;
+    return current;
   });
 }
 
-// === REVOCATION & ROTATION ===
-
 export async function revokeDevice(revokedDeviceId: string) {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) return;
-
   const { amk: oldAmk } = await getActiveAmk();
   const newAmk = await generateSymmetricKey(256);
   const newAmkId = `amk_${Date.now()}`;
-  const rawNewAmk = await window.crypto.subtle.exportKey("raw", newAmk);
 
-  // Update Account Keys (Transaction)
-  await runTransaction(getDb(), async (transaction) => {
-    const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-    const accountKeysSnap = await transaction.get(accountKeysRef);
-    if (!accountKeysSnap.exists()) throw new Error("Account keys doc missing.");
+  let prfKey: AesGcmKey | undefined;
+  try {
+    const derived = await derivePrfMasterKey();
+    prfKey = derived.masterKey;
+  } catch (e) {
+    console.warn("Could not automatically derive PRF recovery keys during revocation:", e);
+  }
 
-    const data = accountKeysSnap.data() as AccountKeysDocument;
-
-    // Remove revoked device
-    delete data.devices[revokedDeviceId];
-
-    // Re-encrypt all remaining Device Names with the NEW AMK
-    for (const deviceId in data.devices) {
-      const dev = data.devices[deviceId];
-      const plainName = await decryptPayload(oldAmk, dev.encryptedDeviceName);
-      dev.encryptedDeviceName = await encryptPayload(newAmk, plainName);
-    }
-
-    // Re-encrypt all Recovery Labels with the NEW AMK
-    for (const methodId in data.recoveryMethods) {
-      const method = data.recoveryMethods[methodId];
-      const plainLabel = await decryptPayload(oldAmk, method.encryptedLabel);
-      method.encryptedLabel = await encryptPayload(newAmk, plainLabel);
-    }
-
-    // Create new keyring entry for the new AMK
-    data.keyring[newAmkId] = {};
-
-    // Wrap only for active, verified devices (Level 3D)
-    for (const deviceId in data.devices) {
-      const devicePubB64 = data.devices[deviceId].publicKey;
-      const devicePubKey = await importDevicePublicKey(devicePubB64);
-      const wrapped = await wrapAmk(devicePubKey, rawNewAmk);
-      data.keyring[newAmkId][deviceId] = wrapped;
-    }
-
-    // Update Asymmetric Recovery wrappers (Level 3R)
-    if (data.recoveryMethods) {
-      for (const methodId in data.recoveryMethods) {
-        const method = data.recoveryMethods[methodId];
-        if (method.type === 'phrase' && method.publicKey) {
-          try {
-            const recoveryPubKey = await importDevicePublicKey(method.publicKey);
-            const wrapped = await wrapAmk(recoveryPubKey, rawNewAmk);
-            data.keyring[newAmkId][methodId] = wrapped;
-          } catch (e) {
-            console.error(`Failed to re-wrap recovery method ${methodId}:`, e);
-          }
-        }
-      }
-    }
-
-    // Update Symmetric Recovery wrappers (Level 3R - PRF)
-    try {
-      const { masterKey: prfKey } = await derivePrfMasterKey();
-      const rawAmkB64 = btoa(String.fromCharCode(...new Uint8Array(rawNewAmk)));
-      const { ciphertext, iv } = await encrypt(prfKey, rawAmkB64);
-      const wrappedForPrf = btoa(JSON.stringify({ ciphertext, iv }));
-
-      if (data.recoveryMethods) {
-        for (const methodId in data.recoveryMethods) {
-          if (data.recoveryMethods[methodId].type === 'prf') {
-            data.keyring[newAmkId][methodId] = wrappedForPrf;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("Could not automatically re-wrap PRF recovery methods during revocation:", e);
-    }
-
-    data.activeAmkId = newAmkId;
-    transaction.set(accountKeysRef, data);
+  await store.transactAccountKeys(async (current) => {
+    return rotateKeys(
+      revokedDeviceId,
+      current,
+      oldAmk,
+      newAmk,
+      newAmkId,
+      prfKey
+    );
   });
 
-  cachedAmk = newAmk;
+  const rawNewAmk = await exportSymmetricKey(newAmk);
+  const amkBuffer = base64UrlToUint8(rawNewAmk);
+
+  cachedAmk = (await window.crypto.subtle.importKey(
+    "raw",
+    amkBuffer.buffer as ArrayBuffer,
+    { name: "AES-GCM" },
+    true,
+    ["encrypt", "decrypt"]
+  )) as unknown as AesGcmKey;
   cachedAmkId = newAmkId;
 }
 
-// === KEYSTORE (Authenticated Storage) ===
-
 export async function saveToKeystore(ledgerId: string, payload: LedgerCredentials) {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) return;
-
   const { amk, amkId } = await getActiveAmk();
   const json = JSON.stringify(payload);
   const encrypted = await encryptPayload(amk, json);
 
-  const entryRef = doc(getDb(), "users", user.uid, "keystore", ledgerId);
-  await setDoc(entryRef, {
+  await store.setKeystoreEntry(ledgerId, {
     ledgerId,
     amkId,
     ...encrypted,
@@ -594,23 +404,16 @@ export async function saveToKeystore(ledgerId: string, payload: LedgerCredential
 }
 
 export async function loadFromKeystore(ledgerId: string): Promise<LedgerCredentials | null> {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) return null;
+  const entry = await store.getKeystoreEntry(ledgerId);
+  if (!entry) return null;
 
-  const entryRef = doc(getDb(), "users", user.uid, "keystore", ledgerId);
-  const snap = await getDoc(entryRef);
-  if (!snap.exists()) return null;
-
-  const data = snap.data() as KeystoreEntry;
-  const amk = await getAmkById(data.amkId);
-  const json = await decryptPayload(amk, data);
+  const amk = await getAmkById(entry.amkId);
+  const json = await decryptPayload(amk, entry);
   return JSON.parse(json);
 }
 
 export async function verifyAmk(): Promise<boolean> {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const user = auth.getCurrentUser();
   if (!user || user.isAnonymous) return true;
 
   try {
@@ -622,103 +425,64 @@ export async function verifyAmk(): Promise<boolean> {
   }
 }
 
-/**
- * Flow B: Request authorization from an existing device.
- */
 export async function requestDeviceAuthorization(): Promise<void> {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user) throw new Error("Must be signed in.");
-
   const deviceId = getDeviceId();
   const deviceKeyPair = await generateDeviceKeyPair();
   const pubB64 = await exportDevicePublicKey(deviceKeyPair.publicKey);
   const privB64 = await exportDevicePrivateKey(deviceKeyPair.privateKey);
 
-  await saveDeviceKeysToIndexedDB({ privateKey: privB64, publicKey: pubB64 });
+  await local.saveDeviceKeys({ privateKey: privB64, publicKey: pubB64 });
 
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  const accountKeysSnap = await getDoc(accountKeysRef);
-  if (!accountKeysSnap.exists()) throw new Error("Account keys document missing.");
-  const accountKeysData = accountKeysSnap.data() as AccountKeysDocument;
+  const accountKeys = await store.getAccountKeys();
+  if (!accountKeys) throw new Error("Account keys document missing.");
 
-  const localDeviceName = getDeviceName();
-  const aesKey = await generateSymmetricKey(256);
-  const encryptedName = await encryptPayload(aesKey, localDeviceName);
-  const rawAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
-  const wrappedKeys: Record<string, string> = {};
-
-  for (const [sponsorId, sponsorDevice] of Object.entries(accountKeysData.devices) as [string, DevicePublicKey][]) {
-    try {
-      const recipientPubKey = await importDevicePublicKey(sponsorDevice.publicKey);
-      wrappedKeys[sponsorId] = await wrapAmk(recipientPubKey, rawAesKey);
-    } catch (e) {
-      console.error(`Failed to wrap ephemeral key for sponsor ${sponsorId}:`, e);
-    }
-  }
-
-  const pendingRef = doc(getDb(), "users", user.uid, "pending_devices", deviceId);
-  const pendingData: PendingDevice = {
+  const pendingData = await preparePendingDeviceRequest(
     deviceId,
-    encryptedDeviceName: {
-      ...encryptedName,
-      wrappedKeys
-    },
-    publicKey: pubB64,
-    status: 'pending',
-    createdAt: Date.now(),
-    expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutes TTL
-  };
-
-  await setDoc(pendingRef, pendingData);
-}
-
-/**
- * Flow B: Approve a pending device request.
- */
-export async function approveDeviceAuthorization(pendingDevice: PendingDevice): Promise<void> {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user) throw new Error("Must be signed in.");
-
-  const currentDeviceId = getDeviceId();
-  const localKeys = await loadDeviceKeysFromIndexedDB();
-  if (!localKeys) throw new Error("Local device keys missing.");
-
-  const wrappedKeyForUs = pendingDevice.encryptedDeviceName.wrappedKeys[currentDeviceId];
-  if (!wrappedKeyForUs) throw new Error("Pending request not wrapped for this device.");
-
-  const localPrivateKey = await importDevicePrivateKey(localKeys.privateKey);
-  const decryptedName = await decryptHybrid(
-    localPrivateKey,
-    pendingDevice.encryptedDeviceName,
-    wrappedKeyForUs
+    getDeviceName(),
+    pubB64,
+    accountKeys
   );
 
-  const { amk, amkId } = await getActiveAmk();
-  const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
-  
-  const targetPubKey = await importDevicePublicKey(pendingDevice.publicKey);
-  const wrappedForNewDevice = await wrapAmk(targetPubKey, rawAmk);
-  const encryptedNameWithAmk = await encryptPayload(amk, decryptedName);
-
-  const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
-  const pendingRef = doc(getDb(), "users", user.uid, "pending_devices", pendingDevice.deviceId);
-
-  await runTransaction(getDb(), async (transaction) => {
-    const snap = await transaction.get(accountKeysRef);
-    if (!snap.exists()) throw new Error("Account keys missing.");
-    
-    const data = snap.data() as AccountKeysDocument;
-    data.devices[pendingDevice.deviceId] = {
-      deviceId: pendingDevice.deviceId,
-      encryptedDeviceName: encryptedNameWithAmk,
-      publicKey: pendingDevice.publicKey,
-      createdAt: Date.now()
-    };
-    data.keyring[amkId][pendingDevice.deviceId] = wrappedForNewDevice;
-    
-    transaction.set(accountKeysRef, data);
-    transaction.update(pendingRef, { status: 'authorized' });
-  });
+  await store.setPendingDevice(deviceId, pendingData);
 }
+
+export async function approveDeviceAuthorization(pendingDevice: PendingDevice): Promise<void> {
+  const currentDeviceId = getDeviceId();
+  const localKeys = await local.loadDeviceKeys();
+  if (!localKeys) throw new Error("Local device keys missing.");
+
+  const { amk, amkId } = await getActiveAmk();
+
+  const { wrappedAmk, encryptedNameWithAmk } = await preparePendingDeviceApproval(
+    currentDeviceId,
+    localKeys.privateKey,
+    pendingDevice,
+    amk,
+    amkId
+  );
+
+  await store.transactApproveDevice(
+    (current) => {
+      current.devices[pendingDevice.deviceId] = {
+        deviceId: pendingDevice.deviceId,
+        encryptedDeviceName: encryptedNameWithAmk,
+        publicKey: pendingDevice.publicKey,
+        createdAt: Date.now()
+      };
+      current.keyring[amkId][pendingDevice.deviceId] = wrappedAmk;
+      return current;
+    },
+    pendingDevice.deviceId,
+    { status: 'authorized' }
+  );
+}
+
+export async function loadDeviceKeysFromIndexedDB(): Promise<{ privateKey: string; publicKey: string } | null> {
+  return local.loadDeviceKeys();
+}
+
+export async function getLocalPublicKey(): Promise<string | null> {
+  const keys = await local.loadDeviceKeys();
+  return keys ? keys.publicKey : null;
+}
+

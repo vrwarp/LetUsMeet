@@ -11,6 +11,7 @@ import { getDb, getAuth } from './config';
 import { doc, runTransaction, getDoc } from 'firebase/firestore';
 import { getActiveAmk } from './deviceService';
 import type { AccountKeysDocument } from './types';
+import type { AesGcmKey, RsaOaepPublicKey, RsaOaepPrivateKey } from './core/interfaces';
 
 /**
  * # Cryptographic Specification: Asymmetric Recovery Phrase (Symmetric-Wrapped RSA)
@@ -70,9 +71,9 @@ export async function setupPhraseRecovery(): Promise<string> {
   // 5. Wrap AMK with the new RSA Public Key
   const { amk, amkId } = await getActiveAmk();
   const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
-  const wrappedAmk = await wrapAmk(rsaPair.publicKey, rawAmk);
+  const wrappedAmk = await wrapAmk(rsaPair.publicKey as unknown as RsaOaepPublicKey, rawAmk);
   
-  const pubKeyB64 = await exportDevicePublicKey(rsaPair.publicKey);
+  const pubKeyB64 = await exportDevicePublicKey(rsaPair.publicKey as unknown as RsaOaepPublicKey);
 
   // 6. Save to Firestore
   const accountKeysRef = doc(getDb(), "users", user.uid, "account_keys", "default");
@@ -104,7 +105,7 @@ export async function setupPhraseRecovery(): Promise<string> {
 /**
  * Recovers the AMK using a recovery phrase.
  */
-export async function recoverAmkWithPhrase(mnemonic: string): Promise<{ amk: CryptoKey, amkId: string }> {
+export async function recoverAmkWithPhrase(mnemonic: string): Promise<{ amk: AesGcmKey, amkId: string }> {
   const auth = getAuth();
   const user = auth.currentUser;
   if (!user || user.isAnonymous) throw new Error("Must be signed in.");
@@ -142,19 +143,19 @@ export async function recoverAmkWithPhrase(mnemonic: string): Promise<{ amk: Cry
   const wrappedAmk = data.keyring[amkId]["__recovery_phrase"];
   if (!wrappedAmk) throw new Error("Recovery wrapper missing from keyring.");
   
-  const amkBuffer = await unwrapAmk(privateKey, wrappedAmk);
-  const amk = await window.crypto.subtle.importKey(
+  const amkBuffer = await unwrapAmk(privateKey as unknown as RsaOaepPrivateKey, wrappedAmk);
+  const amk = (await window.crypto.subtle.importKey(
     "raw",
     amkBuffer,
     { name: "AES-GCM" },
     true,
     ["encrypt", "decrypt"]
-  );
+  )) as unknown as AesGcmKey;
 
   return { amk, amkId };
 }
 
-async function deriveProtectorFromPhrase(mnemonic: string): Promise<CryptoKey> {
+async function deriveProtectorFromPhrase(mnemonic: string): Promise<AesGcmKey> {
   const seed = await bip39.mnemonicToSeed(mnemonic);
   const baseKey = await window.crypto.subtle.importKey(
     "raw",
@@ -164,7 +165,7 @@ async function deriveProtectorFromPhrase(mnemonic: string): Promise<CryptoKey> {
     ["deriveKey"]
   );
 
-  return await window.crypto.subtle.deriveKey(
+  return (await window.crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
       salt: new TextEncoder().encode("LetUsMeet-Recovery-Salt-v1"),
@@ -175,5 +176,5 @@ async function deriveProtectorFromPhrase(mnemonic: string): Promise<CryptoKey> {
     { name: "AES-GCM", length: 256 },
     true,
     ["encrypt", "decrypt"]
-  );
+  )) as unknown as AesGcmKey;
 }
