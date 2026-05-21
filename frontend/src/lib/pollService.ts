@@ -49,7 +49,7 @@ export function getShareableUrl(urlStr: string = window.location.href): string {
     } catch {
       // Safe fallback if URL parsing still fails or for protocol-relative URLs
       return urlStr
-        .replace(/([?&])adminToken=[^&#]*/gi, (match, prefix) => prefix === '?' ? '?' : '')
+        .replace(/([?&])adminToken=[^&#]*/gi, (_, prefix) => prefix === '?' ? '?' : '')
         .replace(/\?&/, '?')
         .replace(/\?($|#)/, '$1');
     }
