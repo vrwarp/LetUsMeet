@@ -136,7 +136,7 @@ describe('ResultsPage', () => {
         adminPublicKey: 'mock-pub-key',
         votes: new Map([['pub1', { participantName: 'Alice', email: 'alice@example.com', selections: { t1: 'YES' }, clientTimestamp: Date.now(), responseId: 'r1' }]]),
         isFinalized: false
-      } as unknown as PollState, 'Synced');
+      } as any, 'Synced');
       return () => {};
     });
 
