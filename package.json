@@ -36,10 +36,11 @@
     "test:e2e:local": "npx firebase emulators:exec --only auth,firestore,functions,hosting \"npm run test:e2e --prefix frontend\"",
     "deploy": "npm run build && npx firebase deploy --project letusmeet-6f4e1 --only hosting,firestore,auth,functions"
   },
-  "dependencies": {
-  },
   "devDependencies": {
+    "@xstate/test": "^0.5.1",
     "concurrently": "^9.1.0",
-    "firebase-tools": "^15.16.0"
+    "fast-check": "^4.8.0",
+    "firebase-tools": "^15.16.0",
+    "xstate": "^4.38.3"
   }
 }
