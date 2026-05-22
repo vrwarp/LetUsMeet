@@ -106,23 +106,28 @@ export default function DashboardPage() {
     });
 
     const unsubscribe = subscribeToUserKeystore(user.uid, async (keystoreEntries) => {
-      const decryptedEntries: DecryptedDashboardEntry[] = [];
-
-      for (const entry of keystoreEntries) {
-        try {
-          const session = await getLedgerSession(entry.ledgerId);
-          const genesis = await session.getGenesisEvent();
-          if (genesis?.action?.type === "POLL_CREATED") {
-            decryptedEntries.push({
-              pollId: entry.ledgerId,
-              symmetricKey: session.exportSessionKey(),
-              metadata: genesis.action.payload
-            });
+      const decryptedResults = await Promise.all(
+        keystoreEntries.map(async (entry) => {
+          try {
+            const session = await getLedgerSession(entry.ledgerId);
+            const genesis = await session.getGenesisEvent();
+            if (genesis?.action?.type === "POLL_CREATED") {
+              return {
+                pollId: entry.ledgerId,
+                symmetricKey: session.exportSessionKey(),
+                metadata: genesis.action.payload
+              } as DecryptedDashboardEntry;
+            }
+          } catch (e) {
+            console.warn("Failed to decrypt dashboard entry", entry.ledgerId, e);
           }
-        } catch (e) {
-          console.warn("Failed to decrypt dashboard entry", entry.ledgerId, e);
-        }
-      }
+          return null;
+        })
+      );
+
+      const decryptedEntries = decryptedResults.filter(
+        (entry): entry is DecryptedDashboardEntry => entry !== null
+      );
 
       setEntries(decryptedEntries);
       setFetching(false);
