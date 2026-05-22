@@ -256,7 +256,20 @@ export default function ResultsPage() {
     bodyText += `You can view the full results and the availability grid here: ${getShareableUrl()}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
 
     const mailtoUrl = `mailto:?bcc=${encodeURIComponent(toString)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-    window.location.href = mailtoUrl;
+
+    const link = document.createElement("a");
+    link.href = mailtoUrl;
+
+    // Validate protocol to prevent injection of javascript: or other schemes
+    if (link.protocol === "mailto:") {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      console.error("Invalid mailto protocol generated");
+    }
   };
 
   const renderMatrixTable = (isCompact = false) => (
