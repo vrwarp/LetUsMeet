@@ -121,4 +121,75 @@ describe('ResultsPage', () => {
     renderPage();
     expect(await screen.findByText(/Leading/i)).toBeInTheDocument();
   });
+
+  it('safely constructs mailto link when emailing participants', async () => {
+    // Mock user so we are admin
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Email Poll',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }],
+          organizerUid: 'mock-user-uid'
+        },
+        adminPublicKey: 'mock-pub-key',
+        votes: new Map([['pub1', { participantName: 'Alice', email: 'alice@example.com', selections: { t1: 'YES' }, clientTimestamp: Date.now(), responseId: 'r1' }]]),
+        isFinalized: false
+      } as unknown as PollState, 'Synced');
+      return () => {};
+    });
+
+    const mockSession = {
+      getSignerPublicKey: () => 'mock-pub-key'
+    };
+    (pollService as any).getLedgerSession = vi.fn().mockResolvedValue(mockSession);
+
+    // Ensure we render the page FIRST so react can create its DOM elements natively
+    renderPage();
+
+    // Wait for the button to be rendered before mocking document.createElement
+    const emailButton = await screen.findByTitle('Email all participants');
+    expect(emailButton).toBeInTheDocument();
+
+    // Mock link element creation and click AFTER render
+    const originalCreateElement = document.createElement;
+    const mockClick = vi.fn();
+    const mockLink = {
+      href: '',
+      get protocol() {
+        try {
+          return new URL(this.href).protocol;
+        } catch {
+          return '';
+        }
+      },
+      target: '',
+      rel: '',
+      click: mockClick
+    };
+
+    const createElementSpy = vi.spyOn(document, 'createElement');
+    createElementSpy.mockImplementation(function (this: Document, tagName: string, options?: ElementCreationOptions) {
+      if (tagName === 'a') return mockLink as unknown as HTMLElement;
+      return originalCreateElement.call(document, tagName, options);
+    });
+
+    const appendSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as unknown as Node);
+    const removeSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as unknown as Node);
+
+    emailButton.click();
+
+    expect(createElementSpy).toHaveBeenCalledWith('a');
+    expect(mockLink.href).toMatch(/^mailto:/);
+    expect(mockLink.target).toBe('_blank');
+    expect(mockLink.rel).toBe('noopener noreferrer');
+    expect(mockClick).toHaveBeenCalled();
+    expect(appendSpy).toHaveBeenCalled();
+    expect(removeSpy).toHaveBeenCalled();
+
+    createElementSpy.mockRestore();
+    appendSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
 });
