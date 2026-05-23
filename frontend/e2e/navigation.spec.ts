@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/base-test';
+import { test, expect, waitForRouterIdle } from './helpers/base-test';
 
 test.describe('Navigation Flows', () => {
   test('navigates through the entire app lifecycle smoothly', async ({ page }) => {
@@ -8,6 +8,7 @@ test.describe('Navigation Flows', () => {
 
     // Home -> Create
     await page.locator('header').getByTestId('create-poll-btn').click();
+    await waitForRouterIdle(page);
     await expect(page).toHaveURL(/\/create/);
     await expect(page.getByRole('heading', { name: /Create a Meeting Poll/i })).toBeVisible();
 
@@ -47,6 +48,7 @@ test.describe('Navigation Flows', () => {
     await page.goto('/create');
     // Assuming the header has a link with LetUsMeet or a specific logo
     await page.getByRole('link', { name: /LetUsMeet/i }).first().click();
+    await waitForRouterIdle(page);
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Let everyone meet');
   });

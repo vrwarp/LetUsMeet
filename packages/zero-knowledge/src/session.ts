@@ -24,17 +24,28 @@ import type {
 } from "./core/types";
 import { saveToKeystore, loadFromKeystore } from "./deviceService";
 
+import type { AesGcmKey, EcdsaPrivateKey, EcdsaPublicKey, LedgerEventStore, AccountKeyStore, LocalDeviceStore, AuthProvider } from "./core/interfaces";
 import { FirestoreLedgerEventStore } from "./browser/FirestoreLedgerEventStore";
 import { FirestoreAccountKeyStore } from "./browser/FirestoreAccountKeyStore";
 import { BrowserLocalDeviceStore } from "./browser/BrowserLocalDeviceStore";
 import { FirebaseAuthProvider } from "./browser/FirebaseAuthProvider";
 
-const eventStore = new FirestoreLedgerEventStore();
-const keyStore = new FirestoreAccountKeyStore();
-const local = new BrowserLocalDeviceStore();
-const auth = new FirebaseAuthProvider();
+let eventStore: LedgerEventStore = new FirestoreLedgerEventStore();
+let keyStore: AccountKeyStore = new FirestoreAccountKeyStore();
+let local: LocalDeviceStore = new BrowserLocalDeviceStore();
+let auth: AuthProvider = new FirebaseAuthProvider();
 
-import type { AesGcmKey, EcdsaPrivateKey, EcdsaPublicKey } from "./core/interfaces";
+export function setSessionProviders(providers: {
+  ledgerEventStore?: LedgerEventStore;
+  accountKeyStore?: AccountKeyStore;
+  localDeviceStore?: LocalDeviceStore;
+  authProvider?: AuthProvider;
+}) {
+  if (providers.ledgerEventStore) eventStore = providers.ledgerEventStore;
+  if (providers.accountKeyStore) keyStore = providers.accountKeyStore;
+  if (providers.localDeviceStore) local = providers.localDeviceStore;
+  if (providers.authProvider) auth = providers.authProvider;
+}
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();

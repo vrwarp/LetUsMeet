@@ -39,6 +39,11 @@ export default function CreatePollPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [pendingGeneratedSlots, setPendingGeneratedSlots] = useState<TimeSlotInput[] | null>(null);
   const { user } = useAuth();
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
@@ -251,6 +256,7 @@ export default function CreatePollPage() {
               className="w-full"
               value={organizerName}
               onChange={(e) => setOrganizerName(e.target.value)}
+              disabled={!isReady}
             />
           </div>
         </div>
@@ -271,6 +277,7 @@ export default function CreatePollPage() {
               className="w-full text-lg"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={!isReady}
             />
           </div>
  
@@ -285,6 +292,7 @@ export default function CreatePollPage() {
               className="w-full min-h-[100px] resize-none [field-sizing:content] [@supports(field-sizing:content)]:h-auto"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={!isReady}
             />
           </div>
 
@@ -301,6 +309,7 @@ export default function CreatePollPage() {
               className="w-full"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+              disabled={!isReady}
             />
           </div>
         </div>
@@ -314,6 +323,7 @@ export default function CreatePollPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               type="button"
+              disabled={!isReady}
               onClick={() => {
                 setSchedulingMode("EXACT");
                 setPendingGeneratedSlots(null);
@@ -334,6 +344,7 @@ export default function CreatePollPage() {
             </button>
             <button
               type="button"
+              disabled={!isReady}
               onClick={() => {
                 setSchedulingMode("FUZZY");
                 setPendingGeneratedSlots(null);
@@ -389,11 +400,12 @@ export default function CreatePollPage() {
                     className="flex-1 px-3 py-[8px] text-sm leading-5 rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white resize-none h-[68px] min-h-[38px] [field-sizing:content] [@supports(field-sizing:content)]:h-auto"
                     value={aiQuery}
                     onChange={(e) => setAiQuery(e.target.value)}
+                    disabled={!isReady}
                   />
                   <button
                     type="button"
                     onClick={handleGenerateSlots}
-                    disabled={isGenerating || !aiQuery.trim()}
+                    disabled={!isReady || isGenerating || !aiQuery.trim()}
                     className="w-full sm:w-[100px] h-[38px] bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap flex-shrink-0"
                   >
                     {isGenerating ? <Loader2 size={14} className="animate-spin" /> : "Generate"}
@@ -497,6 +509,7 @@ export default function CreatePollPage() {
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                           value={slot.date}
                           onChange={(e) => updateSlot(index, "date", e.target.value)}
+                          disabled={!isReady}
                         />
                       </label>
 
@@ -513,6 +526,7 @@ export default function CreatePollPage() {
                                   e.stopPropagation();
                                   updateSlot(index, "time", "");
                                 }}
+                                disabled={!isReady}
                                 className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
                               >
                                 <X size={12} />
@@ -527,6 +541,7 @@ export default function CreatePollPage() {
                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                             value={slot.time || ""}
                             onChange={(e) => updateSlot(index, "time", e.target.value)}
+                            disabled={!isReady}
                           />
                         </label>
                       ) : (
@@ -534,6 +549,7 @@ export default function CreatePollPage() {
                           type="button"
                           onClick={() => removeSlot(index)}
                           aria-label="Remove time slot"
+                          disabled={!isReady}
                           className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
                         >
                           <Trash2 size={16} />
@@ -559,6 +575,7 @@ export default function CreatePollPage() {
                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                             value={slot.startTime}
                             onChange={(e) => updateSlot(index, "startTime", e.target.value)}
+                            disabled={!isReady}
                           />
                         </label>
                         <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
@@ -577,6 +594,7 @@ export default function CreatePollPage() {
                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                             value={slot.endTime}
                             onChange={(e) => updateSlot(index, "endTime", e.target.value)}
+                            disabled={!isReady}
                           />
                         </label>
                       </div>
@@ -590,11 +608,13 @@ export default function CreatePollPage() {
                             className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
                             value={slot.label}
                             onChange={(e) => updateSlot(index, "label", e.target.value)}
+                            disabled={!isReady}
                           />
                           <button
                             type="button"
                             onClick={() => removeSlot(index)}
                             aria-label="Remove time slot"
+                            disabled={!isReady}
                             className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
                           >
                             <Trash2 size={16} />
@@ -606,6 +626,7 @@ export default function CreatePollPage() {
                               key={suggestion}
                               type="button"
                               onClick={() => updateSlot(index, "label", suggestion)}
+                              disabled={!isReady}
                               className="whitespace-nowrap px-3 py-1.5 rounded-full bg-white text-[10px] font-bold text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all uppercase tracking-wide border border-neutral-200 hover:border-indigo-100 shadow-sm"
                             >
                               {suggestion}
@@ -623,7 +644,8 @@ export default function CreatePollPage() {
               type="button"
               onClick={addSlot}
               data-testid="add-slot-btn"
-              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px]"
+              disabled={!isReady}
+              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus size={20} />
               Add time slot
@@ -641,7 +663,7 @@ export default function CreatePollPage() {
         <button
           type="submit"
           data-testid="create-submit-btn"
-          disabled={isSubmitting || !title || !organizerName || slots.length === 0}
+          disabled={!isReady || isSubmitting || !title || !organizerName || slots.length === 0}
           className="btn-primary-green w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           {isSubmitting ? (

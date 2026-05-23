@@ -37,9 +37,12 @@ export interface BlindEvent extends EncryptedData {
 }
 
 export interface KeystoreEntry extends EncryptedData {
-  pollId: string;
   amkId: string; // NEW: Explicitly declare which AMK encrypted this payload
   updatedAt: number;
+}
+
+export interface DecryptedKeystoreEntry extends KeystoreEntry {
+  ledgerId?: string; // Restored securely on the client-side after decryption
 }
 
 export interface DevicePublicKey {

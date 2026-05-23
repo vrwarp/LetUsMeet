@@ -93,6 +93,33 @@ export interface AccountKeyStore {
     pendingDeviceId: string,
     pendingUpdate: Partial<PendingDevice>
   ): Promise<void>;
+
+  /** Subscribe to pending devices for the current user. */
+  subscribePendingDevices(
+    onSnapshot: (devices: PendingDevice[]) => void
+  ): () => void;
+
+  /** Subscribe to a specific pending device request. */
+  subscribePendingDevice(
+    deviceId: string,
+    onSnapshot: (device: PendingDevice | null) => void
+  ): () => void;
+
+  /** Subscribe to the account keys document. */
+  subscribeAccountKeys(
+    onSnapshot: (doc: AccountKeysDocument | null) => void
+  ): () => void;
+
+  /** Subscribe to all keystore entries for the current user. */
+  subscribeKeystore(
+    onSnapshot: (entries: KeystoreEntry[]) => void
+  ): () => void;
+
+  /** Delete a pending device request. */
+  deletePendingDevice(deviceId: string): Promise<void>;
+
+  /** Delete all remote zero-knowledge keys and entries for the current user. */
+  resetRemoteStore(): Promise<void>;
 }
 
 export interface LedgerEventStore {
@@ -133,8 +160,23 @@ export interface LocalDeviceStore {
   // PRF credential cache
   getPrfCredentialId(uid: string): string | null;
   setPrfCredentialId(uid: string, credentialId: string): void;
+
+  // Clear all local states
+  clearAll(): Promise<void>;
 }
 
 export interface AuthProvider {
   getCurrentUser(): { uid: string; isAnonymous: boolean; email?: string; displayName?: string } | null;
+}
+
+export interface PrfProvider {
+  createCredential(
+    userId: string,
+    userName: string,
+    displayName: string
+  ): Promise<{ credentialId: string; prfResult: Uint8Array }>;
+  
+  getAssertion(
+    credentialIds: string[]
+  ): Promise<{ usedCredentialId: string; prfResult: Uint8Array }>;
 }

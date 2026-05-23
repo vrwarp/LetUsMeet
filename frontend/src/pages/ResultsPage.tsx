@@ -42,6 +42,11 @@ export default function ResultsPage() {
   const [showShareCopied, setShowShareCopied] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
   const [finalizing, setFinalizing] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [unfinalizing, setUnfinalizing] = useState(false);
@@ -256,7 +261,20 @@ export default function ResultsPage() {
     bodyText += `You can view the full results and the availability grid here: ${getShareableUrl()}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
 
     const mailtoUrl = `mailto:?bcc=${encodeURIComponent(toString)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-    window.location.href = mailtoUrl;
+
+    const link = document.createElement("a");
+    link.href = mailtoUrl;
+
+    // Validate protocol to prevent injection of javascript: or other schemes
+    if (link.protocol === "mailto:") {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      console.error("Invalid mailto protocol generated");
+    }
   };
 
   const renderMatrixTable = (isCompact = false) => (
@@ -270,7 +288,8 @@ export default function ResultsPage() {
                 {isAdmin && (
                   <button 
                     onClick={handleComposeEmail}
-                    className="p-1 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green flex-shrink-0"
+                    disabled={!isReady}
+                    className="p-1 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green flex-shrink-0 disabled:opacity-50"
                     title="Email all participants"
                   >
                     <Send className="w-3 h-3" />
@@ -295,7 +314,8 @@ export default function ResultsPage() {
                 {isAdmin && !pollState.isFinalized && (
                   <button
                     onClick={() => handleFinalize(slot.id)}
-                    className="mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm"
+                    disabled={!isReady || finalizing === slot.id}
+                    className="mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm disabled:opacity-50"
                   >
                     {finalizing === slot.id ? "..." : "Select"}
                   </button>
@@ -469,7 +489,8 @@ export default function ResultsPage() {
                 {pollState.isFinalized ? (
                   <button
                     onClick={handleUnfinalize}
-                    className="w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl"
+                    disabled={!isReady || unfinalizing}
+                    className="w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl disabled:opacity-50"
                     title="Unselect Date"
                   >
                     {unfinalizing ? (
@@ -484,7 +505,7 @@ export default function ResultsPage() {
                 ) : (
                   <Link
                     to={`/poll/${pollId}/edit${window.location.search}${window.location.hash}`}
-                    className="w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl"
+                    className={`w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl ${!isReady ? 'pointer-events-none opacity-50' : ''}`}
                     title="Edit Poll"
                   >
                     <Edit3 size={24} className="group-hover:scale-110 transition-transform duration-500 flex-shrink-0" />
@@ -515,7 +536,8 @@ export default function ResultsPage() {
            </h2>
            <button 
              onClick={() => setIsMaximized(true)} 
-             className="p-2 hover:bg-neutral-100 rounded-lg"
+             disabled={!isReady}
+             className="p-2 hover:bg-neutral-100 rounded-lg disabled:opacity-50"
              aria-label="Maximize availability grid"
            >
              <Maximize2 size={20} />
@@ -538,7 +560,8 @@ export default function ResultsPage() {
             <h2 className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
             <button 
               onClick={() => setIsMaximized(false)} 
-              className="p-2 hover:bg-white/10 rounded-full flex-shrink-0"
+              disabled={!isReady}
+              className="p-2 hover:bg-white/10 rounded-full flex-shrink-0 disabled:opacity-50"
               aria-label="Close maximization"
             >
               <X size={32} />

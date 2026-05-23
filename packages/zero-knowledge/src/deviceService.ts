@@ -1,18 +1,21 @@
 import {
-  generateSymmetricKey,
-  exportSymmetricKey,
-  generateDeviceKeyPair,
+  encrypt,
+  encryptPayload,
+  decrypt,
+  decryptPayload,
   exportDevicePrivateKey,
   exportDevicePublicKey,
-  importDevicePublicKey,
+  exportSymmetricKey,
+  generateDeviceKeyPair,
+  generateSymmetricKey,
+  base64UrlToUint8,
+  getCrypto,
   importDevicePrivateKey,
-  wrapAmk,
+  importDevicePublicKey,
   unwrapAmk,
-  encryptPayload,
-  decryptPayload,
-  decrypt,
-  encrypt,
-  base64UrlToUint8
+  wrapAmk,
+  decryptHybrid,
+  blindLedgerId
 } from "./core/crypto";
 import {
   unwrapActiveAmk,
@@ -30,9 +33,10 @@ import type {
   DevicePublicKey,
   RecoveryMethod,
   LedgerCredentials,
-  KeystoreEntry
+  KeystoreEntry,
+  DecryptedKeystoreEntry
 } from "./core/types";
-import type { AesGcmKey } from "./core/interfaces";
+import type { AesGcmKey, AccountKeyStore, LocalDeviceStore, AuthProvider, RawKeyBytes } from "./core/interfaces";
 
 import { FirestoreAccountKeyStore } from "./browser/FirestoreAccountKeyStore";
 import { BrowserLocalDeviceStore } from "./browser/BrowserLocalDeviceStore";
@@ -40,9 +44,19 @@ import { FirebaseAuthProvider } from "./browser/FirebaseAuthProvider";
 
 import { derivePrfMasterKey } from "./prfService";
 
-const store = new FirestoreAccountKeyStore();
-const local = new BrowserLocalDeviceStore();
-const auth = new FirebaseAuthProvider();
+let store: AccountKeyStore = new FirestoreAccountKeyStore();
+let local: LocalDeviceStore = new BrowserLocalDeviceStore();
+let auth: AuthProvider = new FirebaseAuthProvider();
+
+export function setDeviceServiceProviders(providers: {
+  accountKeyStore?: AccountKeyStore;
+  localDeviceStore?: LocalDeviceStore;
+  authProvider?: AuthProvider;
+}) {
+  if (providers.accountKeyStore) store = providers.accountKeyStore;
+  if (providers.localDeviceStore) local = providers.localDeviceStore;
+  if (providers.authProvider) auth = providers.authProvider;
+}
 
 export function getDeviceId(): string {
   return local.getDeviceId();
@@ -59,8 +73,8 @@ export function setDeviceName(name: string) {
 // === PRF HELPERS ===
 
 async function getPrfMethodId(prfKey: AesGcmKey): Promise<string> {
-  const rawKey = await window.crypto.subtle.exportKey("raw", prfKey as any);
-  const hash = await window.crypto.subtle.digest("SHA-256", rawKey);
+  const rawKey = await getCrypto().exportSymmetricKey(prfKey);
+  const hash = await getCrypto().digest("SHA-256", rawKey);
   const hashArray = Array.from(new Uint8Array(hash));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   return `__recovery_prf_${hashHex.slice(0, 16)}`;
@@ -121,13 +135,7 @@ export async function getActiveAmk(): Promise<{ amk: AesGcmKey, amkId: string }>
 
       const amkBuffer = await unwrapAmkById(accountKeys, deviceId, deviceKeys.privateKey, amkId);
 
-      cachedAmk = (await window.crypto.subtle.importKey(
-        "raw",
-        amkBuffer,
-        { name: "AES-GCM" },
-        true,
-        ["encrypt", "decrypt"]
-      )) as unknown as AesGcmKey;
+      cachedAmk = await getCrypto().importSymmetricKey(new Uint8Array(amkBuffer) as RawKeyBytes);
       cachedAmkId = amkId;
 
       opportunisticallyEnableRecovery().catch(e => console.warn("Opportunistic recovery check failed:", e));
@@ -161,13 +169,7 @@ export async function getAmkById(targetAmkId: string): Promise<AesGcmKey> {
 
   const amkBuffer = await unwrapAmkById(accountKeys, deviceId, deviceKeys.privateKey, targetAmkId);
 
-  return (await window.crypto.subtle.importKey(
-    "raw",
-    amkBuffer,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  return await getCrypto().importSymmetricKey(new Uint8Array(amkBuffer) as RawKeyBytes);
 }
 
 async function opportunisticallyEnableRecovery() {
@@ -248,13 +250,7 @@ async function tryRecoverAmkWithPrf(data: AccountKeysDocument): Promise<{ amk: A
     const recovered = await tryRecoverAmkWithPrfKey(data, masterKey, usedMethodId);
     if (!recovered) return null;
 
-    const amk = (await window.crypto.subtle.importKey(
-      "raw",
-      recovered.amkRaw,
-      { name: "AES-GCM" },
-      true,
-      ["encrypt", "decrypt"]
-    )) as unknown as AesGcmKey;
+    const amk = await getCrypto().importSymmetricKey(new Uint8Array(recovered.amkRaw) as RawKeyBytes);
 
     return { amk, amkId: recovered.amkId };
   } catch (e) {
@@ -314,13 +310,7 @@ async function setupGenesisDevice(uid: string): Promise<{ amk: AesGcmKey, amkId:
 
   await store.setAccountKeys(doc);
 
-  const amk = (await window.crypto.subtle.importKey(
-    "raw",
-    rawAmk,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  const amk = await getCrypto().importSymmetricKey(new Uint8Array(rawAmk) as RawKeyBytes);
 
   return { amk, amkId: doc.activeAmkId };
 }
@@ -330,7 +320,7 @@ export async function enablePrfRecovery(): Promise<void> {
   if (!user) throw new Error("Must be signed in.");
 
   const { amk, amkId } = await getActiveAmk();
-  const rawAmk = await window.crypto.subtle.exportKey("raw", amk);
+  const rawAmk = await getCrypto().exportSymmetricKey(amk);
   
   const { masterKey: prfKey } = await derivePrfMasterKey();
   const prfMethodId = await getPrfMethodId(prfKey);
@@ -380,23 +370,25 @@ export async function revokeDevice(revokedDeviceId: string) {
   const rawNewAmk = await exportSymmetricKey(newAmk);
   const amkBuffer = base64UrlToUint8(rawNewAmk);
 
-  cachedAmk = (await window.crypto.subtle.importKey(
-    "raw",
-    amkBuffer.buffer as ArrayBuffer,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  )) as unknown as AesGcmKey;
+  cachedAmk = await getCrypto().importSymmetricKey(new Uint8Array(amkBuffer.buffer as ArrayBuffer) as RawKeyBytes);
   cachedAmkId = newAmkId;
 }
 
 export async function saveToKeystore(ledgerId: string, payload: LedgerCredentials) {
   const { amk, amkId } = await getActiveAmk();
-  const json = JSON.stringify(payload);
+  
+  // Encrypt the ledgerId INSIDE the payload envelope for zero-knowledge metadata privacy
+  const envelope = {
+    ledgerId,
+    ...payload
+  };
+  const json = JSON.stringify(envelope);
   const encrypted = await encryptPayload(amk, json);
 
-  await store.setKeystoreEntry(ledgerId, {
-    ledgerId,
+  // Blind the document ID (ledgerId) using the AMK-derived key
+  const docId = await blindLedgerId(amk, ledgerId);
+
+  await store.setKeystoreEntry(docId, {
     amkId,
     ...encrypted,
     updatedAt: Date.now()
@@ -404,12 +396,53 @@ export async function saveToKeystore(ledgerId: string, payload: LedgerCredential
 }
 
 export async function loadFromKeystore(ledgerId: string): Promise<LedgerCredentials | null> {
-  const entry = await store.getKeystoreEntry(ledgerId);
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) return null;
+
+  const { amk: activeAmk } = await getActiveAmk();
+  
+  // Try with the active AMK first (which is the most common case)
+  const activeDocId = await blindLedgerId(activeAmk, ledgerId);
+  let entry = await store.getKeystoreEntry(activeDocId);
+  
+  // If not found, look up using any historical AMKs available to this device
+  if (!entry) {
+    const deviceId = getDeviceId();
+    const accountKeys = await store.getAccountKeys();
+    if (accountKeys) {
+      const amkIds = Object.keys(accountKeys.keyring).filter(
+        id => accountKeys.keyring[id]?.[deviceId] && id !== accountKeys.activeAmkId
+      );
+      for (const amkId of amkIds) {
+        try {
+          const historicalAmk = await getAmkById(amkId);
+          const historicalDocId = await blindLedgerId(historicalAmk, ledgerId);
+          const historicalEntry = await store.getKeystoreEntry(historicalDocId);
+          if (historicalEntry) {
+            entry = historicalEntry;
+            break;
+          }
+        } catch (e) {
+          // If unwrapping a specific historical AMK fails, skip it
+          continue;
+        }
+      }
+    }
+  }
+
   if (!entry) return null;
 
-  const amk = await getAmkById(entry.amkId);
-  const json = await decryptPayload(amk, entry);
-  return JSON.parse(json);
+  const entryAmk = await getAmkById(entry.amkId);
+  const json = await decryptPayload(entryAmk, entry);
+  const decrypted = JSON.parse(json);
+
+  // If the decrypted payload was saved in the legacy format, it is directly the credentials.
+  // Otherwise, it has { ledgerId, ...credentials }. We extract only the LedgerCredentials fields.
+  return {
+    symmetricKey: decrypted.symmetricKey,
+    signingPrivateKey: decrypted.signingPrivateKey,
+    signingPublicKey: decrypted.signingPublicKey
+  };
 }
 
 export async function verifyAmk(): Promise<boolean> {
@@ -484,5 +517,171 @@ export async function loadDeviceKeysFromIndexedDB(): Promise<{ privateKey: strin
 export async function getLocalPublicKey(): Promise<string | null> {
   const keys = await local.loadDeviceKeys();
   return keys ? keys.publicKey : null;
+}
+
+export interface DecryptedDevice {
+  deviceId: string;
+  decryptedDeviceName: string;
+  publicKey: string;
+  createdAt: number;
+}
+
+export function subscribePendingRequests(
+  onUpdate: (requests: PendingDevice[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const currentDeviceId = getDeviceId();
+  
+  return store.subscribePendingDevices(async (rawRequests) => {
+    try {
+      const now = Date.now();
+      const filteredRequests = rawRequests.filter(
+        d => d.deviceId !== currentDeviceId && (!d.expiresAt || d.expiresAt > now)
+      );
+
+      const decryptedRequests: PendingDevice[] = [];
+      const localKeys = await local.loadDeviceKeys();
+
+      if (localKeys) {
+        const localPrivateKey = await importDevicePrivateKey(localKeys.privateKey);
+
+        for (const req of filteredRequests) {
+          try {
+            const wrappedKeyForUs = req.encryptedDeviceName.wrappedKeys[currentDeviceId];
+            if (wrappedKeyForUs) {
+              const decryptedName = await decryptHybrid(
+                localPrivateKey,
+                req.encryptedDeviceName,
+                wrappedKeyForUs
+              );
+              (req as any).decryptedDeviceName = decryptedName;
+            } else {
+              (req as any).decryptedDeviceName = "Unknown Device";
+            }
+          } catch (err) {
+            console.error("Failed to decrypt pending device name:", err);
+            (req as any).decryptedDeviceName = "Unreadable Device Name";
+          }
+          decryptedRequests.push(req);
+        }
+      } else {
+        for (const req of filteredRequests) {
+          (req as any).decryptedDeviceName = "Unknown Device";
+          decryptedRequests.push(req);
+        }
+      }
+
+      onUpdate(decryptedRequests);
+    } catch (err: any) {
+      console.error("subscribePendingRequests failed:", err);
+      onError?.(err);
+    }
+  });
+}
+
+export function subscribeAuthorizedDevices(
+  onUpdate: (devices: DecryptedDevice[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  return store.subscribeAccountKeys(async (accountKeys) => {
+    try {
+      if (!accountKeys) {
+        onUpdate([]);
+        return;
+      }
+
+      const { amk } = await getActiveAmk();
+      const decryptedList: DecryptedDevice[] = [];
+
+      for (const [deviceId, device] of Object.entries(accountKeys.devices)) {
+        let plainName = "Unreadable Device";
+        try {
+          plainName = await decryptPayload(amk, device.encryptedDeviceName);
+        } catch (err) {
+          console.error(`Failed to decrypt device name for ${deviceId}:`, err);
+        }
+        decryptedList.push({
+          deviceId,
+          decryptedDeviceName: plainName,
+          publicKey: device.publicKey,
+          createdAt: device.createdAt
+        });
+      }
+
+      onUpdate(decryptedList);
+    } catch (err: any) {
+      console.error("subscribeAuthorizedDevices failed:", err);
+      onError?.(err);
+    }
+  });
+}
+
+export function subscribeCurrentDeviceStatus(
+  onAuthorized: () => void,
+  onError?: (err: Error) => void
+): () => void {
+  const currentDeviceId = getDeviceId();
+  return store.subscribePendingDevice(currentDeviceId, (device) => {
+    try {
+      if (device && device.status === "authorized") {
+        onAuthorized();
+      }
+    } catch (err: any) {
+      console.error("subscribeCurrentDeviceStatus failed:", err);
+      onError?.(err);
+    }
+  });
+}
+
+export function subscribeToUserKeystore(
+  onUpdate: (entries: DecryptedKeystoreEntry[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) {
+    onUpdate([]);
+    return () => {};
+  }
+  return store.subscribeKeystore(async (entries) => {
+    try {
+      const processed = await Promise.all(
+        entries.map(async (entry) => {
+          try {
+            // Decrypt the entry to retrieve the ledgerId from the secure envelope.
+            const amk = await getAmkById(entry.amkId);
+            const json = await decryptPayload(amk, entry);
+            const decrypted = JSON.parse(json);
+            return {
+              ...entry,
+              ledgerId: decrypted.ledgerId
+            };
+          } catch (e) {
+            // Decryption might fail if active keys are not initialized yet, fallback to the entry.
+            return entry;
+          }
+        })
+      );
+      onUpdate(processed);
+    } catch (err: any) {
+      console.error("subscribeToUserKeystore mapping failed:", err);
+      // Fallback: update with the original entries if the entire mapping fails
+      onUpdate(entries);
+    }
+  });
+}
+
+export async function rejectDeviceRequest(deviceId: string): Promise<void> {
+  await store.deletePendingDevice(deviceId);
+}
+
+export async function resetLocalStorage(): Promise<void> {
+  await local.clearAll();
+  clearAmkSessionCache();
+}
+
+export async function resetUserAccountRemote(): Promise<void> {
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) return;
+  await store.resetRemoteStore();
 }
 

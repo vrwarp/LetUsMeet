@@ -1,8 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './Layout';
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigation: () => ({ state: 'idle' }),
+  };
+});
 
 describe('Layout', () => {
   it('renders header with branding and navigation', () => {

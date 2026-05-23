@@ -6,12 +6,10 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
 import {
   derivePrfMasterKey, clearPrfSessionCache,
-  verifyAmk, getDeviceId, registerCurrentDevice, clearAmkSessionCache, loadDeviceKeysFromIndexedDB,
-  importDevicePrivateKey, decryptHybrid, recoverAmkWithPhrase
+  verifyAmk, clearAmkSessionCache, subscribePendingRequests, recoverAmkWithPhrase, registerCurrentDevice
 } from "@letusmeet/zero-knowledge";
 import { resetKeystore } from "@/lib/pollService";
 import type { PendingDevice } from "@/types";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
 
 let isSigningIn = false;
 let lastUid: string | null = null;
@@ -68,66 +66,15 @@ export function useAuth() {
     return () => unsubscribe();
   }, []);
 
+
   useEffect(() => {
     if (!user || user.isAnonymous) {
       setPendingRequests([]);
       return;
     }
 
-    // Only listen for devices that ARE NOT the current device
-    const currentDeviceId = getDeviceId();
-    const q = query(
-      collection(db, "users", user.uid, "pending_devices"),
-      where("status", "==", "pending")
-    );
-
-    const unsubscribe = onSnapshot(q, async (snap) => {
-      const now = Date.now();
-      const rawRequests = snap.docs
-        .map(d => d.data() as PendingDevice)
-        .filter(d => d.deviceId !== currentDeviceId && (!d.expiresAt || d.expiresAt > now));
-      
-      const decryptedRequests: PendingDevice[] = [];
-      
-      try {
-        const localKeys = await loadDeviceKeysFromIndexedDB();
-        if (localKeys) {
-          const localPrivateKey = await importDevicePrivateKey(localKeys.privateKey);
-          
-          for (const req of rawRequests) {
-            try {
-              const wrappedKeyForUs = req.encryptedDeviceName.wrappedKeys[currentDeviceId];
-              if (wrappedKeyForUs) {
-                const decryptedName = await decryptHybrid(
-                  localPrivateKey,
-                  req.encryptedDeviceName,
-                  wrappedKeyForUs
-                );
-                (req as any).decryptedDeviceName = decryptedName;
-              } else {
-                (req as any).decryptedDeviceName = "Unknown Device";
-              }
-            } catch (err) {
-              console.error("Failed to decrypt pending device name:", err);
-              (req as any).decryptedDeviceName = "Unreadable Device Name";
-            }
-            decryptedRequests.push(req);
-          }
-        } else {
-          rawRequests.forEach(req => {
-            (req as any).decryptedDeviceName = "Unregistered Device";
-            decryptedRequests.push(req);
-          });
-        }
-      } catch (e) {
-        console.error("Error decrypting pending requests:", e);
-        rawRequests.forEach(req => {
-          (req as any).decryptedDeviceName = "Unregistered Device";
-          decryptedRequests.push(req);
-        });
-      }
-      
-      setPendingRequests(decryptedRequests);
+    const unsubscribe = subscribePendingRequests((requests) => {
+      setPendingRequests(requests);
     });
 
     return () => unsubscribe();

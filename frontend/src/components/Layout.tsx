@@ -1,19 +1,27 @@
 import { useEffect, useState, useRef } from "react";
-import { Outlet, Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
-import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Key, Loader2, Monitor } from "lucide-react";
+import { Outlet, Link, useLocation, useSearchParams, useNavigate, useNavigation } from "react-router-dom";
+import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
+import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
-import { db } from "@/firebase";
 import { 
-  getDeviceId, 
   getLocalPublicKey, 
   requestDeviceAuthorization, 
   approveDeviceAuthorization,
-  generateVerificationCode
+  generateVerificationCode,
+  subscribeCurrentDeviceStatus,
+  rejectDeviceRequest
 } from "@letusmeet/zero-knowledge";
-import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import type { PendingDevice } from "@/types";
+
+declare global {
+  interface Window {
+    __APP_STATUS__?: {
+      routerIdle: boolean;
+    };
+  }
+}
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
   const [code, setCode] = useState<string>("......");
@@ -26,6 +34,7 @@ function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigation = useNavigation();
   const [searchParams] = useSearchParams();
   const [showPhraseInput, setShowPhraseInput] = useState(false);
   const [mnemonicInput, setMnemonicInput] = useState("");
@@ -37,6 +46,11 @@ export default function Layout() {
   const [isClaimed, setIsClaimed] = useState(false);
   const [activeAdminToken, setActiveAdminToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    window.__APP_STATUS__ = {
+      routerIdle: navigation.state === "idle",
+    };
+  }, [navigation.state]);
 
   useEffect(() => {
     const token = searchParams.get("adminToken");
@@ -58,11 +72,8 @@ export default function Layout() {
   useEffect(() => {
     if (!isWaitingForAuth || !user || !keyMismatchError) return;
     
-    const deviceId = getDeviceId();
-    const unsub = onSnapshot(doc(db, "users", user.uid, "pending_devices", deviceId), (snap) => {
-      if (snap.exists() && snap.data().status === 'authorized') {
-        window.location.reload();
-      }
+    const unsub = subscribeCurrentDeviceStatus(() => {
+      window.location.reload();
     });
     
     return () => unsub();
@@ -101,7 +112,7 @@ export default function Layout() {
 
   const handleReject = async (req: PendingDevice) => {
     try {
-      await deleteDoc(doc(db, "users", user!.uid, "pending_devices", req.deviceId));
+      await rejectDeviceRequest(req.deviceId);
     } catch (e) {
       console.error("Failed to reject device:", e);
     }
@@ -314,127 +325,176 @@ export default function Layout() {
       </main>
 
       {keyMismatchError && !activeAdminToken && (
-        <div data-testid="mismatch-error" className="fixed inset-0 z-[200] bg-brand-charcoal/98 backdrop-blur-xl flex items-center justify-center p-6 text-white text-center">
+        <div data-testid="mismatch-error" className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center">
           {!showPhraseInput ? (
-            <div className="max-w-md w-full animate-fade-in-up">
-              {keyMismatchError.startsWith("UNRECOGNIZED_DEVICE") ? (
-                <>
-                  <div className="w-20 h-20 bg-brand-green/20 text-brand-green rounded-3xl flex items-center justify-center mx-auto mb-8">
-                    <Key size={40} />
-                  </div>
-                  <h2 className="text-3xl font-black mb-4">Unrecognized Device</h2>
-                  <p className="text-neutral-400 mb-8 leading-relaxed">
-                    Welcome back! This browser instance hasn't been authorized yet. To access your encrypted polls, please use your recovery phrase.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-8">
-                    <AlertTriangle size={40} />
-                  </div>
-                  <h2 className="text-3xl font-black mb-4">Identity Key Mismatch</h2>
-                  <p className="text-neutral-400 mb-8 leading-relaxed">
-                    The passkey you just used is different from the one originally used to secure your account. 
-                  </p>
-                </>
+            <div 
+              className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
+              style={{
+                backgroundColor: "#ffffff",
+                backgroundImage: "linear-gradient(#f0f4f1 1.5px, transparent 1.5px), linear-gradient(90deg, #f0f4f1 1.5px, transparent 1.5px)",
+                backgroundSize: "32px 32px"
+              }}
+            >
+              {/* Illustration Banner */}
+              {keyMismatchError.startsWith("UNRECOGNIZED_DEVICE") && (
+                <div className="w-full relative aspect-[2.3] sm:aspect-[1.7] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
+                  <img 
+                    src={dataGardenImg} 
+                    alt="Data Garden Illustration" 
+                    className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
+                  />
+                </div>
               )}
-              
-              {isWaitingForAuth ? (
-                <div className="py-8">
-                  <div className="w-16 h-16 bg-brand-green/20 text-brand-green rounded-full flex items-center justify-center mx-auto mb-6" data-testid="auth-pending-msg">
-                    <Loader2 className="animate-spin" size={32} />
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Waiting for Authorization</h3>
-                  <p className="text-neutral-400 text-sm mb-6 leading-relaxed">
-                    Please open LetUsMeet on your other device and approve this request.<br/>
-                    Confirm the verification code matches:
-                  </p>
-                  
-                  {verificationCode && (
-                    <div className="bg-white/10 px-6 py-4 rounded-2xl font-mono text-3xl font-black tracking-[0.5em] text-brand-green mb-8 border border-white/5">
-                      {verificationCode}
+
+              <div className="p-5 sm:p-10 flex flex-col items-center">
+                {keyMismatchError.startsWith("UNRECOGNIZED_DEVICE") ? (
+                  <>
+                    <span className="sr-only">Unrecognized Device</span>
+                    <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
+                      Unlock Your Data Garden
+                    </h2>
+                    {!isWaitingForAuth && (
+                      <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2.5 leading-relaxed max-w-sm">
+                        Your meeting garden is locked. Since it’s fully private, even we can’t unlock it for you! Let’s restore your keys using another device or your recovery phrase.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="sr-only">Identity Key Mismatch</span>
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 text-brand-red rounded-2xl sm:rounded-3xl flex items-center justify-center mb-3 border border-red-100 shadow-sm shadow-red-50">
+                      <AlertTriangle size={28} />
                     </div>
-                  )}
+                    <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight">
+                      Identity Key Mismatch
+                    </h2>
+                    <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2.5 leading-relaxed max-w-sm">
+                      The passkey you just used is different from the one originally used to secure your account.
+                    </p>
+                  </>
+                )}
+                
+                {isWaitingForAuth ? (
+                  <div className="py-4 sm:py-6 flex flex-col items-center w-full">
+                    <div className="w-12 h-12 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mb-3" data-testid="auth-pending-msg">
+                      <Loader2 className="animate-spin" size={24} />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-neutral-800 mb-1">Waiting for Authorization</h3>
+                    <p className="text-neutral-500 text-[11px] sm:text-xs mb-4 leading-relaxed max-w-xs text-center">
+                      Please open LetUsMeet on your other device and approve this request.<br/>
+                      Confirm the verification code matches:
+                    </p>
+                    
+                    {verificationCode && (
+                      <div className="w-full bg-brand-green-light/80 text-brand-green-dark px-4 py-3 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl font-mono text-3xl font-black tracking-[0.5em] mb-4 border border-brand-green/10 shadow-inner">
+                        {verificationCode}
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => setIsWaitingForAuth(false)}
+                      className="text-brand-green font-bold text-xs sm:text-sm hover:underline hover:text-brand-green-dark transition-colors"
+                    >
+                      Cancel Request
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid gap-2.5 w-full mt-6 sm:mt-8">
+                    <button 
+                      onClick={handleRequestAuth}
+                      disabled={isRecovering}
+                      data-testid="request-auth-btn"
+                      className="w-full bg-brand-green text-white py-3 sm:py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/10 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-xs sm:text-sm"
+                    >
+                      {isRecovering ? <Loader2 className="animate-spin" size={16} /> : null}
+                      Authorize from Another Device
+                    </button>
+
+                    <button 
+                      onClick={() => setShowPhraseInput(true)}
+                      className="w-full bg-white text-brand-green border-2 border-brand-green py-2.5 sm:py-3 rounded-full font-bold hover:bg-[#edf4f0] hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                    >
+                      Use Recovery Phrase
+                    </button>
+
+                    <button 
+                      onClick={signOutUser}
+                      className="w-full bg-white text-neutral-600 border border-neutral-250 py-2.5 rounded-full font-bold hover:bg-neutral-50 hover:text-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                    >
+                      Sign Out & Try Again
+                    </button>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-neutral-100 mt-5 sm:mt-6 w-full flex flex-col items-center">
                   <button 
-                    onClick={() => setIsWaitingForAuth(false)}
-                    className="text-brand-green font-bold text-sm hover:underline"
+                    onClick={() => {
+                      if (confirm("WARNING: This will permanently delete ALL your encrypted polls and reset your account. This cannot be undone. Are you sure?")) {
+                        resetAccount();
+                      }
+                    }}
+                    className="group flex flex-col items-center cursor-pointer"
                   >
-                    Cancel Request
+                    <span className="text-xs sm:text-sm font-bold text-neutral-500 group-hover:text-brand-red transition-colors">
+                      Reset Account
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-neutral-400 mt-0.5 font-medium group-hover:text-brand-red/85 transition-colors">
+                      (Warning: Permanent Data Loss)
+                    </span>
                   </button>
                 </div>
-              ) : (
-                <div className="grid gap-4">
-                  <button 
-                    onClick={() => setShowPhraseInput(true)}
-                    className="w-full bg-white text-brand-charcoal py-4 rounded-2xl font-bold hover:bg-neutral-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Key size={18} /> Use Recovery Phrase
-                  </button>
-
-                  <button 
-                    onClick={handleRequestAuth}
-                    disabled={isRecovering}
-                    data-testid="request-auth-btn"
-                    className="w-full bg-brand-green/10 text-brand-green border border-brand-green/20 py-4 rounded-2xl font-bold hover:bg-brand-green/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isRecovering ? <Loader2 className="animate-spin" size={18} /> : <Monitor size={18} />}
-                    Authorize from Another Device
-                  </button>
-
-                  <button 
-                    onClick={signOutUser}
-                    className="w-full bg-neutral-800 text-white border border-white/10 py-4 rounded-2xl font-bold hover:bg-neutral-700 transition-colors"
-                  >
-                    Sign Out & Try Again
-                  </button>
-                </div>
-              )}
-
-              <div className="pt-4 border-t border-white/10 mt-4">
-                <p className="text-sm text-neutral-500 mb-4">Lost your original passkey and phrase?</p>
-                <button 
-                  onClick={() => {
-                    if (confirm("WARNING: This will permanently delete ALL your encrypted polls and reset your account. This cannot be undone. Are you sure?")) {
-                      resetAccount();
-                    }
-                  }}
-                  className="w-full bg-red-500/10 text-red-500 border border-red-500/20 py-4 rounded-2xl font-bold hover:bg-red-500/20 transition-colors"
-                >
-                  Reset My Account & Delete All Data
-                </button>
               </div>
             </div>
           ) : (
-            <div className="max-w-lg w-full animate-fade-in-up">
-              <h2 className="text-3xl font-black mb-4">Enter Recovery Phrase</h2>
-              <p className="text-neutral-400 mb-8 leading-relaxed">
-                Enter your 24-word recovery phrase to restore access to your polls. 
-              </p>
+            <div 
+              className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
+              style={{
+                backgroundColor: "#ffffff",
+                backgroundImage: "linear-gradient(#f0f4f1 1.5px, transparent 1.5px), linear-gradient(90deg, #f0f4f1 1.5px, transparent 1.5px)",
+                backgroundSize: "32px 32px"
+              }}
+            >
+              {/* Illustration Banner */}
+              <div className="w-full relative aspect-[2.3] sm:aspect-[1.7] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
+                <img 
+                  src={dataGardenImg} 
+                  alt="Data Garden Illustration" 
+                  className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
+                />
+              </div>
 
-              <textarea
-                value={mnemonicInput}
-                onChange={(e) => setMnemonicInput(e.target.value)}
-                placeholder="word1 word2 word3..."
-                className="w-full h-32 bg-neutral-800 border border-white/10 rounded-2xl p-4 text-white font-mono text-sm focus:ring-2 focus:ring-brand-green/50 outline-none mb-6"
-                disabled={isRecovering}
-              />
+              <div className="p-5 sm:p-10 flex flex-col items-center">
+                <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight text-center">
+                  Enter Recovery Phrase
+                </h2>
+                <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2 leading-relaxed text-center px-2">
+                  Enter your 24-word recovery phrase to restore access to your encrypted polls. 
+                </p>
 
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setShowPhraseInput(false)}
-                  className="flex-1 bg-neutral-800 text-white py-4 rounded-2xl font-bold hover:bg-neutral-700 transition-colors"
+                <textarea
+                  value={mnemonicInput}
+                  onChange={(e) => setMnemonicInput(e.target.value)}
+                  placeholder="word1 word2 word3..."
+                  className="w-full h-24 bg-neutral-50 border border-neutral-200 rounded-xl sm:rounded-2xl p-4 text-neutral-800 font-mono text-xs sm:text-sm focus:ring-2 focus:ring-brand-green/20 outline-none mt-4 mb-4"
                   disabled={isRecovering}
-                >
-                  Back
-                </button>
-                <button 
-                  onClick={handleRecover}
-                  disabled={isRecovering || !mnemonicInput.trim()}
-                  className="flex-[2] bg-brand-green text-white py-4 rounded-2xl font-bold hover:bg-brand-green-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isRecovering && <Loader2 className="w-5 h-5 animate-spin" />}
-                  Recover Account
-                </button>
+                />
+
+                <div className="flex gap-2.5 w-full">
+                  <button 
+                    onClick={() => setShowPhraseInput(false)}
+                    className="flex-1 bg-white text-neutral-500 border border-neutral-200 py-3 rounded-full font-bold hover:bg-neutral-50 hover:text-neutral-800 transition-all cursor-pointer text-xs sm:text-sm"
+                    disabled={isRecovering}
+                  >
+                    Back
+                  </button>
+                  <button 
+                    onClick={handleRecover}
+                    disabled={isRecovering || !mnemonicInput.trim()}
+                    className="flex-[2] bg-brand-green text-white py-3 rounded-full font-bold hover:bg-brand-green-dark shadow-lg shadow-brand-green/10 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                  >
+                    {isRecovering && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Recover Account
+                  </button>
+                </div>
               </div>
             </div>
           )}

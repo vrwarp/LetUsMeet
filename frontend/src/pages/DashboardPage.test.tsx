@@ -20,6 +20,11 @@ vi.mock('@letusmeet/zero-knowledge', () => ({
   generateVerificationCode: vi.fn(),
   getLedgerSession: vi.fn(),
   setupPhraseRecovery: vi.fn(),
+  subscribeAuthorizedDevices: vi.fn().mockImplementation((cb) => {
+    cb([]);
+    return () => { };
+  }),
+  rejectDeviceRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('DashboardPage', () => {
@@ -31,7 +36,12 @@ describe('DashboardPage', () => {
       pendingRequests: [],
     });
 
-    vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((_uid, cb) => {
+    vi.mocked(deviceService.subscribeAuthorizedDevices).mockImplementation((cb: any) => {
+      cb([]);
+      return () => { };
+    });
+
+    vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((cb: any) => {
       cb([{
         ledgerId: 'p1',
         amkId: 'amk_v1',
@@ -83,7 +93,7 @@ describe('DashboardPage', () => {
   });
 
   it('shows empty state when no polls found', async () => {
-    vi.mocked(pollService.subscribeToUserKeystore).mockImplementationOnce((_uid, cb) => {
+    vi.mocked(pollService.subscribeToUserKeystore).mockImplementationOnce((cb: any) => {
       cb([]);
       return () => { };
     });

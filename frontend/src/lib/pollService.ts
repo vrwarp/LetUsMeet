@@ -1,10 +1,12 @@
-import { collection, query, orderBy, onSnapshot, writeBatch, getDocs, doc } from "firebase/firestore";
-import { db, auth } from "../firebase";
-import { createLedgerSession, openDB, STORE_IDENTITIES, STORE_MASTER_KEYS, STORE_DEVICE_KEYS,
-  clearAmkSessionCache, clearPrfSessionCache } from "@letusmeet/zero-knowledge";
+import {
+  createLedgerSession,
+  subscribeToUserKeystore as zkSubscribeToUserKeystore,
+  resetLocalStorage,
+  resetUserAccountRemote
+} from "@letusmeet/zero-knowledge";
 import { calculatePollState } from "./pollReducer";
 import type { PollState, PollMetadata } from "../types";
-import type { DecryptedLedgerEvent, KeystoreEntry, LedgerSession } from "@letusmeet/zero-knowledge";
+import type { DecryptedLedgerEvent, DecryptedKeystoreEntry, LedgerSession } from "@letusmeet/zero-knowledge";
 
 // Re-export for pages
 export { createLedgerSession, getLedgerSession } from "@letusmeet/zero-knowledge";
@@ -22,11 +24,37 @@ export function setKeyInFragment(key: string) {
 
 export function getShareableUrl(urlStr: string = window.location.href): string {
   try {
+    // Attempt parsing as an absolute URL first
     const url = new URL(urlStr);
     url.searchParams.delete("adminToken");
     return url.toString();
   } catch {
-    return urlStr;
+    try {
+      // If it fails, try parsing it as a relative URL using a dummy base
+      const dummyBase = 'http://dummy.local';
+      const url = new URL(urlStr, dummyBase);
+      url.searchParams.delete("adminToken");
+
+      // Check if it resolved to a different origin (e.g., protocol-relative URL)
+      if (url.origin !== dummyBase) {
+        throw new Error("Origin mismatch, fallback to regex");
+      }
+
+      const absoluteResult = url.toString();
+      const relativeResult = absoluteResult.substring(dummyBase.length);
+
+      // Keep the original starting format (whether it started with '/' or not)
+      if (!urlStr.startsWith('/') && relativeResult.startsWith('/')) {
+        return relativeResult.substring(1);
+      }
+      return relativeResult;
+    } catch {
+      // Safe fallback if URL parsing still fails or for protocol-relative URLs
+      return urlStr
+        .replace(/([?&])adminToken=[^&#]*/gi, (_, prefix) => prefix === '?' ? '?' : '')
+        .replace(/\?&/, '?')
+        .replace(/\?($|#)/, '$1');
+    }
   }
 }
 
@@ -70,34 +98,14 @@ export function subscribeToLedger(
 // === DASHBOARD KEYSTORE SUBSCRIPTION ===
 
 export function subscribeToUserKeystore(
-  uid: string,
-  onUpdate: (entries: KeystoreEntry[]) => void
+  onUpdate: (entries: DecryptedKeystoreEntry[]) => void
 ) {
-  const keystoreRef = collection(db, "users", uid, "keystore");
-  const q = query(keystoreRef, orderBy("updatedAt", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const entries = snapshot.docs.map(d => d.data() as KeystoreEntry);
-    onUpdate(entries);
-  });
+  return zkSubscribeToUserKeystore(onUpdate);
 }
 
 // === ACCOUNT RESET ===
 
 export async function resetKeystore() {
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) return;
-  const keystoreRef = collection(db, "users", user.uid, "keystore");
-  const snap = await getDocs(keystoreRef);
-  const batch = writeBatch(db);
-  snap.docs.forEach(d => batch.delete(d.ref));
-  batch.delete(doc(db, "users", user.uid, "account_keys", "default"));
-  await batch.commit();
-
-  const idb = await openDB();
-  const tx = idb.transaction([STORE_IDENTITIES, STORE_MASTER_KEYS, STORE_DEVICE_KEYS], "readwrite");
-  tx.objectStore(STORE_IDENTITIES).clear();
-  tx.objectStore(STORE_MASTER_KEYS).clear();
-  tx.objectStore(STORE_DEVICE_KEYS).clear();
-  clearAmkSessionCache();
-  clearPrfSessionCache();
+  await resetUserAccountRemote();
+  await resetLocalStorage();
 }

@@ -51,7 +51,8 @@ export {
 export {
   clearPrfSessionCache,
   derivePrfMasterKey,
-  loadMasterKeyFromIndexedDB
+  loadMasterKeyFromIndexedDB,
+  setPrfProviders
 } from "./prfService";
 
 // Device Management, AMK and Keystore
@@ -72,18 +73,29 @@ export {
   loadFromKeystore,
   verifyAmk,
   requestDeviceAuthorization,
-  approveDeviceAuthorization
+  approveDeviceAuthorization,
+  setDeviceServiceProviders,
+  subscribePendingRequests,
+  subscribeAuthorizedDevices,
+  subscribeCurrentDeviceStatus,
+  subscribeToUserKeystore,
+  rejectDeviceRequest,
+  resetLocalStorage,
+  resetUserAccountRemote,
+  DecryptedDevice
 } from "./deviceService";
 
 // Phrase recovery (AIRK)
 export {
   setupPhraseRecovery,
-  recoverAmkWithPhrase
+  recoverAmkWithPhrase,
+  setRecoveryProviders
 } from "./recoveryService";
 
 // Session
 export {
   DefaultLedgerSession,
   createLedgerSession,
-  getLedgerSession
+  getLedgerSession,
+  setSessionProviders
 } from "./session";

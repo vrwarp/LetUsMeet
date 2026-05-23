@@ -67,9 +67,13 @@ export async function processLedgerEventSnapshot(
   rawEvents: Array<{ encryptedData: string; iv: string; id: string }>,
   symmetricKey: AesGcmKey
 ): Promise<DecryptedLedgerEvent[]> {
+  const decryptedPromises = rawEvents.map(raw =>
+    decryptAndValidateEvent(raw.encryptedData, raw.iv, symmetricKey)
+  );
+  const decryptedResults = await Promise.all(decryptedPromises);
+
   const events: DecryptedLedgerEvent[] = [];
-  for (const raw of rawEvents) {
-    const decrypted = await decryptAndValidateEvent(raw.encryptedData, raw.iv, symmetricKey);
+  for (const decrypted of decryptedResults) {
     if (decrypted) {
       events.push(decrypted);
     }

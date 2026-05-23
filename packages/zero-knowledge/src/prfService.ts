@@ -1,36 +1,25 @@
-import type { AesGcmKey } from "./core/interfaces";
-import { getAuth } from "./config";
+import type { AesGcmKey, LocalDeviceStore, AuthProvider, PrfProvider } from "./core/interfaces";
+import { BrowserLocalDeviceStore } from "./browser/BrowserLocalDeviceStore";
+import { FirebaseAuthProvider } from "./browser/FirebaseAuthProvider";
+import { WebAuthnPrfProvider } from "./browser/WebAuthnPrfProvider";
+import { getCrypto } from "./core/crypto";
 
-import {
-  openDB,
-  STORE_MASTER_KEYS
-} from "./idb";
+let local: LocalDeviceStore = new BrowserLocalDeviceStore();
+let auth: AuthProvider = new FirebaseAuthProvider();
+let prf: PrfProvider = new WebAuthnPrfProvider();
 
-async function saveMasterKeyToIndexedDB(uid: string, key: AesGcmKey) {
-  const db = await openDB();
-  const tx = db.transaction(STORE_MASTER_KEYS, "readwrite");
-  tx.objectStore(STORE_MASTER_KEYS).put(key, uid);
-  return new Promise((resolve) => {
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => resolve(false);
-  });
+export function setPrfProviders(providers: {
+  localDeviceStore?: LocalDeviceStore;
+  authProvider?: AuthProvider;
+  prfProvider?: PrfProvider;
+}) {
+  if (providers.localDeviceStore) local = providers.localDeviceStore;
+  if (providers.authProvider) auth = providers.authProvider;
+  if (providers.prfProvider) prf = providers.prfProvider;
 }
 
 export async function loadMasterKeyFromIndexedDB(uid: string): Promise<AesGcmKey | null> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_MASTER_KEYS, "readonly");
-  const request = tx.objectStore(STORE_MASTER_KEYS).get(uid);
-  return new Promise((resolve) => {
-    request.onsuccess = () => {
-      const key = request.result as AesGcmKey | null;
-      if (key && !key.extractable) {
-        resolve(null); // Treat non-extractable keys as missing to force a fresh derivation
-      } else {
-        resolve(key);
-      }
-    };
-    request.onerror = () => resolve(null);
-  });
+  return local.loadMasterKey(uid);
 }
 
 let prfPromise: Promise<{ masterKey: AesGcmKey, usedCredentialId: string }> | null = null;
@@ -50,8 +39,7 @@ export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ ma
     await globalPrfLock;
 
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const user = auth.getCurrentUser();
       if (!user) throw new Error("Must be signed in to derive PRF key.");
 
       // For silent check (no IDs provided), check IndexedDB
@@ -67,76 +55,30 @@ export async function derivePrfMasterKey(credentialIds?: string[]): Promise<{ ma
         ? credentialIds
         : [localStorage.getItem(storageKey)].filter(Boolean) as string[];
 
+      let prfResult: Uint8Array;
+      let usedId: string;
+
       if (effectiveIds.length === 0) {
         // Create new credential logic
-        const challenge = window.crypto.getRandomValues(new Uint8Array(32));
-        const createOptions: CredentialCreationOptions = {
-          publicKey: {
-            challenge,
-            rp: { name: "LetUsMeet" },
-            user: {
-              id: new TextEncoder().encode(user.uid),
-              name: user.email || user.uid,
-              displayName: user.displayName || user.uid
-            },
-            pubKeyCredParams: [
-              { alg: -7, type: "public-key" },
-              { alg: -257, type: "public-key" }
-            ],
-            authenticatorSelection: { userVerification: "discouraged" },
-            extensions: {
-              prf: { eval: { first: new TextEncoder().encode("LetUsMeet-PRF-Salt-v1") } }
-            } as any
-          }
-        };
-
-        const credential = (await navigator.credentials.create(createOptions)) as any;
-        if (!credential) throw new Error("Failed to create PRF credential.");
-
-        const newId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-        localStorage.setItem(storageKey, newId);
-        effectiveIds.push(newId);
+        const creation = await prf.createCredential(user.uid, user.email || user.uid, user.displayName || user.uid);
+        usedId = creation.credentialId;
+        prfResult = creation.prfResult;
+      } else {
+        // Get assertion
+        const assertion = await prf.getAssertion(effectiveIds);
+        usedId = assertion.usedCredentialId;
+        prfResult = assertion.prfResult;
       }
 
-      const getOptions: CredentialRequestOptions = {
-        publicKey: {
-          challenge: window.crypto.getRandomValues(new Uint8Array(32)),
-          allowCredentials: effectiveIds.map(id => ({
-            id: Uint8Array.from(atob(id), c => c.charCodeAt(0)),
-            type: "public-key" as const
-          })),
-          userVerification: "discouraged",
-          extensions: {
-            prf: { eval: { first: new TextEncoder().encode("LetUsMeet-PRF-Salt-v1") } }
-          } as any
-        }
-      };
-
-      const assertion = (await navigator.credentials.get(getOptions)) as any;
-      const results = assertion.getClientExtensionResults();
-
-      if (!results.prf || !results.prf.results || !results.prf.results.first) {
-        throw new Error("PRF evaluation failed or not supported by authenticator.");
-      }
-
-      const prfResult = new Uint8Array(results.prf.results.first);
-      const masterKey = (await window.crypto.subtle.importKey(
-        "raw",
-        prfResult.slice(0, 16),
-        { name: "AES-GCM" },
-        true,
-        ["encrypt", "decrypt"]
-      )) as unknown as AesGcmKey;
-
-      const usedId = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+      // Reconstitute Master Key
+      const masterKey = await getCrypto().importSymmetricKey(prfResult.slice(0, 16) as any);
 
       // Always update local storage and IndexedDB with the successfully used credential
-      localStorage.setItem(storageKey, usedId);
-      await saveMasterKeyToIndexedDB(user.uid, masterKey);
+      local.setPrfCredentialId(user.uid, usedId);
+      await local.saveMasterKey(user.uid, masterKey);
 
       return { masterKey, usedCredentialId: usedId };
     } catch (e) {
-      // If derivation fails, we'll clear the promise cache below
       throw e;
     }
   })();
