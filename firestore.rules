@@ -29,7 +29,9 @@ service cloud.firestore {
     match /polls/{pollId} {
       // Anyone can read the metadata shell and the event stream.
       // Privacy is enforced via client-side cryptography.
-      allow read: if true;
+      // We block list queries to prevent general enumeration of all polls.
+      allow get: if true;
+      allow list: if false;
       
       // Creating the namespace shell
       allow create: if true;
@@ -44,6 +46,12 @@ service cloud.firestore {
         
         allow update, delete: if false;
       }
+    }
+
+    // 5. SYSTEM METADATA
+    match /chaff_pool/{docId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // 3. USER PROFILES

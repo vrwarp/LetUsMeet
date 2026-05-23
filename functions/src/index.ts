@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineJsonSecret } from "firebase-functions/params";
 import { getTimeSlotsPrompt } from "./prompts/timeSlots";
 import { getFuzzySlotsPrompt } from "./prompts/fuzzySlots";
@@ -152,3 +153,41 @@ export const deleteUserAccount = onCall(async (request) => {
     throw new HttpsError("internal", "An error occurred during account deletion.");
   }
 });
+
+/**
+ * Scheduled function to refresh the public pool of active poll IDs used for chaffing.
+ * Runs every 15 minutes.
+ */
+export const refreshChaffPool = onSchedule("every 15 minutes", async () => {
+  const db = admin.firestore();
+  console.log("Refreshing chaff pool...");
+
+  try {
+    // 1. Fetch up to 100 of the most recently created polls.
+    const pollsSnapshot = await db.collection("polls")
+      .orderBy("createdAt", "desc")
+      .limit(100)
+      .get();
+
+    if (pollsSnapshot.empty) {
+      console.log("No polls found. Leaving chaff pool empty.");
+      return;
+    }
+
+    const pollIds = pollsSnapshot.docs.map(doc => doc.id);
+
+    // 2. Shuffle the array to distribute chaff evenly
+    const shuffledPool = pollIds.sort(() => 0.5 - Math.random());
+
+    // 3. Write up to 50 active IDs into the public pool
+    await db.doc("chaff_pool/current").set({
+      activePollIds: shuffledPool.slice(0, 50),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`Successfully updated chaff pool with ${Math.min(pollIds.length, 50)} IDs.`);
+  } catch (error) {
+    console.error("Error refreshing chaff pool:", error);
+  }
+});
+
