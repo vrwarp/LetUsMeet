@@ -1,4 +1,6 @@
 import { describe, test, expect, beforeEach } from "vitest";
+import "fake-indexeddb/auto";
+global.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} } as any;
 import { setCryptoProvider } from "../../core/crypto";
 import {
   setSessionProviders,

@@ -6,7 +6,9 @@ import {
   exportPrivateKey,
   exportPublicKey,
   deriveKeyFromPassword,
-  generateIdentityKeyPair
+  generateIdentityKeyPair,
+  getCrypto,
+  uint8ToBase64
 } from "./core/crypto";
 import {
   prepareAppendEventEnvelope,
@@ -34,17 +36,20 @@ let eventStore: LedgerEventStore = new FirestoreLedgerEventStore();
 let keyStore: AccountKeyStore = new FirestoreAccountKeyStore();
 let local: LocalDeviceStore = new BrowserLocalDeviceStore();
 let auth: AuthProvider = new FirebaseAuthProvider();
+let chaffCount: number = 3;
 
 export function setSessionProviders(providers: {
   ledgerEventStore?: LedgerEventStore;
   accountKeyStore?: AccountKeyStore;
   localDeviceStore?: LocalDeviceStore;
   authProvider?: AuthProvider;
+  chaffCount?: number;
 }) {
   if (providers.ledgerEventStore) eventStore = providers.ledgerEventStore;
   if (providers.accountKeyStore) keyStore = providers.accountKeyStore;
   if (providers.localDeviceStore) local = providers.localDeviceStore;
   if (providers.authProvider) auth = providers.authProvider;
+  if (providers.chaffCount !== undefined) chaffCount = providers.chaffCount;
 }
 
 function generateId(): string {
@@ -78,7 +83,33 @@ export class DefaultLedgerSession implements LedgerSession {
     this.pendingOwnerRecovery = null;
 
     const eventId = generateId();
-    await eventStore.appendEvent(this.ledgerId, eventId, encrypted);
+
+    // Create an array of tasks (functions that return promises)
+    const writeTasks = [];
+    writeTasks.push(() => eventStore.appendEvent(this.ledgerId, eventId, encrypted));
+
+    // Add tasks for chaff ledgers to obscure timestamp metadata
+    for (let i = 0; i < chaffCount; i++) {
+      const chaffLedgerId = generateId();
+      const chaffEventId = generateId();
+
+      const randomData = getCrypto().getRandomBytes(64 + Math.floor(Math.random() * 64)); // random payload size
+      const randomIv = getCrypto().getRandomBytes(12);
+
+      writeTasks.push(() => eventStore.appendEvent(chaffLedgerId, chaffEventId, {
+        encryptedData: uint8ToBase64(randomData),
+        iv: uint8ToBase64(randomIv)
+      }));
+    }
+
+    // Shuffle tasks to avoid predictable execution ordering
+    for (let i = writeTasks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [writeTasks[i], writeTasks[j]] = [writeTasks[j], writeTasks[i]];
+    }
+
+    // Execute them concurrently
+    await Promise.all(writeTasks.map(task => task()));
   }
 
   subscribe(onUpdate: (events: DecryptedLedgerEvent[]) => void): () => void {
