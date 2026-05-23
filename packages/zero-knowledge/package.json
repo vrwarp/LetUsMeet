@@ -22,7 +22,8 @@
     "firebase": "^12.12.1"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "typescript": "^5.0.0",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.7"
   }
 }
