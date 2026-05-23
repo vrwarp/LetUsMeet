@@ -14,7 +14,8 @@ import {
   importDevicePublicKey,
   unwrapAmk,
   wrapAmk,
-  decryptHybrid
+  decryptHybrid,
+  blindLedgerId
 } from "./core/crypto";
 import {
   unwrapActiveAmk,
@@ -32,7 +33,8 @@ import type {
   DevicePublicKey,
   RecoveryMethod,
   LedgerCredentials,
-  KeystoreEntry
+  KeystoreEntry,
+  DecryptedKeystoreEntry
 } from "./core/types";
 import type { AesGcmKey, AccountKeyStore, LocalDeviceStore, AuthProvider, RawKeyBytes } from "./core/interfaces";
 
@@ -374,11 +376,19 @@ export async function revokeDevice(revokedDeviceId: string) {
 
 export async function saveToKeystore(ledgerId: string, payload: LedgerCredentials) {
   const { amk, amkId } = await getActiveAmk();
-  const json = JSON.stringify(payload);
+  
+  // Encrypt the ledgerId INSIDE the payload envelope for zero-knowledge metadata privacy
+  const envelope = {
+    ledgerId,
+    ...payload
+  };
+  const json = JSON.stringify(envelope);
   const encrypted = await encryptPayload(amk, json);
 
-  await store.setKeystoreEntry(ledgerId, {
-    ledgerId,
+  // Blind the document ID (ledgerId) using the AMK-derived key
+  const docId = await blindLedgerId(amk, ledgerId);
+
+  await store.setKeystoreEntry(docId, {
     amkId,
     ...encrypted,
     updatedAt: Date.now()
@@ -386,12 +396,53 @@ export async function saveToKeystore(ledgerId: string, payload: LedgerCredential
 }
 
 export async function loadFromKeystore(ledgerId: string): Promise<LedgerCredentials | null> {
-  const entry = await store.getKeystoreEntry(ledgerId);
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) return null;
+
+  const { amk: activeAmk } = await getActiveAmk();
+  
+  // Try with the active AMK first (which is the most common case)
+  const activeDocId = await blindLedgerId(activeAmk, ledgerId);
+  let entry = await store.getKeystoreEntry(activeDocId);
+  
+  // If not found, look up using any historical AMKs available to this device
+  if (!entry) {
+    const deviceId = getDeviceId();
+    const accountKeys = await store.getAccountKeys();
+    if (accountKeys) {
+      const amkIds = Object.keys(accountKeys.keyring).filter(
+        id => accountKeys.keyring[id]?.[deviceId] && id !== accountKeys.activeAmkId
+      );
+      for (const amkId of amkIds) {
+        try {
+          const historicalAmk = await getAmkById(amkId);
+          const historicalDocId = await blindLedgerId(historicalAmk, ledgerId);
+          const historicalEntry = await store.getKeystoreEntry(historicalDocId);
+          if (historicalEntry) {
+            entry = historicalEntry;
+            break;
+          }
+        } catch (e) {
+          // If unwrapping a specific historical AMK fails, skip it
+          continue;
+        }
+      }
+    }
+  }
+
   if (!entry) return null;
 
-  const amk = await getAmkById(entry.amkId);
-  const json = await decryptPayload(amk, entry);
-  return JSON.parse(json);
+  const entryAmk = await getAmkById(entry.amkId);
+  const json = await decryptPayload(entryAmk, entry);
+  const decrypted = JSON.parse(json);
+
+  // If the decrypted payload was saved in the legacy format, it is directly the credentials.
+  // Otherwise, it has { ledgerId, ...credentials }. We extract only the LedgerCredentials fields.
+  return {
+    symmetricKey: decrypted.symmetricKey,
+    signingPrivateKey: decrypted.signingPrivateKey,
+    signingPublicKey: decrypted.signingPublicKey
+  };
 }
 
 export async function verifyAmk(): Promise<boolean> {
@@ -583,7 +634,7 @@ export function subscribeCurrentDeviceStatus(
 }
 
 export function subscribeToUserKeystore(
-  onUpdate: (entries: KeystoreEntry[]) => void,
+  onUpdate: (entries: DecryptedKeystoreEntry[]) => void,
   onError?: (err: Error) => void
 ): () => void {
   const user = auth.getCurrentUser();
@@ -591,7 +642,32 @@ export function subscribeToUserKeystore(
     onUpdate([]);
     return () => {};
   }
-  return store.subscribeKeystore(onUpdate);
+  return store.subscribeKeystore(async (entries) => {
+    try {
+      const processed = await Promise.all(
+        entries.map(async (entry) => {
+          try {
+            // Decrypt the entry to retrieve the ledgerId from the secure envelope.
+            const amk = await getAmkById(entry.amkId);
+            const json = await decryptPayload(amk, entry);
+            const decrypted = JSON.parse(json);
+            return {
+              ...entry,
+              ledgerId: decrypted.ledgerId
+            };
+          } catch (e) {
+            // Decryption might fail if active keys are not initialized yet, fallback to the entry.
+            return entry;
+          }
+        })
+      );
+      onUpdate(processed);
+    } catch (err: any) {
+      console.error("subscribeToUserKeystore mapping failed:", err);
+      // Fallback: update with the original entries if the entire mapping fails
+      onUpdate(entries);
+    }
+  });
 }
 
 export async function rejectDeviceRequest(deviceId: string): Promise<void> {

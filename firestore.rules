@@ -8,8 +8,8 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
         && (
-          // Standard poll keystore entry
-          request.resource.data.keys().hasAll(['ledgerId', 'encryptedData', 'iv', 'updatedAt', 'amkId']) ||
+          // Standard poll keystore entry (supports legacy and new blinded zero-knowledge entries)
+          request.resource.data.keys().hasAll(['encryptedData', 'iv', 'updatedAt', 'amkId']) ||
           // Identity verification entry
           (entryId == 'identity_verification' && request.resource.data.keys().hasAll(['ciphertext', 'iv', 'nonce', 'version'])) ||
           // Master Keystore Key (MKK) entry

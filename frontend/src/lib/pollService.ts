@@ -6,7 +6,7 @@ import {
 } from "@letusmeet/zero-knowledge";
 import { calculatePollState } from "./pollReducer";
 import type { PollState, PollMetadata } from "../types";
-import type { DecryptedLedgerEvent, KeystoreEntry, LedgerSession } from "@letusmeet/zero-knowledge";
+import type { DecryptedLedgerEvent, DecryptedKeystoreEntry, LedgerSession } from "@letusmeet/zero-knowledge";
 
 // Re-export for pages
 export { createLedgerSession, getLedgerSession } from "@letusmeet/zero-knowledge";
@@ -98,7 +98,7 @@ export function subscribeToLedger(
 // === DASHBOARD KEYSTORE SUBSCRIPTION ===
 
 export function subscribeToUserKeystore(
-  onUpdate: (entries: KeystoreEntry[]) => void
+  onUpdate: (entries: DecryptedKeystoreEntry[]) => void
 ) {
   return zkSubscribeToUserKeystore(onUpdate);
 }

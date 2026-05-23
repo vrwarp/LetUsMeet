@@ -92,6 +92,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       const decryptedResults = await Promise.all(
         keystoreEntries.map(async (entry) => {
           try {
+            if (!entry.ledgerId) return null;
             const session = await getLedgerSession(entry.ledgerId);
             const genesis = await session.getGenesisEvent();
             if (genesis?.action?.type === "POLL_CREATED") {

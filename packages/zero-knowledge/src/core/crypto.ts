@@ -205,3 +205,31 @@ export async function generateVerificationCode(publicKeyB64: string): Promise<st
   const num = (hashArray[0] << 16) | (hashArray[1] << 8) | hashArray[2];
   return (num % 1000000).toString().padStart(6, '0');
 }
+
+/**
+ * Generates a deterministic, pseudorandom document key for a given ledgerId,
+ * bound to the user's Active Master Key (AMK).
+ */
+export async function blindLedgerId(amk: AesGcmKey, ledgerId: string): Promise<string> {
+  const amkRaw = await getCrypto().exportSymmetricKey(amk);
+  
+  // Create a sub-key for blinding using SHA-256 over the AMK and a context salt
+  const encoder = new TextEncoder();
+  const contextBytes = encoder.encode("keystore-blinding");
+  const derivationInput = new Uint8Array(amkRaw.length + contextBytes.length);
+  derivationInput.set(amkRaw);
+  derivationInput.set(contextBytes, amkRaw.length);
+  
+  const keystoreKeyHash = await getCrypto().digest("SHA-256", derivationInput);
+  
+  // Hash the ledgerId with the derived keystore key
+  const ledgerIdBytes = encoder.encode(ledgerId);
+  const blindingInput = new Uint8Array(keystoreKeyHash.length + ledgerIdBytes.length);
+  blindingInput.set(new Uint8Array(keystoreKeyHash));
+  blindingInput.set(ledgerIdBytes, keystoreKeyHash.length);
+  
+  const finalHash = await getCrypto().digest("SHA-256", blindingInput);
+  
+  // Return base64url representation to be used safely as a Firestore Document ID
+  return uint8ToBase64Url(new Uint8Array(finalHash));
+}
