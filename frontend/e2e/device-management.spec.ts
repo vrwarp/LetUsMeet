@@ -17,8 +17,6 @@ function setupConsoleLogs(page: Page, label: string) {
 }
 
 test.describe('Device Management & Recovery', () => {
-  test.skip(({ browserName }) => browserName !== 'chromium', 'Skipping on Firefox/WebKit as WebAuthn credentials are not being persisted. This is expected behavior as the browser contexts are isolated.');
-
   let sponsorContext: BrowserContext;
   let newDeviceContext: BrowserContext;
 
@@ -101,6 +99,9 @@ test.describe('Device Management & Recovery', () => {
     // 1. Setup both devices
     await sponsorPage.goto('/');
     await mockGoogleSignIn(sponsorPage, email);
+    await sponsorPage.goto('/dashboard');
+    await waitForDashboardReady(sponsorPage);
+
     await newPage.goto('/');
     await mockGoogleSignIn(newPage, email);
 

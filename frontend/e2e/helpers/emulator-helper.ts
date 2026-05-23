@@ -1,4 +1,7 @@
 import { test } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Clears the Firestore emulator data for the current project.
@@ -29,8 +32,23 @@ export async function clearAuth() {
 }
 
 /**
- * Clears both Firestore and Auth emulators.
+ * Clears the shared Vite ZK Mock Store file.
+ */
+export async function clearMockZkStore() {
+  try {
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    const storePath = path.join(currentDir, '..', '..', 'mock-zk-store.json');
+    if (fs.existsSync(storePath)) {
+      fs.writeFileSync(storePath, '{}', 'utf-8');
+    }
+  } catch (e) {
+    console.error(`Failed to clear Mock ZK store: ${e}`);
+  }
+}
+
+/**
+ * Clears both Firestore and Auth emulators, and the Vite mock ZK store.
  */
 export async function clearEmulators() {
-  await Promise.all([clearFirestore(), clearAuth()]);
+  await Promise.all([clearFirestore(), clearAuth(), clearMockZkStore()]);
 }

@@ -1,7 +1,9 @@
-import { collection, query, orderBy, onSnapshot, writeBatch, getDocs, doc } from "firebase/firestore";
-import { db, auth } from "../firebase";
-import { createLedgerSession, openDB, STORE_IDENTITIES, STORE_MASTER_KEYS, STORE_DEVICE_KEYS,
-  clearAmkSessionCache, clearPrfSessionCache } from "@letusmeet/zero-knowledge";
+import {
+  createLedgerSession,
+  subscribeToUserKeystore as zkSubscribeToUserKeystore,
+  resetLocalStorage,
+  resetUserAccountRemote
+} from "@letusmeet/zero-knowledge";
 import { calculatePollState } from "./pollReducer";
 import type { PollState, PollMetadata } from "../types";
 import type { DecryptedLedgerEvent, KeystoreEntry, LedgerSession } from "@letusmeet/zero-knowledge";
@@ -96,34 +98,14 @@ export function subscribeToLedger(
 // === DASHBOARD KEYSTORE SUBSCRIPTION ===
 
 export function subscribeToUserKeystore(
-  uid: string,
   onUpdate: (entries: KeystoreEntry[]) => void
 ) {
-  const keystoreRef = collection(db, "users", uid, "keystore");
-  const q = query(keystoreRef, orderBy("updatedAt", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const entries = snapshot.docs.map(d => d.data() as KeystoreEntry);
-    onUpdate(entries);
-  });
+  return zkSubscribeToUserKeystore(onUpdate);
 }
 
 // === ACCOUNT RESET ===
 
 export async function resetKeystore() {
-  const user = auth.currentUser;
-  if (!user || user.isAnonymous) return;
-  const keystoreRef = collection(db, "users", user.uid, "keystore");
-  const snap = await getDocs(keystoreRef);
-  const batch = writeBatch(db);
-  snap.docs.forEach(d => batch.delete(d.ref));
-  batch.delete(doc(db, "users", user.uid, "account_keys", "default"));
-  await batch.commit();
-
-  const idb = await openDB();
-  const tx = idb.transaction([STORE_IDENTITIES, STORE_MASTER_KEYS, STORE_DEVICE_KEYS], "readwrite");
-  tx.objectStore(STORE_IDENTITIES).clear();
-  tx.objectStore(STORE_MASTER_KEYS).clear();
-  tx.objectStore(STORE_DEVICE_KEYS).clear();
-  clearAmkSessionCache();
-  clearPrfSessionCache();
+  await resetUserAccountRemote();
+  await resetLocalStorage();
 }

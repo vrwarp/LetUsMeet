@@ -66,5 +66,6 @@ export async function mockGoogleSignIn(page: Page, email: string) {
   });
 
   await expect(page.getByTestId('user-profile-btn')).toBeVisible({ timeout: 30000 });
+  await page.waitForTimeout(500);
   console.log(`[mockGoogleSignIn] Login successful for ${email}`);
 }

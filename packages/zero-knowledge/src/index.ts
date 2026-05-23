@@ -74,7 +74,15 @@ export {
   verifyAmk,
   requestDeviceAuthorization,
   approveDeviceAuthorization,
-  setDeviceServiceProviders
+  setDeviceServiceProviders,
+  subscribePendingRequests,
+  subscribeAuthorizedDevices,
+  subscribeCurrentDeviceStatus,
+  subscribeToUserKeystore,
+  rejectDeviceRequest,
+  resetLocalStorage,
+  resetUserAccountRemote,
+  DecryptedDevice
 } from "./deviceService";
 
 // Phrase recovery (AIRK)

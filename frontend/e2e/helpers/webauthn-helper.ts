@@ -164,6 +164,10 @@ export async function setupWebAuthn(context: BrowserContext, testInfo: TestInfo)
   if (isChromium) {
     await enableVirtualAuthenticator(context);
   } else {
+    // Inject the mock ZK flag dynamically before any application bundle script runs.
+    await context.addInitScript(() => {
+      (window as any).__MOCK_ZK = 'true';
+    });
     await mockWebAuthn(context);
   }
 }

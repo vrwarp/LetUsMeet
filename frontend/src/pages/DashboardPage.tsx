@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { subscribeToUserKeystore, getLedgerSession } from "@/lib/pollService";
-import { getRecoveryStatus, enablePrfRecovery, getDeviceId, approveDeviceAuthorization, revokeDevice, getActiveAmk, decryptPayload, generateVerificationCode, setupPhraseRecovery } from "@letusmeet/zero-knowledge";
+import {
+  getRecoveryStatus,
+  enablePrfRecovery,
+  getDeviceId,
+  approveDeviceAuthorization,
+  revokeDevice,
+  generateVerificationCode,
+  setupPhraseRecovery,
+  subscribeAuthorizedDevices,
+  rejectDeviceRequest
+} from "@letusmeet/zero-knowledge";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, ShieldAlert, Key, Clipboard, CheckCircle2, Monitor, XCircle } from "lucide-react";
-import type { PollMetadata, PendingDevice, AccountKeysDocument } from "../types";
-import { db } from "@/firebase";
-import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import type { PollMetadata, PendingDevice } from "../types";
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
   const [code, setCode] = useState<string>("......");
@@ -27,6 +35,11 @@ export default function DashboardPage() {
   const [entries, setEntries] = useState<DecryptedDashboardEntry[]>([]);
   const [fetching, setFetching] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
   const [accountData, setAccountData] = useState<any>(null);
   const [showRotationSuccess, setShowRotationSuccess] = useState(false);
 
@@ -45,7 +58,7 @@ export default function DashboardPage() {
 
   const handleReject = async (req: PendingDevice) => {
     try {
-      await deleteDoc(doc(db, "users", user!.uid, "pending_devices", req.deviceId));
+      await rejectDeviceRequest(req.deviceId);
     } catch (e) {
       console.error("Failed to reject device:", e);
     }
@@ -65,47 +78,17 @@ export default function DashboardPage() {
 
     setFetching(true);
 
-    // Listen to account keys for device list and recovery status
-    const accountKeysRef = doc(db, "users", user.uid, "account_keys", "default");
-    const unsubAccount = onSnapshot(accountKeysRef, async (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as AccountKeysDocument;
-        try {
-          const { amk } = await getActiveAmk();
-          const decryptedDevices: Record<string, any> = {};
-          for (const [deviceId, device] of Object.entries(data.devices)) {
-            try {
-              const plainName = await decryptPayload(amk, device.encryptedDeviceName);
-              decryptedDevices[deviceId] = {
-                ...device,
-                decryptedDeviceName: plainName
-              };
-            } catch (err) {
-              console.error(`Failed to decrypt device name for ${deviceId}:`, err);
-              decryptedDevices[deviceId] = {
-                ...device,
-                decryptedDeviceName: "Unreadable Device"
-              };
-            }
-          }
-          data.devices = decryptedDevices as any;
-        } catch (e) {
-          console.error("Failed to decrypt devices list:", e);
-          const fallbackDevices: Record<string, any> = {};
-          for (const [deviceId, device] of Object.entries(data.devices)) {
-            fallbackDevices[deviceId] = {
-              ...device,
-              decryptedDeviceName: device.deviceId === getDeviceId() ? "Current Device" : "Authorized Device"
-            };
-          }
-          data.devices = fallbackDevices as any;
-        }
-        setAccountData(data);
-        getRecoveryStatus().then(setRecoveryStatus);
+    // Listen to account keys using clean facade
+    const unsubAccount = subscribeAuthorizedDevices((devices) => {
+      const devicesRecord: Record<string, any> = {};
+      for (const dev of devices) {
+        devicesRecord[dev.deviceId] = dev;
       }
+      setAccountData({ devices: devicesRecord } as any);
+      getRecoveryStatus().then(setRecoveryStatus);
     });
 
-    const unsubscribe = subscribeToUserKeystore(user.uid, async (keystoreEntries) => {
+const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       const decryptedResults = await Promise.all(
         keystoreEntries.map(async (entry) => {
           try {
@@ -231,14 +214,15 @@ export default function DashboardPage() {
           <div className="flex gap-3">
             <button
               onClick={() => handleReject(req)}
+              disabled={!isReady}
               data-testid="reject-auth-btn"
-              className="px-6 py-3 bg-white text-neutral-600 rounded-xl font-bold hover:bg-neutral-50 transition-colors flex items-center gap-2"
+              className="px-6 py-3 bg-white text-neutral-600 rounded-xl font-bold hover:bg-neutral-50 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <XCircle size={18} /> Reject
             </button>
             <button
               onClick={() => handleApprove(req)}
-              disabled={approvingId === req.deviceId}
+              disabled={!isReady || approvingId === req.deviceId}
               data-testid="approve-auth-btn"
               className="px-8 py-3 bg-brand-green text-white rounded-xl font-black hover:bg-brand-green-dark transition-colors flex items-center gap-2 shadow-md shadow-brand-green/20 disabled:opacity-50"
             >
@@ -263,7 +247,7 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={handleEnableRecovery}
-            disabled={enablingRecovery}
+            disabled={!isReady || enablingRecovery}
             data-testid="enable-recovery-btn"
             className="whitespace-nowrap px-8 py-4 bg-amber-600 text-white rounded-2xl font-black hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-amber-200"
           >
@@ -291,7 +275,7 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={handleGeneratePhrase}
-            disabled={enablingRecovery}
+            disabled={!isReady || enablingRecovery}
             className="whitespace-nowrap px-8 py-4 bg-neutral-900 text-white rounded-2xl font-black hover:bg-black transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             Generate Phrase
@@ -318,9 +302,9 @@ export default function DashboardPage() {
                     }
                   }
                 }}
-                disabled={!isPhrase}
+                disabled={!isReady || !isPhrase}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${isPhrase
-                  ? "bg-brand-green/10 text-brand-green-dark border-brand-green/20 hover:bg-brand-green/20 cursor-pointer active:scale-95"
+                  ? "bg-brand-green/10 text-brand-green-dark border-brand-green/20 hover:bg-brand-green/20 cursor-pointer active:scale-95 disabled:opacity-50"
                   : "bg-neutral-100 text-neutral-500 border-neutral-200 cursor-default"
                   }`}
               >
@@ -426,8 +410,9 @@ export default function DashboardPage() {
                 {!isCurrent && (
                   <button
                     onClick={() => handleRevoke(device.deviceId)}
+                    disabled={!isReady}
                     data-testid="revoke-device-btn"
-                    className="p-3 text-neutral-400 hover:text-brand-red transition-colors hover:bg-red-50 rounded-xl"
+                    className="p-3 text-neutral-400 hover:text-brand-red transition-colors hover:bg-red-50 rounded-xl disabled:opacity-50"
                     title="Revoke Access"
                   >
                     <XCircle size={20} />
@@ -461,14 +446,16 @@ export default function DashboardPage() {
             <div className="flex flex-col sm:flex-row gap-4">
               <button
                 onClick={copyToClipboard}
-                className="flex-1 px-8 py-4 bg-neutral-100 text-neutral-600 rounded-2xl font-black hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2"
+                disabled={!isReady}
+                className="flex-1 px-8 py-4 bg-neutral-100 text-neutral-600 rounded-2xl font-black hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {copied ? <CheckCircle2 size={20} className="text-brand-green" /> : <Clipboard size={20} />}
                 {copied ? "Copied!" : "Copy to Clipboard"}
               </button>
               <button
                 onClick={() => setShowPhraseModal(false)}
-                className="flex-1 px-8 py-4 bg-brand-green text-white rounded-2xl font-black hover:bg-brand-green-dark transition-colors flex items-center justify-center gap-2"
+                disabled={!isReady}
+                className="flex-1 px-8 py-4 bg-brand-green text-white rounded-2xl font-black hover:bg-brand-green-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 I've Saved It
               </button>

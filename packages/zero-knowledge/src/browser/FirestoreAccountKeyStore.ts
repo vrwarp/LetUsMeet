@@ -2,7 +2,14 @@ import {
   doc,
   getDoc,
   setDoc,
-  runTransaction
+  runTransaction,
+  onSnapshot,
+  collection,
+  query,
+  where,
+  deleteDoc,
+  getDocs,
+  writeBatch
 } from "firebase/firestore";
 import { getDb, getAuth } from "../config";
 import type { AccountKeyStore } from "../core/interfaces";
@@ -20,9 +27,28 @@ export class FirestoreAccountKeyStore implements AccountKeyStore {
   async getAccountKeys(): Promise<AccountKeysDocument | null> {
     const uid = this.getUid();
     const ref = doc(getDb(), "users", uid, "account_keys", "default");
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    return snap.data() as AccountKeysDocument;
+    
+    let attempts = 0;
+    const maxAttempts = 5;
+    let delay = 100;
+    
+    while (true) {
+      try {
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return null;
+        return snap.data() as AccountKeysDocument;
+      } catch (e: any) {
+        attempts++;
+        const isPermissionDenied = e.code === "permission-denied" || e.message?.toLowerCase().includes("permission-denied");
+        if (isPermissionDenied && attempts < maxAttempts) {
+          console.warn(`[FirestoreAccountKeyStore] Transient permission-denied detected (attempt ${attempts}/${maxAttempts}). Retrying getAccountKeys in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+          continue;
+        }
+        throw e;
+      }
+    }
   }
 
   async transactAccountKeys(
@@ -95,5 +121,75 @@ export class FirestoreAccountKeyStore implements AccountKeyStore {
       transaction.set(accountKeysRef, updated);
       transaction.update(pendingRef, pendingUpdate as any);
     });
+  }
+
+  subscribePendingDevices(
+    onUpdate: (devices: PendingDevice[]) => void
+  ): () => void {
+    const uid = this.getUid();
+    const q = query(
+      collection(getDb(), "users", uid, "pending_devices"),
+      where("status", "==", "pending")
+    );
+    return onSnapshot(q, (snap) => {
+      const devices = snap.docs.map(d => d.data() as PendingDevice);
+      onUpdate(devices);
+    });
+  }
+
+  subscribePendingDevice(
+    deviceId: string,
+    onUpdate: (device: PendingDevice | null) => void
+  ): () => void {
+    const uid = this.getUid();
+    const ref = doc(getDb(), "users", uid, "pending_devices", deviceId);
+    return onSnapshot(ref, (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null);
+      } else {
+        onUpdate(snap.data() as PendingDevice);
+      }
+    });
+  }
+
+  subscribeAccountKeys(
+    onUpdate: (docVal: AccountKeysDocument | null) => void
+  ): () => void {
+    const uid = this.getUid();
+    const ref = doc(getDb(), "users", uid, "account_keys", "default");
+    return onSnapshot(ref, (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null);
+      } else {
+        onUpdate(snap.data() as AccountKeysDocument);
+      }
+    });
+  }
+
+  subscribeKeystore(
+    onUpdate: (entries: KeystoreEntry[]) => void
+  ): () => void {
+    const uid = this.getUid();
+    const ref = collection(getDb(), "users", uid, "keystore");
+    return onSnapshot(ref, (snap) => {
+      const entries = snap.docs.map(d => d.data() as KeystoreEntry);
+      onUpdate(entries);
+    });
+  }
+
+  async deletePendingDevice(deviceId: string): Promise<void> {
+    const uid = this.getUid();
+    const ref = doc(getDb(), "users", uid, "pending_devices", deviceId);
+    await deleteDoc(ref);
+  }
+
+  async resetRemoteStore(): Promise<void> {
+    const uid = this.getUid();
+    const keystoreRef = collection(getDb(), "users", uid, "keystore");
+    const snap = await getDocs(keystoreRef);
+    const batch = writeBatch(getDb());
+    snap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(doc(getDb(), "users", uid, "account_keys", "default"));
+    await batch.commit();
   }
 }

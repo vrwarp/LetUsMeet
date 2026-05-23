@@ -406,6 +406,36 @@ export class MockAccountKeyStore implements AccountKeyStore {
       };
     }
   }
+
+  subscribePendingDevices(onSnapshot: (devices: PendingDevice[]) => void): () => void {
+    onSnapshot(Object.values(this.pendingDevices).filter(d => d.status === "pending"));
+    return () => {};
+  }
+
+  subscribePendingDevice(deviceId: string, onSnapshot: (device: PendingDevice | null) => void): () => void {
+    onSnapshot(this.pendingDevices[deviceId] || null);
+    return () => {};
+  }
+
+  subscribeAccountKeys(onSnapshot: (doc: AccountKeysDocument | null) => void): () => void {
+    onSnapshot(this.accountKeys);
+    return () => {};
+  }
+
+  subscribeKeystore(onSnapshot: (entries: KeystoreEntry[]) => void): () => void {
+    onSnapshot(Object.values(this.keystore));
+    return () => {};
+  }
+
+  async deletePendingDevice(deviceId: string): Promise<void> {
+    delete this.pendingDevices[deviceId];
+  }
+
+  async resetRemoteStore(): Promise<void> {
+    this.accountKeys = null;
+    this.keystore = {};
+    this.pendingDevices = {};
+  }
 }
 
 // In-Memory, Deterministic Event Store (Firestore Mock)
@@ -514,6 +544,13 @@ export class MockLocalDeviceStore implements LocalDeviceStore {
 
   setPrfCredentialId(uid: string, credentialId: string): void {
     this.prfCredentials[uid] = credentialId;
+  }
+
+  async clearAll(): Promise<void> {
+    this.deviceKeys = null;
+    this.masterKeys = {};
+    this.identities = {};
+    this.prfCredentials = {};
   }
 }
 

@@ -25,6 +25,11 @@ function generateId() {
 export default function EditPollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const navigate = useNavigate();
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
@@ -237,6 +242,7 @@ export default function EditPollPage() {
               className="w-full"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={!isReady}
             />
           </div>
 
@@ -250,6 +256,7 @@ export default function EditPollPage() {
               className="w-full min-h-[100px] resize-none"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={!isReady}
             />
           </div>
 
@@ -264,6 +271,7 @@ export default function EditPollPage() {
               className="w-full"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+              disabled={!isReady}
             />
           </div>
         </div>
@@ -290,6 +298,7 @@ export default function EditPollPage() {
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                           value={slot.date}
                           onChange={(e) => updateSlot(index, "date", e.target.value)}
+                          disabled={!isReady}
                         />
                       </label>
 
@@ -306,6 +315,7 @@ export default function EditPollPage() {
                                   e.stopPropagation();
                                   updateSlot(index, "time", "");
                                 }}
+                                disabled={!isReady}
                                 className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
                               >
                                 <X size={12} />
@@ -317,6 +327,7 @@ export default function EditPollPage() {
                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                             value={slot.time || ""}
                             onChange={(e) => updateSlot(index, "time", e.target.value)}
+                            disabled={!isReady}
                           />
                         </label>
                       ) : (
@@ -324,6 +335,7 @@ export default function EditPollPage() {
                           type="button"
                           onClick={() => removeSlot(index)}
                           aria-label="Remove time slot"
+                          disabled={!isReady}
                           className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
                         >
                           <Trash2 size={16} />
@@ -345,6 +357,7 @@ export default function EditPollPage() {
                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                             value={slot.startTime}
                             onChange={(e) => updateSlot(index, "startTime", e.target.value)}
+                            disabled={!isReady}
                           />
                         </label>
                         <span className="text-neutral-300 font-bold">-</span>
@@ -359,6 +372,7 @@ export default function EditPollPage() {
                             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                             value={slot.endTime}
                             onChange={(e) => updateSlot(index, "endTime", e.target.value)}
+                            disabled={!isReady}
                           />
                         </label>
                       </div>
@@ -372,11 +386,13 @@ export default function EditPollPage() {
                             className="w-full pl-9 py-2 text-sm font-bold bg-white border border-neutral-200 rounded-xl focus:border-brand-green transition-all shadow-sm"
                             value={slot.label}
                             onChange={(e) => updateSlot(index, "label", e.target.value)}
+                            disabled={!isReady}
                           />
                         </div>
                         <button
                           type="button"
                           onClick={() => removeSlot(index)}
+                          disabled={!isReady}
                           className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
                         >
                           <Trash2 size={16} />
@@ -391,7 +407,8 @@ export default function EditPollPage() {
             <button
               type="button"
               onClick={addSlot}
-              className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-neutral-200 rounded-2xl text-neutral-400 hover:border-brand-green hover:text-brand-green hover:bg-brand-green-light/20 transition-all font-bold text-sm bg-white/50 group"
+              disabled={!isReady}
+              className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-neutral-200 rounded-2xl text-neutral-400 hover:border-brand-green hover:text-brand-green hover:bg-brand-green-light/20 transition-all font-bold text-sm bg-white/50 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center group-hover:bg-brand-green group-hover:text-white transition-all">
                 <Plus size={20} />
@@ -405,8 +422,8 @@ export default function EditPollPage() {
 
         <button
           type="submit"
-          disabled={isSubmitting || !title || slots.length === 0}
-          className="btn-primary-green w-full py-4 flex items-center justify-center gap-2"
+          disabled={!isReady || isSubmitting || !title || slots.length === 0}
+          className="btn-primary-green w-full py-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={24} /> Save Changes</>}
         </button>

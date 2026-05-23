@@ -18,6 +18,11 @@ import ClaimBanner from "@/components/ClaimBanner";
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { user } = useAuth();
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
@@ -452,6 +457,7 @@ export default function VotePollPage() {
                 slot={slot}
                 value={selections[slot.id] || "BLANK"}
                 onChange={(val) => handleVoteChange(slot.id, val)}
+                disabled={!isReady}
               />
             ))}
           </div>
@@ -477,6 +483,7 @@ export default function VotePollPage() {
                   placeholder="Jane Doe"
                   data-testid="participant-name-input"
                   className="w-full"
+                  disabled={!isReady}
                 />
               </div>
               <div className="space-y-2">
@@ -490,6 +497,7 @@ export default function VotePollPage() {
                   onChange={(e) => setParticipantEmail(e.target.value)}
                   placeholder="jane@example.com"
                   className="w-full"
+                  disabled={!isReady}
                 />
               </div>
             </div>
@@ -507,9 +515,9 @@ export default function VotePollPage() {
         <div className="flex flex-col md:flex-row gap-4">
           <button
             type="submit"
-            disabled={isSubmitting || !participantName.trim()}
+            disabled={!isReady || isSubmitting || !participantName.trim()}
             data-testid="vote-submit-btn"
-            className="flex-1 bg-brand-green text-white !py-6 !text-2xl font-black rounded-3xl hover:bg-brand-green-dark shadow-xl transition-all flex items-center justify-center gap-4"
+            className="flex-1 bg-brand-green text-white !py-6 !text-2xl font-black rounded-3xl hover:bg-brand-green-dark shadow-xl transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Vote"}
           </button>
@@ -518,7 +526,8 @@ export default function VotePollPage() {
             <button
               type="button"
               onClick={handleRetract}
-              className="px-8 py-6 text-red-600 font-bold hover:bg-red-50 rounded-3xl transition-all"
+              disabled={!isReady || isSubmitting}
+              className="px-8 py-6 text-red-600 font-bold hover:bg-red-50 rounded-3xl transition-all disabled:opacity-50"
             >
               Retract Vote
             </button>

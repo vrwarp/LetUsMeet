@@ -100,4 +100,27 @@ export class BrowserLocalDeviceStore implements LocalDeviceStore {
     const storageKey = `prf_cred_${uid}`;
     localStorage.setItem(storageKey, credentialId);
   }
+
+  async clearAll(): Promise<void> {
+    const db = await openDB();
+    const tx = db.transaction([STORE_DEVICE_KEYS, STORE_MASTER_KEYS, STORE_IDENTITIES], "readwrite");
+    tx.objectStore(STORE_DEVICE_KEYS).clear();
+    tx.objectStore(STORE_MASTER_KEYS).clear();
+    tx.objectStore(STORE_IDENTITIES).clear();
+    
+    localStorage.removeItem("deviceId");
+    localStorage.removeItem("deviceName");
+    
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("prf_cred_")) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
 }

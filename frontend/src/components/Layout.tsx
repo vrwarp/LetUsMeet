@@ -1,19 +1,26 @@
 import { useEffect, useState, useRef } from "react";
-import { Outlet, Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { Outlet, Link, useLocation, useSearchParams, useNavigate, useNavigation } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Key, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import ScrollToTop from "./ScrollToTop";
-import { db } from "@/firebase";
 import { 
-  getDeviceId, 
   getLocalPublicKey, 
   requestDeviceAuthorization, 
   approveDeviceAuthorization,
-  generateVerificationCode
+  generateVerificationCode,
+  subscribeCurrentDeviceStatus,
+  rejectDeviceRequest
 } from "@letusmeet/zero-knowledge";
-import { onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import type { PendingDevice } from "@/types";
+
+declare global {
+  interface Window {
+    __APP_STATUS__?: {
+      routerIdle: boolean;
+    };
+  }
+}
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
   const [code, setCode] = useState<string>("......");
@@ -26,6 +33,7 @@ function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigation = useNavigation();
   const [searchParams] = useSearchParams();
   const [showPhraseInput, setShowPhraseInput] = useState(false);
   const [mnemonicInput, setMnemonicInput] = useState("");
@@ -37,6 +45,11 @@ export default function Layout() {
   const [isClaimed, setIsClaimed] = useState(false);
   const [activeAdminToken, setActiveAdminToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    window.__APP_STATUS__ = {
+      routerIdle: navigation.state === "idle",
+    };
+  }, [navigation.state]);
 
   useEffect(() => {
     const token = searchParams.get("adminToken");
@@ -58,11 +71,8 @@ export default function Layout() {
   useEffect(() => {
     if (!isWaitingForAuth || !user || !keyMismatchError) return;
     
-    const deviceId = getDeviceId();
-    const unsub = onSnapshot(doc(db, "users", user.uid, "pending_devices", deviceId), (snap) => {
-      if (snap.exists() && snap.data().status === 'authorized') {
-        window.location.reload();
-      }
+    const unsub = subscribeCurrentDeviceStatus(() => {
+      window.location.reload();
     });
     
     return () => unsub();
@@ -101,7 +111,7 @@ export default function Layout() {
 
   const handleReject = async (req: PendingDevice) => {
     try {
-      await deleteDoc(doc(db, "users", user!.uid, "pending_devices", req.deviceId));
+      await rejectDeviceRequest(req.deviceId);
     } catch (e) {
       console.error("Failed to reject device:", e);
     }

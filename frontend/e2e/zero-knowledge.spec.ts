@@ -4,7 +4,6 @@ import { setupWebAuthn } from './helpers/webauthn-helper';
 import { BrowserContext, Page } from '@playwright/test';
 
 test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
-  test.skip(({ browserName }) => browserName !== 'chromium', 'Skipping on Firefox/WebKit as WebAuthn credentials are not being persisted. This is expected behavior as the browser contexts are isolated.');
 
   let sponsorContext: BrowserContext;
   let newDeviceContext: BrowserContext;
@@ -62,6 +61,8 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.goto('/');
     const email = `multidevice-${Date.now()}@example.com`;
     await mockGoogleSignIn(sponsorPage, email);
+    await sponsorPage.goto('/dashboard');
+    await expect(sponsorPage.getByTestId('device-list')).toContainText('Current');
 
     // 2. Setup New Device
     const newDevicePage = await newDeviceContext.newPage();
@@ -110,6 +111,8 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.goto('/');
     const email = `revocation-${Date.now()}@example.com`;
     await mockGoogleSignIn(sponsorPage, email);
+    await sponsorPage.goto('/dashboard');
+    await expect(sponsorPage.getByTestId('device-list')).toContainText('Current');
 
     const otherDevicePage = await otherDeviceContext.newPage();
     await otherDevicePage.goto('/');

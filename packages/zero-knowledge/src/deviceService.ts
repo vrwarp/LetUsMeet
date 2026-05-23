@@ -13,7 +13,8 @@ import {
   importDevicePrivateKey,
   importDevicePublicKey,
   unwrapAmk,
-  wrapAmk
+  wrapAmk,
+  decryptHybrid
 } from "./core/crypto";
 import {
   unwrapActiveAmk,
@@ -465,5 +466,146 @@ export async function loadDeviceKeysFromIndexedDB(): Promise<{ privateKey: strin
 export async function getLocalPublicKey(): Promise<string | null> {
   const keys = await local.loadDeviceKeys();
   return keys ? keys.publicKey : null;
+}
+
+export interface DecryptedDevice {
+  deviceId: string;
+  decryptedDeviceName: string;
+  publicKey: string;
+  createdAt: number;
+}
+
+export function subscribePendingRequests(
+  onUpdate: (requests: PendingDevice[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const currentDeviceId = getDeviceId();
+  
+  return store.subscribePendingDevices(async (rawRequests) => {
+    try {
+      const now = Date.now();
+      const filteredRequests = rawRequests.filter(
+        d => d.deviceId !== currentDeviceId && (!d.expiresAt || d.expiresAt > now)
+      );
+
+      const decryptedRequests: PendingDevice[] = [];
+      const localKeys = await local.loadDeviceKeys();
+
+      if (localKeys) {
+        const localPrivateKey = await importDevicePrivateKey(localKeys.privateKey);
+
+        for (const req of filteredRequests) {
+          try {
+            const wrappedKeyForUs = req.encryptedDeviceName.wrappedKeys[currentDeviceId];
+            if (wrappedKeyForUs) {
+              const decryptedName = await decryptHybrid(
+                localPrivateKey,
+                req.encryptedDeviceName,
+                wrappedKeyForUs
+              );
+              (req as any).decryptedDeviceName = decryptedName;
+            } else {
+              (req as any).decryptedDeviceName = "Unknown Device";
+            }
+          } catch (err) {
+            console.error("Failed to decrypt pending device name:", err);
+            (req as any).decryptedDeviceName = "Unreadable Device Name";
+          }
+          decryptedRequests.push(req);
+        }
+      } else {
+        for (const req of filteredRequests) {
+          (req as any).decryptedDeviceName = "Unknown Device";
+          decryptedRequests.push(req);
+        }
+      }
+
+      onUpdate(decryptedRequests);
+    } catch (err: any) {
+      console.error("subscribePendingRequests failed:", err);
+      onError?.(err);
+    }
+  });
+}
+
+export function subscribeAuthorizedDevices(
+  onUpdate: (devices: DecryptedDevice[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  return store.subscribeAccountKeys(async (accountKeys) => {
+    try {
+      if (!accountKeys) {
+        onUpdate([]);
+        return;
+      }
+
+      const { amk } = await getActiveAmk();
+      const decryptedList: DecryptedDevice[] = [];
+
+      for (const [deviceId, device] of Object.entries(accountKeys.devices)) {
+        let plainName = "Unreadable Device";
+        try {
+          plainName = await decryptPayload(amk, device.encryptedDeviceName);
+        } catch (err) {
+          console.error(`Failed to decrypt device name for ${deviceId}:`, err);
+        }
+        decryptedList.push({
+          deviceId,
+          decryptedDeviceName: plainName,
+          publicKey: device.publicKey,
+          createdAt: device.createdAt
+        });
+      }
+
+      onUpdate(decryptedList);
+    } catch (err: any) {
+      console.error("subscribeAuthorizedDevices failed:", err);
+      onError?.(err);
+    }
+  });
+}
+
+export function subscribeCurrentDeviceStatus(
+  onAuthorized: () => void,
+  onError?: (err: Error) => void
+): () => void {
+  const currentDeviceId = getDeviceId();
+  return store.subscribePendingDevice(currentDeviceId, (device) => {
+    try {
+      if (device && device.status === "authorized") {
+        onAuthorized();
+      }
+    } catch (err: any) {
+      console.error("subscribeCurrentDeviceStatus failed:", err);
+      onError?.(err);
+    }
+  });
+}
+
+export function subscribeToUserKeystore(
+  onUpdate: (entries: KeystoreEntry[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) {
+    onUpdate([]);
+    return () => {};
+  }
+  return store.subscribeKeystore(onUpdate);
+}
+
+export async function rejectDeviceRequest(deviceId: string): Promise<void> {
+  await store.deletePendingDevice(deviceId);
+}
+
+export async function resetLocalStorage(): Promise<void> {
+  await local.clearAll();
+  clearAmkSessionCache();
+}
+
+export async function resetUserAccountRemote(): Promise<void> {
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) return;
+  await store.resetRemoteStore();
 }
 
