@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
+import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
 import { 
   getLocalPublicKey, 
   requestDeviceAuthorization, 
@@ -321,7 +322,9 @@ export default function Layout() {
           </div>
         )}
 
-        <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+        <DeviceEnrollmentGate>
+          <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+        </DeviceEnrollmentGate>
       </main>
 
       {keyMismatchError && !activeAdminToken && (

@@ -69,3 +69,14 @@ export async function mockGoogleSignIn(page: Page, email: string) {
   await page.waitForTimeout(500);
   console.log(`[mockGoogleSignIn] Login successful for ${email}`);
 }
+
+export async function clickSetupSecureAccess(page: Page) {
+  console.log(`[clickSetupSecureAccess] Clicking "Set up secure access"`);
+  await expect(page.getByRole('heading', { name: 'Secure your account' })).toBeVisible({ timeout: 10000 });
+  const setupBtn = page.getByRole('button', { name: 'Set up secure access' });
+  await expect(setupBtn).toBeVisible({ timeout: 5000 });
+  await setupBtn.click();
+  // Wait a moment for WebAuthn prompt to resolve (virtual authenticator handles it instantly, but still good to wait)
+  await page.waitForTimeout(500);
+  await expect(page.getByRole('heading', { name: 'Secure your account' })).not.toBeVisible({ timeout: 10000 });
+}

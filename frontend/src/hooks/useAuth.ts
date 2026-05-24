@@ -5,8 +5,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db } from "@/firebase";
 import {
-  derivePrfMasterKey, clearPrfSessionCache,
-  verifyAmk, clearAmkSessionCache, subscribePendingRequests, recoverAmkWithPhrase, registerCurrentDevice
+  clearPrfSessionCache,
+  verifyAmk, clearAmkSessionCache, subscribePendingRequests, recoverAmkWithPhrase, registerCurrentDevice,
+  getActiveAmk, loadDeviceKeysFromIndexedDB
 } from "@letusmeet/zero-knowledge";
 import { resetKeystore } from "@/lib/pollService";
 import type { PendingDevice } from "@/types";
@@ -19,9 +20,10 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [keyMismatchError, setKeyMismatchError] = useState<string | null>(null);
   const [pendingRequests, setPendingRequests] = useState<PendingDevice[]>([]);
+  const [isDeviceRegistered, setIsDeviceRegistered] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       const currentUid = currentUser ? currentUser.uid : null;
       if (currentUid !== lastUid) {
         lastUid = currentUid;
@@ -32,21 +34,31 @@ export function useAuth() {
 
       if (currentUser) {
         if (currentUser && !currentUser.isAnonymous) {
-          verifyAmk().then((isMatch) => {
-            if (!isMatch) {
-              console.warn(`[Auth] AMK verification failed for ${currentUser.uid}: unrecognized device.`);
-              setKeyMismatchError("UNRECOGNIZED_DEVICE: Device not authorized.");
-            } else {
-              console.log(`[Auth] AMK verified successfully for ${currentUser.uid}.`);
-            }
+          // Check if device keys are loaded, meaning it has successfully completed registration
+          const localKeys = await loadDeviceKeysFromIndexedDB();
+          if (localKeys) {
+            verifyAmk().then((isMatch) => {
+              if (!isMatch) {
+                console.warn(`[Auth] AMK verification failed for ${currentUser.uid}: unrecognized device.`);
+                setKeyMismatchError("UNRECOGNIZED_DEVICE: Device not authorized.");
+              } else {
+                console.log(`[Auth] AMK verified successfully for ${currentUser.uid}.`);
+                setIsDeviceRegistered(true);
+              }
+              setUser(currentUser);
+              setLoading(false);
+            }).catch((e) => {
+              console.error("AMK verification failed on auth state change", e);
+              setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
+              setUser(currentUser);
+              setLoading(false);
+            });
+          } else {
+            // Keys are missing, so it's not registered
+            setIsDeviceRegistered(false);
             setUser(currentUser);
             setLoading(false);
-          }).catch((e) => {
-            console.error("AMK verification failed on auth state change", e);
-            setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
-            setUser(currentUser);
-            setLoading(false);
-          });
+          }
         } else {
           setUser(currentUser);
           setLoading(false);
@@ -94,13 +106,6 @@ export function useAuth() {
           updatedAt: new Date().toISOString(),
         }, { merge: true });
 
-        // 2. Immediate Security Flow (Optional, handled by onAuthStateChanged)
-        try {
-          // Optional: still derive PRF for migration
-          await derivePrfMasterKey().catch(() => { });
-        } catch (error: any) {
-          console.error("Security verification failed during sign-in", error);
-        }
       }
     } catch (error) {
       throw error;
@@ -140,6 +145,16 @@ export function useAuth() {
     setKeyMismatchError(null);
   };
 
+  const enrollDevice = async () => {
+    try {
+      await getActiveAmk();
+      setIsDeviceRegistered(true);
+      setKeyMismatchError(null);
+    } catch (e: any) {
+      throw e;
+    }
+  };
+
   return {
     user,
     loading,
@@ -149,6 +164,8 @@ export function useAuth() {
     resetAccount,
     deleteAccount,
     recoverWithPhrase,
-    pendingRequests
+    pendingRequests,
+    isDeviceRegistered,
+    enrollDevice
   };
 }

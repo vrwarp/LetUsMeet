@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/base-test';
 import { BrowserContext, Page } from '@playwright/test';
 import { setupWebAuthn } from './helpers/webauthn-helper';
-import { mockGoogleSignIn } from './helpers/auth-helper';
+import { mockGoogleSignIn, clickSetupSecureAccess } from './helpers/auth-helper';
 
 async function waitForDashboardReady(page: Page) {
   await expect(page.getByText('Decrypting your dashboard...')).not.toBeVisible({ timeout: 30000 });
@@ -43,6 +43,7 @@ test.describe('Device Management & Recovery', () => {
     // 1. Sponsor Setup
     await sponsorPage.goto('/');
     await mockGoogleSignIn(sponsorPage, email);
+    await clickSetupSecureAccess(sponsorPage);
 
     await sponsorPage.goto('/create');
     await sponsorPage.getByTestId('organizer-name-input').fill('Sponsor User');
@@ -60,6 +61,7 @@ test.describe('Device Management & Recovery', () => {
     // 2. New Device Login
     await newPage.goto('/');
     await mockGoogleSignIn(newPage, email);
+    await clickSetupSecureAccess(newPage);
 
     // Verify "Unrecognized Device" error
     await newPage.goto('/dashboard');
@@ -99,11 +101,13 @@ test.describe('Device Management & Recovery', () => {
     // 1. Setup both devices
     await sponsorPage.goto('/');
     await mockGoogleSignIn(sponsorPage, email);
+    await clickSetupSecureAccess(sponsorPage);
     await sponsorPage.goto('/dashboard');
     await waitForDashboardReady(sponsorPage);
 
     await newPage.goto('/');
     await mockGoogleSignIn(newPage, email);
+    await clickSetupSecureAccess(newPage);
 
     await newPage.goto('/dashboard');
     await newPage.getByTestId('request-auth-btn').click();
@@ -143,6 +147,7 @@ test.describe('Device Management & Recovery', () => {
     // 1. Setup Device 1
     await page.goto('/');
     await mockGoogleSignIn(page, email);
+    await clickSetupSecureAccess(page);
 
     await page.goto('/create');
     await page.getByTestId('organizer-name-input').fill('PRF User');
