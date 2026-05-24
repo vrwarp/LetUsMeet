@@ -29,7 +29,7 @@ This project uses a client-centric architecture that eliminates complex backends
    ```
 
 3. **Access Services**:
-   - **App**: [http://localhost:5173](http://localhost:5173)
+   - **App**: [http://localhost:5273](http://localhost:5273)
    - **Firebase UI**: [http://localhost:4000](http://localhost:4000)
 
 ## 🧪 Testing

@@ -21,11 +21,12 @@
   "peerDependencies": {
     "firebase": "^12.12.1"
   },
-  "devDependencies": {
+    "devDependencies": {
     "@xstate/test": "^0.5.1",
+    "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.8.0",
     "typescript": "^5.0.0",
-    "vitest": "^4.1.6",
+    "vitest": "^4.1.7",
     "xstate": "^4.38.3"
   }
 }
