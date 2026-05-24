@@ -8,7 +8,7 @@ interface DeviceEnrollmentGateProps {
 }
 
 export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateProps) {
-  const { user, isDeviceRegistered, loading, enrollDevice, keyMismatchError } = useAuth();
+  const { user, isDeviceRegistered, loading, enrollDevice, keyMismatchError, deleteAccount } = useAuth();
   const [enrollmentState, setEnrollmentState] = useState<'idle' | 'prompting' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -83,6 +83,23 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
                   ) : (
                     "Set up secure access"
                   )}
+                </button>
+              </div>
+
+              <div className="flex justify-center mt-5 w-full">
+                <button
+                  onClick={async () => {
+                    if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
+                      try {
+                        await deleteAccount();
+                      } catch (e: any) {
+                        setErrorMessage("Failed to delete account: " + e.message);
+                      }
+                    }
+                  }}
+                  className="text-xs sm:text-sm font-semibold text-neutral-400 hover:text-brand-red underline decoration-dotted transition-colors py-1 cursor-pointer"
+                >
+                  Delete my account
                 </button>
               </div>
             </div>
