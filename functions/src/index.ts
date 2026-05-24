@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineJsonSecret } from "firebase-functions/params";
+import * as logger from "firebase-functions/logger";
 import { getTimeSlotsPrompt } from "./prompts/timeSlots";
 import { getFuzzySlotsPrompt } from "./prompts/fuzzySlots";
 import { TIME_SLOTS_SCHEMA, FUZZY_SLOTS_SCHEMA } from "./prompts/schemas";
@@ -78,7 +79,7 @@ export const extractTimeSlots = onCall(
       if (!response.text) throw new Error("AI returned an empty response.");
       return JSON.parse(response.text);
     } catch (error: unknown) {
-      console.error("AI Generation Error:", error);
+      logger.error("AI Generation Error:", error);
       throw new HttpsError("internal", error instanceof Error ? error.message : "Failed to parse time slots.");
     }
   }
@@ -116,7 +117,7 @@ export const extractFuzzySlots = onCall(
       if (!response.text) throw new Error("AI returned an empty response.");
       return JSON.parse(response.text);
     } catch (error: unknown) {
-      console.error("AI Generation Error:", error);
+      logger.error("AI Generation Error:", error);
       throw new HttpsError("internal", error instanceof Error ? error.message : "Failed to parse fuzzy slots.");
     }
   }
@@ -133,7 +134,7 @@ export const deleteUserAccount = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  console.log(`Starting account deletion for UID: ${uid}`);
+  logger.log(`Starting account deletion for UID: ${uid}`);
 
   try {
     // 1. Delete Firestore user data (including Keystore)
@@ -141,15 +142,15 @@ export const deleteUserAccount = onCall(async (request) => {
     await admin.firestore().recursiveDelete(
       admin.firestore().doc(`users/${uid}`)
     );
-    console.log(`Firestore data for ${uid} deleted successfully.`);
+    logger.log(`Firestore data for ${uid} deleted successfully.`);
 
     // 2. Delete the Auth user account
     await admin.auth().deleteUser(uid);
-    console.log(`Auth account for ${uid} deleted successfully.`);
+    logger.log(`Auth account for ${uid} deleted successfully.`);
 
     return { success: true };
   } catch (error) {
-    console.error("Account Deletion Error:", error);
+    logger.error("Account Deletion Error:", error);
     throw new HttpsError("internal", "An error occurred during account deletion.");
   }
 });
@@ -160,7 +161,7 @@ export const deleteUserAccount = onCall(async (request) => {
  */
 export const refreshChaffPool = onSchedule("every 15 minutes", async () => {
   const db = admin.firestore();
-  console.log("Refreshing chaff pool...");
+  logger.log("Refreshing chaff pool...");
 
   try {
     // 1. Fetch up to 100 of the most recently created polls.
@@ -170,7 +171,7 @@ export const refreshChaffPool = onSchedule("every 15 minutes", async () => {
       .get();
 
     if (pollsSnapshot.empty) {
-      console.log("No polls found. Leaving chaff pool empty.");
+      logger.log("No polls found. Leaving chaff pool empty.");
       return;
     }
 
@@ -185,9 +186,9 @@ export const refreshChaffPool = onSchedule("every 15 minutes", async () => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log(`Successfully updated chaff pool with ${Math.min(pollIds.length, 50)} IDs.`);
+    logger.log(`Successfully updated chaff pool with ${Math.min(pollIds.length, 50)} IDs.`);
   } catch (error) {
-    console.error("Error refreshing chaff pool:", error);
+    logger.error("Error refreshing chaff pool:", error);
   }
 });
 

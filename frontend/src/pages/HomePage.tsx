@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
-import heroImg from "@/assets/hero-transparent.webp";
+import heroBase64 from "@/assets/hero-transparent.webp?inline";
 
 export default function HomePage() {
   return (
@@ -11,7 +11,7 @@ export default function HomePage() {
         <div className="bg-white flex flex-col items-center justify-center py-12 px-6 sm:p-20 relative">
           <Link to="/create" className="max-w-md w-full flex flex-col items-center gap-4 group/hero hover:scale-[1.02] transition-transform duration-500">
             <img
-              src={heroImg}
+              src={heroBase64}
               alt="LetUsMeet Mascot"
               className="w-full max-w-[280px] sm:max-w-[400px] h-auto drop-shadow-2xl animate-bounce-subtle"
             />
