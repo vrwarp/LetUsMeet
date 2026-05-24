@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import dataGardenImg from "@/assets/data-garden-compressed.webp";
 
 interface DeviceEnrollmentGateProps {
   children: React.ReactNode;
@@ -12,23 +13,14 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // If loading, not logged in, or anonymous, let the children or other auth wrappers handle it
-  // Also bypass if there is a key mismatch/unrecognized device error so that the app layout modal covers the page
-  if (loading || !user || user.isAnonymous || keyMismatchError) {
-    return <>{children}</>;
-  }
+  // Also bypass if there is a key mismatch/unrecognized device error so that the app layout modal covers the page instead
+  const shouldShowGate = !loading && user && !user.isAnonymous && !isDeviceRegistered && !keyMismatchError;
 
-  // If logged in and device is registered, allow access
-  if (isDeviceRegistered) {
-    return <>{children}</>;
-  }
-
-  // Otherwise, show the interstitial
   const handleEnroll = async () => {
     try {
       setEnrollmentState('prompting');
       setErrorMessage(null);
       await enrollDevice();
-      // On success, isDeviceRegistered in useAuth will become true, unmounting this UI
     } catch (err) {
       setEnrollmentState('error');
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
@@ -40,39 +32,63 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] p-4 animate-fade-in">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-neutral-100 p-8 text-center flex flex-col items-center">
-        <div className="w-16 h-16 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mb-6">
-          <ShieldCheck size={32} />
-        </div>
+    <>
+      {children}
 
-        <h2 className="text-2xl font-black text-neutral-900 mb-4 tracking-tight">Secure your account</h2>
+      {shouldShowGate && (
+        <div className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center animate-fade-in">
+          <div 
+            className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
+            style={{
+              backgroundColor: "#ffffff",
+              backgroundImage: "linear-gradient(#f0f4f1 1.5px, transparent 1.5px), linear-gradient(90deg, #f0f4f1 1.5px, transparent 1.5px)",
+              backgroundSize: "32px 32px"
+            }}
+          >
+            {/* Illustration Banner */}
+            <div className="w-full relative aspect-[2.8] sm:aspect-[2.2] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
+              <img 
+                src={dataGardenImg} 
+                alt="Secure Account Illustration" 
+                className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
+              />
+            </div>
 
-        <p className="text-neutral-500 text-sm font-medium leading-relaxed mb-8">
-          LetUsMeet uses end-to-end encryption to keep your polls private. To generate your unique encryption key, we need to register this device using your built-in screen lock, Touch ID, or Face ID.
-        </p>
+            <div className="px-5 pb-6 pt-4 sm:px-10 sm:pb-10 sm:pt-5 flex flex-col items-center">
+              <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
+                Secure your account
+              </h2>
 
-        {errorMessage && (
-          <div role="alert" className="w-full bg-red-50 text-brand-red text-sm font-medium py-3 px-4 rounded-xl mb-6 border border-red-100">
-            {errorMessage}
+              <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-3 sm:mt-4 leading-relaxed max-w-sm">
+                LetUsMeet uses end-to-end encryption to keep your polls private. To generate your unique encryption key, we need to register this device using your built-in screen lock, Touch ID, or Face ID.
+              </p>
+
+              {errorMessage && (
+                <div role="alert" className="w-full bg-red-50 text-brand-red text-xs sm:text-sm font-semibold py-3 px-4 rounded-xl mt-4 border border-red-100">
+                  {errorMessage}
+                </div>
+              )}
+
+              <div className="w-full mt-6 sm:mt-8">
+                <button
+                  onClick={handleEnroll}
+                  disabled={enrollmentState === 'prompting'}
+                  className="w-full bg-brand-green text-white py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/20 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer text-sm"
+                >
+                  {enrollmentState === 'prompting' ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      Waiting for device...
+                    </>
+                  ) : (
+                    "Set up secure access"
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-
-        <button
-          onClick={handleEnroll}
-          disabled={enrollmentState === 'prompting'}
-          className="w-full bg-brand-green text-white py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/20 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer"
-        >
-          {enrollmentState === 'prompting' ? (
-            <>
-              <Loader2 className="animate-spin" size={20} />
-              Waiting for device...
-            </>
-          ) : (
-            "Set up secure access"
-          )}
-        </button>
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -81,7 +81,7 @@ describe('DeviceEnrollmentGate', () => {
       </DeviceEnrollmentGate>
     );
 
-    expect(screen.queryByTestId('child-element')).not.toBeInTheDocument();
+    expect(screen.getByTestId('child-element')).toBeInTheDocument();
     expect(screen.getByText('Secure your account')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set up secure access' })).toBeInTheDocument();
   });
