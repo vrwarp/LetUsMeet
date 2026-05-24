@@ -60,7 +60,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               </h2>
 
               <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-3 sm:mt-4 leading-relaxed max-w-sm">
-                LetUsMeet uses end-to-end encryption to keep your polls private. To generate your unique encryption key, we need to register this device using your built-in screen lock, Touch ID, or Face ID.
+                Using <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-green hover:text-brand-green-dark underline font-bold transition-colors">zero-knowledge encryption</a>, your data is locked in a digital vault away from everyone—even LetUsMeet. To generate your private passkey, this device must be registered using your built-in security features (like Touch ID or Face ID).
               </p>
 
               {errorMessage && (
