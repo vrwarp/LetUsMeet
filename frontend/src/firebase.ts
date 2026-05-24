@@ -38,12 +38,12 @@ export const functions = getFunctions(app);
 // Initialize Zero-Knowledge Library
 initializeZK({ db, auth });
 
-// Connect to emulators if in development OR if running on localhost (common for E2E tests)
 if (useEmulator) {
-  console.log("🔥 Connecting to Firebase Emulators...");
-  connectAuthEmulator(auth, "http://127.0.0.1:9099");
-  connectFirestoreEmulator(db, "127.0.0.1", 8081);
-  connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  console.log(`🔥 Connecting to Firebase Emulators on ${host}...`);
+  connectAuthEmulator(auth, `http://${host}:9099`);
+  connectFirestoreEmulator(db, host, 8081);
+  connectFunctionsEmulator(functions, host, 5001);
 }
 
 if (typeof window !== 'undefined') {

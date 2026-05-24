@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Outlet, Link, useLocation, useSearchParams, useNavigate, useNavigation } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
+import logoImg from "@/assets/meat-lettuce-logo-transparent.webp?inline";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
 import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
@@ -47,6 +47,24 @@ export default function Layout() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isClaimed, setIsClaimed] = useState(false);
   const [activeAdminToken, setActiveAdminToken] = useState<string | null>(null);
+
+  const [isSignInHint] = useState(() => {
+    try {
+      return localStorage.getItem("letusmeet:signed_in_hint") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (!loading) {
+      try {
+        localStorage.setItem("letusmeet:signed_in_hint", (user && !user.isAnonymous) ? "true" : "false");
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }, [user, loading]);
 
   useEffect(() => {
     window.__APP_STATUS__ = {
@@ -163,7 +181,8 @@ export default function Layout() {
               <span className="text-brand-green-dark">Let</span><span className="text-brand-green-dark">Us</span><span className="text-brand-red">Meet</span>
             </span>
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-4">
+
+          <nav className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             {!isPublicPage && (
               <Link
                 to="/create"
@@ -175,96 +194,106 @@ export default function Layout() {
               </Link>
             )}
 
-            {!isPublicPage && !loading && (
+            {!isPublicPage && (
               <div className="flex items-center">
-                {user && !user.isAnonymous ? (
-                  <div className="relative" ref={menuRef}>
-                    <button
-                      onClick={() => setIsMenuOpen(!isMenuOpen)}
-                      data-testid="user-profile-btn"
-                      className="flex items-center gap-2 p-1 pr-2 sm:pr-3 rounded-full hover:bg-neutral-100 transition-all border border-transparent hover:border-neutral-200 group"
-                      aria-expanded={isMenuOpen}
-                      aria-haspopup="true"
-                    >
-                      <div className="flex-shrink-0">
-                        {user.photoURL ? (
-                          <img
-                            src={user.photoURL}
-                            alt=""
-                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full ring-2 ring-brand-green/10 shadow-sm object-cover border border-white"
-                          />
-                        ) : (
-                          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-brand-green/10 text-brand-green-dark flex items-center justify-center font-bold text-sm ring-2 ring-brand-green/10 border border-white">
-                            {user.displayName?.[0] || user.email?.[0] || "U"}
+                {loading ? (
+                  isSignInHint ? (
+                    <div className="w-[66px] sm:w-[80px] h-[38px] sm:h-[46px] rounded-full bg-neutral-200 animate-pulse border border-neutral-100" />
+                  ) : (
+                    <div className="w-[108px] sm:w-[120px] h-[38px] sm:h-[46px] rounded-full bg-neutral-100 animate-pulse border border-neutral-200/50" />
+                  )
+                ) : (
+                  <div className="flex items-center">
+                    {user && !user.isAnonymous ? (
+                      <div className="relative" ref={menuRef}>
+                        <button
+                          onClick={() => setIsMenuOpen(!isMenuOpen)}
+                          data-testid="user-profile-btn"
+                          className="w-[66px] sm:w-[80px] h-[38px] sm:h-[46px] flex items-center pl-1.5 pr-2.5 sm:pl-2 sm:pr-3 gap-1.5 sm:gap-2 rounded-full hover:bg-neutral-100 transition-all border border-transparent hover:border-neutral-200 group"
+                          aria-expanded={isMenuOpen}
+                          aria-haspopup="true"
+                        >
+                          <div className="flex-shrink-0">
+                            {user.photoURL ? (
+                              <img
+                                src={user.photoURL}
+                                alt=""
+                                className="h-7 w-7 sm:h-9 sm:w-9 rounded-full ring-2 ring-brand-green/10 shadow-sm object-cover border border-white"
+                              />
+                            ) : (
+                              <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-full bg-brand-green/10 text-brand-green-dark flex items-center justify-center font-bold text-xs sm:text-sm ring-2 ring-brand-green/10 border border-white">
+                                {user.displayName?.[0] || user.email?.[0] || "U"}
+                              </div>
+                            )}
+                          </div>
+                          <ChevronDown size={16} className={`text-neutral-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isMenuOpen && (
+                          <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-neutral-100 py-2 z-30 animate-fade-in-up overflow-hidden">
+                            <div className="px-4 py-3 border-b border-neutral-50 mb-1">
+                              <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">Signed in as</p>
+                              <p className="text-sm font-bold text-brand-charcoal truncate">{user.displayName || user.email}</p>
+                              {user.displayName && <p className="text-xs text-neutral-500 truncate">{user.email}</p>}
+                            </div>
+                            
+                            <Link
+                              to="/dashboard"
+                              data-testid="dashboard-link"
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 hover:text-brand-green transition-colors"
+                            >
+                              <LayoutDashboard size={18} className="text-neutral-400" />
+                              Dashboard
+                            </Link>
+                            
+                            <div className="h-px bg-neutral-50 my-1"></div>
+                            
+                            <button
+                              onClick={async () => {
+                                if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
+                                  try {
+                                    await deleteAccount();
+                                  } catch (e: any) {
+                                    alert("Failed to delete account: " + e.message);
+                                  }
+                                }
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-brand-red hover:bg-brand-red/5 transition-colors"
+                            >
+                              <Trash2 size={18} className="text-brand-red/60" />
+                              Delete My Account
+                            </button>
+
+                            <div className="h-px bg-neutral-50 my-1"></div>
+                            
+                            <button
+                              onClick={signOutUser}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-brand-red-light/30 hover:text-brand-red transition-colors"
+                            >
+                              <LogOut size={18} className="text-neutral-400" />
+                              Sign Out
+                            </button>
                           </div>
                         )}
                       </div>
-                      <ChevronDown size={16} className={`text-neutral-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-neutral-100 py-2 z-30 animate-fade-in-up overflow-hidden">
-                        <div className="px-4 py-3 border-b border-neutral-50 mb-1">
-                          <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">Signed in as</p>
-                          <p className="text-sm font-bold text-brand-charcoal truncate">{user.displayName || user.email}</p>
-                          {user.displayName && <p className="text-xs text-neutral-500 truncate">{user.email}</p>}
-                        </div>
-                        
-                        <Link
-                          to="/dashboard"
-                          data-testid="dashboard-link"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 hover:text-brand-green transition-colors"
-                        >
-                          <LayoutDashboard size={18} className="text-neutral-400" />
-                          Dashboard
-                        </Link>
-                        
-                        <div className="h-px bg-neutral-50 my-1"></div>
-                        
-                        <button
-                          onClick={async () => {
-                            if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
-                              try {
-                                await deleteAccount();
-                              } catch (e: any) {
-                                alert("Failed to delete account: " + e.message);
-                              }
-                            }
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-brand-red hover:bg-brand-red/5 transition-colors"
-                        >
-                          <Trash2 size={18} className="text-brand-red/60" />
-                          Delete My Account
-                        </button>
-
-                        <div className="h-px bg-neutral-50 my-1"></div>
-                        
-                        <button
-                          onClick={signOutUser}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-brand-red-light/30 hover:text-brand-red transition-colors"
-                        >
-                          <LogOut size={18} className="text-neutral-400" />
-                          Sign Out
-                        </button>
-                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setAuthError(null);
+                          try {
+                            await signInWithGoogle();
+                          } catch (e: any) {
+                            setAuthError(e.message);
+                          }
+                        }}
+                        data-testid="google-signin-btn"
+                        className="w-[108px] sm:w-[120px] h-[38px] sm:h-[46px] flex items-center justify-center gap-2 text-sm font-bold text-neutral-700 hover:text-brand-green transition-colors rounded-full hover:bg-neutral-100 border border-neutral-200"
+                      >
+                        <LogIn size={18} />
+                        <span>Sign in</span>
+                      </button>
                     )}
                   </div>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      setAuthError(null);
-                      try {
-                        await signInWithGoogle();
-                      } catch (e: any) {
-                        setAuthError(e.message);
-                      }
-                    }}
-                    data-testid="google-signin-btn"
-                    className="flex items-center gap-2 text-sm font-bold text-neutral-700 hover:text-brand-green transition-colors px-4 py-2 rounded-full hover:bg-neutral-100 border border-neutral-200"
-                  >
-                    <LogIn size={18} />
-                    <span>Sign in</span>
-                  </button>
                 )}
               </div>
             )}
