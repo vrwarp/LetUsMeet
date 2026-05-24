@@ -4,6 +4,8 @@
     "allowJs": true
   },
   "include": [
+    "src",
     "eslint.config.mjs"
-  ]
+  ],
+  "exclude": []
 }

@@ -22,8 +22,9 @@ export function createAIRouter(config: AIRouterConfig) {
     if (request.jsonMode) {
       try {
         JSON.parse(response.text);
-      } catch (err: any) {
-        throw new Error(`AI returned invalid JSON: ${err.message}. Response was: "${response.text}"`);
+      } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        throw new Error(`AI returned invalid JSON: ${error.message}. Response was: "${response.text}"`, { cause: err });
       }
     }
 
@@ -34,7 +35,7 @@ export function createAIRouter(config: AIRouterConfig) {
     provider: AIProvider,
     request: AIGenerateRequest
   ): Promise<AIGenerateResponse> {
-    let lastError: any = null;
+    let lastError: Error | null = null;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         if (attempt > 0) {
@@ -43,28 +44,33 @@ export function createAIRouter(config: AIRouterConfig) {
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
         return await executeWithValidation(provider, request);
-      } catch (err: any) {
-        lastError = err;
+      } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        lastError = error;
         console.warn(
-          `[AI Router] Provider "${provider.name}" failed on attempt ${attempt + 1}: ${err.message}`
+          `[AI Router] Provider "${provider.name}" failed on attempt ${attempt + 1}: ${error.message}`
         );
       }
     }
-    throw lastError;
+    if (lastError) {
+      throw lastError;
+    }
+    throw new Error(`Provider "${provider.name}" failed without throwing lastError.`);
   }
 
   return {
     async generate(request: AIGenerateRequest): Promise<AIGenerateResponse> {
       try {
         return await tryProvider(config.primary, request);
-      } catch (primaryError: any) {
+      } catch (primaryError: unknown) {
+        const primaryErr = primaryError instanceof Error ? primaryError : new Error(String(primaryError));
         console.error(
           `[AI Router] Primary provider "${config.primary.name}" failed after all attempts:`,
-          primaryError
+          primaryErr
         );
 
         if (!config.fallback) {
-          throw primaryError;
+          throw primaryErr;
         }
 
         console.log(
@@ -73,12 +79,13 @@ export function createAIRouter(config: AIRouterConfig) {
 
         try {
           return await tryProvider(config.fallback, request);
-        } catch (fallbackError: any) {
+        } catch (fallbackError: unknown) {
+          const fallbackErr = fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError));
           console.error(
             `[AI Router] Fallback provider "${config.fallback.name}" also failed after all attempts:`,
-            fallbackError
+            fallbackErr
           );
-          throw new Error(`AI Generation failed. Primary: ${primaryError.message}. Fallback: ${fallbackError.message}`);
+          throw new Error(`AI Generation failed. Primary: ${primaryErr.message}. Fallback: ${fallbackErr.message}`, { cause: fallbackError });
         }
       }
     },

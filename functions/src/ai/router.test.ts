@@ -29,7 +29,7 @@ describe("AIRouter Retry and Fallback Logic", () => {
       jsonMode: true,
     });
 
-    expect(response.text).toBe('{"reasoning":"ok","time_slots":[]}');
+    expect(response.text).toBe("{\"reasoning\":\"ok\",\"time_slots\":[]}");
     expect(response.provider).toBe("cerebras");
     expect(primaryMock.generate).toHaveBeenCalledTimes(1);
     expect(fallbackMock.generate).not.toHaveBeenCalled();
@@ -68,7 +68,7 @@ describe("AIRouter Retry and Fallback Logic", () => {
       jsonMode: true,
     });
 
-    expect(response.text).toBe('{"reasoning":"retry ok"}');
+    expect(response.text).toBe("{\"reasoning\":\"retry ok\"}");
     expect(primaryMock.generate).toHaveBeenCalledTimes(2);
     expect(fallbackMock.generate).not.toHaveBeenCalled();
   });
@@ -99,7 +99,7 @@ describe("AIRouter Retry and Fallback Logic", () => {
       jsonMode: true,
     });
 
-    expect(response.text).toBe('{"reasoning":"fallback ok"}');
+    expect(response.text).toBe("{\"reasoning\":\"fallback ok\"}");
     expect(response.provider).toBe("gemini");
     expect(primaryMock.generate).toHaveBeenCalledTimes(2);
     expect(fallbackMock.generate).toHaveBeenCalledTimes(1);
@@ -134,7 +134,7 @@ describe("AIRouter Retry and Fallback Logic", () => {
       jsonMode: true,
     });
 
-    expect(response.text).toBe('{"reasoning":"empty fallback ok"}');
+    expect(response.text).toBe("{\"reasoning\":\"empty fallback ok\"}");
     expect(response.provider).toBe("gemini");
     expect(primaryMock.generate).toHaveBeenCalledTimes(1);
     expect(fallbackMock.generate).toHaveBeenCalledTimes(1);
@@ -169,7 +169,7 @@ describe("AIRouter Retry and Fallback Logic", () => {
       jsonMode: true,
     });
 
-    expect(response.text).toBe('{"reasoning":"json fallback ok"}');
+    expect(response.text).toBe("{\"reasoning\":\"json fallback ok\"}");
     expect(response.provider).toBe("gemini");
     expect(primaryMock.generate).toHaveBeenCalledTimes(1);
     expect(fallbackMock.generate).toHaveBeenCalledTimes(1);
