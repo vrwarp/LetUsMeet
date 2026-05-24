@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 
@@ -46,15 +46,15 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
             }}
           >
             {/* Illustration Banner */}
-            <div className="w-full relative aspect-[2.8] sm:aspect-[2.2] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
+            <div className="w-full relative aspect-[2.3] sm:aspect-[1.8] flex items-end justify-center bg-white/40 border-b border-neutral-100 px-4 pt-4 pb-0 overflow-hidden">
               <img 
                 src={dataGardenImg} 
                 alt="Secure Account Illustration" 
-                className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
+                className="w-full h-full object-contain max-h-[120px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
               />
             </div>
 
-            <div className="px-5 pb-6 pt-4 sm:px-10 sm:pb-10 sm:pt-5 flex flex-col items-center">
+            <div className="px-5 pb-6 pt-3 sm:px-10 sm:pb-10 sm:pt-4 flex flex-col items-center">
               <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
                 Secure your account
               </h2>
