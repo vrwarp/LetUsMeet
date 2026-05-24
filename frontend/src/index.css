@@ -49,6 +49,51 @@
   }
 
   --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
+
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -20;
+    }
+  }
+
+  --animate-dash: dash 6s linear infinite;
+
+  @keyframes pulse-gentle {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.25;
+    }
+    50% {
+      transform: scale(1.08);
+      opacity: 0.1;
+    }
+  }
+
+  --animate-pulse-gentle: pulse-gentle 4s ease-in-out infinite;
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  --animate-pop-in: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes line-pulse {
+    from {
+      stroke-dashoffset: 160;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  --animate-line-pulse: line-pulse 3s linear infinite;
 }
 
 @layer base {
