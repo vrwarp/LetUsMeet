@@ -7,12 +7,13 @@ interface DeviceEnrollmentGateProps {
 }
 
 export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateProps) {
-  const { user, isDeviceRegistered, loading, enrollDevice } = useAuth();
+  const { user, isDeviceRegistered, loading, enrollDevice, keyMismatchError } = useAuth();
   const [enrollmentState, setEnrollmentState] = useState<'idle' | 'prompting' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // If loading, not logged in, or anonymous, let the children or other auth wrappers handle it
-  if (loading || !user || user.isAnonymous) {
+  // Also bypass if there is a key mismatch/unrecognized device error so that the app layout modal covers the page
+  if (loading || !user || user.isAnonymous || keyMismatchError) {
     return <>{children}</>;
   }
 

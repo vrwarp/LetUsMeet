@@ -108,4 +108,23 @@ describe('DeviceEnrollmentGate', () => {
     expect(enrollMock).toHaveBeenCalled();
     expect(await screen.findByRole('alert')).toHaveTextContent('Registration was canceled. We need a secure key to encrypt your polls.');
   });
+
+  it('renders children if there is a key mismatch error', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { isAnonymous: false, uid: '123' },
+      loading: false,
+      isDeviceRegistered: false,
+      keyMismatchError: 'UNRECOGNIZED_DEVICE: Device not authorized.',
+      enrollDevice: vi.fn(),
+    } as any);
+
+    render(
+      <DeviceEnrollmentGate>
+        <div data-testid="child-element">Child Content</div>
+      </DeviceEnrollmentGate>
+    );
+
+    expect(screen.getByTestId('child-element')).toBeInTheDocument();
+    expect(screen.queryByText(/Secure your account/i)).not.toBeInTheDocument();
+  });
 });

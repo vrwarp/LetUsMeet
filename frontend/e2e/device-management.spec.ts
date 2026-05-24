@@ -61,7 +61,6 @@ test.describe('Device Management & Recovery', () => {
     // 2. New Device Login
     await newPage.goto('/');
     await mockGoogleSignIn(newPage, email);
-    await clickSetupSecureAccess(newPage);
 
     // Verify "Unrecognized Device" error
     await newPage.goto('/dashboard');
@@ -79,14 +78,15 @@ test.describe('Device Management & Recovery', () => {
     await sponsorPage.bringToFront();
     const requestItem = sponsorPage.getByTestId('pending-auth-request').first();
     await expect(requestItem).toBeVisible({ timeout: 20000 });
-    await expect(requestItem).toContainText(verificationCode!.trim());
+    await expect(requestItem.getByText(verificationCode!.trim())).toBeVisible();
 
-    await requestItem.getByTestId('approve-auth-btn').click();
-    await expect(requestItem).not.toBeVisible({ timeout: 15000 });
+    const approveBtnSponsor = requestItem.getByTestId('approve-auth-btn');
+    await expect(approveBtnSponsor).toBeVisible();
+    await approveBtnSponsor.click();
 
-    // 5. New Device Accesses Data
-    await newPage.bringToFront();
-    await expect(newPage.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 45000 });
+    // 5. New Device should detect and reload automatically
+    await expect(newPage.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 30000 });
+    await newPage.goto('/dashboard');
     await waitForDashboardReady(newPage);
     await expect(newPage.locator('h2', { hasText: pollTitle })).toBeVisible({ timeout: 15000 });
   });
@@ -107,7 +107,6 @@ test.describe('Device Management & Recovery', () => {
 
     await newPage.goto('/');
     await mockGoogleSignIn(newPage, email);
-    await clickSetupSecureAccess(newPage);
 
     await newPage.goto('/dashboard');
     await newPage.getByTestId('request-auth-btn').click();

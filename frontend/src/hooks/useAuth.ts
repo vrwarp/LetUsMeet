@@ -7,7 +7,7 @@ import { auth, db } from "@/firebase";
 import {
   clearPrfSessionCache,
   verifyAmk, clearAmkSessionCache, subscribePendingRequests, recoverAmkWithPhrase, registerCurrentDevice,
-  getActiveAmk, loadDeviceKeysFromIndexedDB
+  getActiveAmk, loadDeviceKeysFromIndexedDB, hasAccountKeys
 } from "@letusmeet/zero-knowledge";
 import { resetKeystore } from "@/lib/pollService";
 import type { PendingDevice } from "@/types";
@@ -54,10 +54,37 @@ export function useAuth() {
               setLoading(false);
             });
           } else {
-            // Keys are missing, so it's not registered
-            setIsDeviceRegistered(false);
-            setUser(currentUser);
-            setLoading(false);
+            // Keys are missing. Check if the user already has secure keys on the server!
+            hasAccountKeys().then((hasKeys) => {
+              if (hasKeys) {
+                // User has registered keys. Try to verify/recover silently via PRF first!
+                verifyAmk().then((isMatch) => {
+                  if (!isMatch) {
+                    console.warn(`[Auth] AMK verification failed for ${currentUser.uid}: unrecognized device.`);
+                    setKeyMismatchError("UNRECOGNIZED_DEVICE: Device not authorized.");
+                  } else {
+                    console.log(`[Auth] AMK verified successfully via silent PRF recovery for ${currentUser.uid}.`);
+                    setIsDeviceRegistered(true);
+                  }
+                  setUser(currentUser);
+                  setLoading(false);
+                }).catch((e) => {
+                  console.error("AMK verification failed on auth state change (missing local keys)", e);
+                  setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
+                  setUser(currentUser);
+                  setLoading(false);
+                });
+              } else {
+                setIsDeviceRegistered(false);
+                setUser(currentUser);
+                setLoading(false);
+              }
+            }).catch((e) => {
+              console.error("Failed to check server account keys", e);
+              setIsDeviceRegistered(false);
+              setUser(currentUser);
+              setLoading(false);
+            });
           }
         } else {
           setUser(currentUser);
@@ -151,6 +178,11 @@ export function useAuth() {
       setIsDeviceRegistered(true);
       setKeyMismatchError(null);
     } catch (e: any) {
+      if (e instanceof DOMException && e.name === 'NotAllowedError') {
+        // Keep keyMismatchError null for canceled enrollment prompts
+      } else {
+        setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
+      }
       throw e;
     }
   };

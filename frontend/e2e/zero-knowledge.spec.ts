@@ -72,7 +72,6 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
 
     // Sign in with SAME email
     await mockGoogleSignIn(newDevicePage, email);
-    await clickSetupSecureAccess(newDevicePage);
 
     // 3. New Device should see "Unrecognized Device" UI
     await expect(newDevicePage.getByTestId('mismatch-error')).toBeVisible();
@@ -123,7 +122,6 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     // Set unique name for other device
     await otherDevicePage.evaluate(() => localStorage.setItem('deviceName', 'Other Device'));
     await mockGoogleSignIn(otherDevicePage, email);
-    await clickSetupSecureAccess(otherDevicePage);
 
     // (Authorization dance)
     await otherDevicePage.getByTestId('request-auth-btn').click();
