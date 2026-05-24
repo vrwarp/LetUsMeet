@@ -31,7 +31,7 @@ import CompactActionCard from "@/components/CompactActionCard";
 
 export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
@@ -71,6 +71,7 @@ export default function ResultsPage() {
 
   // 1. Initialize and Subscribe
   useEffect(() => {
+    if (loading) return;
     if (!pollId) return;
 
     const b64Key = extractKeyFromFragment();
@@ -104,7 +105,7 @@ export default function ResultsPage() {
 
     const unsubPromise = init();
     return () => { unsubPromise.then(unsub => unsub?.()); };
-  }, [pollId, user?.uid]);
+  }, [pollId, user?.uid, loading]);
 
   if (isLoading) {
     return (

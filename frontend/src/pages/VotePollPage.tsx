@@ -17,7 +17,7 @@ import ClaimBanner from "@/components/ClaimBanner";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -67,6 +67,7 @@ export default function VotePollPage() {
 
   // 1. Initialize Crypto and Subscribe
   useEffect(() => {
+    if (loading) return;
     if (!pollId) return;
     let mounted = true;
 
@@ -109,7 +110,7 @@ export default function VotePollPage() {
       mounted = false;
       unsubPromise.then(unsub => unsub?.()); 
     };
-  }, [pollId, user?.uid]);
+  }, [pollId, user?.uid, loading]);
 
   // 2. Derive User Votes
   const userVotes = (pollState && session) ? Array.from(pollState.votes.entries())

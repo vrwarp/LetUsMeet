@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './DashboardPage';
@@ -105,5 +105,73 @@ describe('DashboardPage', () => {
     );
 
     expect(await screen.findByText(/No polls/i)).toBeInTheDocument();
+  });
+
+  it('categorizes polls and allows switching between Organized and Joined tabs', async () => {
+    vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((cb: any) => {
+      cb([
+        {
+          ledgerId: 'p1',
+          amkId: 'amk_v1',
+          encryptedData: 'ciphertext',
+          iv: 'iv',
+          updatedAt: Date.now()
+        },
+        {
+          ledgerId: 'p2',
+          amkId: 'amk_v1',
+          encryptedData: 'ciphertext',
+          iv: 'iv',
+          updatedAt: Date.now()
+        }
+      ] as any);
+      return () => { };
+    });
+
+    vi.mocked(pollService.getLedgerSession).mockImplementation(async (ledgerId: string) => {
+      const isP1 = ledgerId === 'p1';
+      return {
+        appendEvent: vi.fn(),
+        subscribe: vi.fn(),
+        getGenesisEvent: vi.fn().mockResolvedValue({
+          signerPublicKey: isP1 ? 'pub' : 'other-pub',
+          action: {
+            type: 'POLL_CREATED',
+            payload: {
+              title: isP1 ? 'Mock Organized Meeting' : 'Mock Joined Meeting',
+              location: 'Virtual',
+              schedulingMode: 'EXACT',
+              organizerName: isP1 ? 'Organizer User' : 'Other User',
+              timeSlots: []
+            }
+          }
+        }),
+        exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+        getSignerPublicKey: vi.fn().mockReturnValue('pub'),
+      } as any;
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    // Should display tab buttons
+    const organizedTab = await screen.findByTestId('tab-organizer');
+    const participantTab = await screen.findByTestId('tab-participant');
+    expect(organizedTab).toBeInTheDocument();
+    expect(participantTab).toBeInTheDocument();
+
+    // Active tab (organized) shows p1 and hides p2
+    expect(await screen.findByText('Mock Organized Meeting')).toBeInTheDocument();
+    expect(screen.queryByText('Mock Joined Meeting')).not.toBeInTheDocument();
+
+    // Click on Participant tab
+    fireEvent.click(participantTab);
+
+    // Participant tab shows p2 and hides p1
+    expect(await screen.findByText('Mock Joined Meeting')).toBeInTheDocument();
+    expect(screen.queryByText('Mock Organized Meeting')).not.toBeInTheDocument();
   });
 });

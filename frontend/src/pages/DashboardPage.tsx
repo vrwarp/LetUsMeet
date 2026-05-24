@@ -13,7 +13,7 @@ import {
   rejectDeviceRequest
 } from "@letusmeet/zero-knowledge";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, ShieldAlert, Key, Clipboard, CheckCircle2, Monitor, XCircle } from "lucide-react";
+import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, ShieldAlert, Key, Clipboard, CheckCircle2, Monitor, XCircle, User, Users } from "lucide-react";
 import type { PollMetadata, PendingDevice } from "../types";
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
@@ -28,11 +28,13 @@ interface DecryptedDashboardEntry {
   pollId: string;
   symmetricKey: string;
   metadata: PollMetadata;
+  isOrganizer: boolean;
 }
 
 export default function DashboardPage() {
   const { user, loading, pendingRequests } = useAuth();
   const [entries, setEntries] = useState<DecryptedDashboardEntry[]>([]);
+  const [activeTab, setActiveTab] = useState<"organizer" | "participant">("organizer");
   const [fetching, setFetching] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -96,10 +98,12 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             const session = await getLedgerSession(entry.ledgerId);
             const genesis = await session.getGenesisEvent();
             if (genesis?.action?.type === "POLL_CREATED") {
+              const isOrganizer = session.getSignerPublicKey() === genesis.signerPublicKey;
               return {
                 pollId: entry.ledgerId,
                 symmetricKey: session.exportSessionKey(),
-                metadata: genesis.action.payload
+                metadata: genesis.action.payload,
+                isOrganizer
               } as DecryptedDashboardEntry;
             }
           } catch (e) {
@@ -287,7 +291,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 data-testid="dashboard-title" className="text-4xl font-black text-neutral-900 tracking-tight">Your Polls</h1>
-          <p className="text-neutral-500 font-medium">Manage and finalize your created polls</p>
+          <p className="text-neutral-500 font-medium">Manage and view your meeting schedules</p>
         </div>
 
         <div className="flex flex-wrap gap-3" data-testid="recovery-status">
@@ -332,44 +336,124 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-6">
-          {entries.map((entry) => (
-            <div key={entry.pollId} className="bg-white p-8 rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow group">
-              <div className="flex flex-col md:flex-row justify-between gap-6">
-                <div className="flex-1">
-                  <h2 className="text-2xl font-black text-neutral-800 group-hover:text-brand-green transition-colors mb-4">{entry.metadata.title}</h2>
-                  <div className="flex flex-wrap gap-5 text-sm font-bold text-neutral-400">
-                    {entry.metadata.location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin size={16} className="text-neutral-300" />
-                        <span>{entry.metadata.location}</span>
+        <>
+          {/* Beautiful and responsive tab navigation */}
+          <div className="flex border-b border-neutral-100 mb-8 gap-6">
+            <button
+              onClick={() => setActiveTab("organizer")}
+              data-testid="tab-organizer"
+              className={`pb-4 font-black text-lg transition-all border-b-2 relative flex items-center gap-2 ${
+                activeTab === "organizer"
+                  ? "text-brand-green border-brand-green"
+                  : "text-neutral-400 border-transparent hover:text-neutral-600"
+              }`}
+            >
+              <User size={18} />
+              <span>Organized by Me</span>
+              <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
+                activeTab === "organizer" ? "bg-brand-green/10 text-brand-green" : "bg-neutral-100 text-neutral-500"
+              }`}>
+                {entries.filter(e => e.isOrganizer).length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab("participant")}
+              data-testid="tab-participant"
+              className={`pb-4 font-black text-lg transition-all border-b-2 relative flex items-center gap-2 ${
+                activeTab === "participant"
+                  ? "text-brand-green border-brand-green"
+                  : "text-neutral-400 border-transparent hover:text-neutral-600"
+              }`}
+            >
+              <Users size={18} />
+              <span>Joined & Voted</span>
+              <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
+                activeTab === "participant" ? "bg-brand-green/10 text-brand-green" : "bg-neutral-100 text-neutral-500"
+              }`}>
+                {entries.filter(e => !e.isOrganizer).length}
+              </span>
+            </button>
+          </div>
+
+          {activeTab === "organizer" && entries.filter(e => e.isOrganizer).length === 0 ? (
+            <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
+              <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Calendar size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-neutral-800 mb-2 font-black">No Organized Polls</h2>
+              <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
+                You haven't organized any polls yet. Tap below to create your first meeting poll!
+              </p>
+              <Link to="/create" className="btn-primary-green inline-block">
+                Create New Poll
+              </Link>
+            </div>
+          ) : activeTab === "participant" && entries.filter(e => !e.isOrganizer).length === 0 ? (
+            <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
+              <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Users size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-neutral-800 mb-2 font-black">No Joined Polls</h2>
+              <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
+                Polls you view, vote in, or participate in will automatically be stored securely and displayed here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {entries
+                .filter(e => (activeTab === "organizer" ? e.isOrganizer : !e.isOrganizer))
+                .map((entry) => (
+                  <div key={entry.pollId} className="bg-white p-8 rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow group">
+                    <div className="flex flex-col md:flex-row justify-between gap-6">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3 flex-wrap">
+                          <h2 className="text-2xl font-black text-neutral-800 group-hover:text-brand-green transition-colors">{entry.metadata.title}</h2>
+                          {entry.isOrganizer ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-brand-green/10 text-brand-green-dark border border-brand-green/20">
+                              <User size={12} />
+                              Organizer
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              <Users size={12} />
+                              Participant
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-5 text-sm font-bold text-neutral-400">
+                          {entry.metadata.location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin size={16} className="text-neutral-300" />
+                              <span>{entry.metadata.location}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Activity size={16} className="text-neutral-300" />
+                            <span>{entry.metadata.schedulingMode}</span>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Activity size={16} className="text-neutral-300" />
-                      <span>{entry.metadata.schedulingMode}</span>
+
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
+                          className="px-6 py-3 bg-neutral-50 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-100 transition-colors"
+                        >
+                          View
+                        </Link>
+                        <Link
+                          to={`/poll/${entry.pollId}/results#key=${entry.symmetricKey}`}
+                          className="px-6 py-3 bg-brand-green text-white rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-2 shadow-lg shadow-brand-green/20 transition-all hover:scale-[1.02]"
+                        >
+                          <ExternalLink size={16} /> Results
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Link
-                    to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
-                    className="px-6 py-3 bg-neutral-50 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-100 transition-colors"
-                  >
-                    View
-                  </Link>
-                  <Link
-                    to={`/poll/${entry.pollId}/results#key=${entry.symmetricKey}`}
-                    className="px-6 py-3 bg-brand-green text-white rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-2 shadow-lg shadow-brand-green/20 transition-all hover:scale-[1.02]"
-                  >
-                    <ExternalLink size={16} /> Results
-                  </Link>
-                </div>
-              </div>
+                ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Device Management Section */}

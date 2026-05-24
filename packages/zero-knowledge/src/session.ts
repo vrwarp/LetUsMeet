@@ -166,6 +166,22 @@ export async function getLedgerSession(
   // 2. Try Local device store (IndexedDB)
   const stored = await local.loadIdentity(ledgerId);
   if (stored && options?.shareableKey) {
+    if (user && !user.isAnonymous) {
+      try {
+        const cloudCreds = await loadFromKeystore(ledgerId);
+        if (!cloudCreds) {
+          console.log(`Syncing local identity for ledger ${ledgerId} to cloud keystore`);
+          const creds: LedgerCredentials = {
+            symmetricKey: options.shareableKey,
+            signingPrivateKey: stored.privateKey,
+            signingPublicKey: stored.publicKey
+          };
+          await saveToKeystore(ledgerId, creds);
+        }
+      } catch (err) {
+        console.warn("Failed to sync local identity to cloud keystore:", err);
+      }
+    }
     return new DefaultLedgerSession(
       ledgerId,
       await importSymmetricKey(options.shareableKey),
