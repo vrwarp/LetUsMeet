@@ -71,6 +71,7 @@ export {
   revokeDevice,
   saveToKeystore,
   loadFromKeystore,
+  hasAccountKeys,
   verifyAmk,
   requestDeviceAuthorization,
   approveDeviceAuthorization,

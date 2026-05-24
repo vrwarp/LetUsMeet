@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
+import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
 import { 
   getLocalPublicKey, 
   requestDeviceAuthorization, 
@@ -33,6 +34,7 @@ function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
 
 export default function Layout() {
   const location = useLocation();
+  const isPublicPage = location.pathname === "/privacy" || location.pathname === "/terms";
   const navigate = useNavigate();
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
@@ -162,16 +164,18 @@ export default function Layout() {
             </span>
           </Link>
           <nav className="flex items-center gap-2 sm:gap-4">
-            <Link
-              to="/create"
-              data-testid="create-poll-btn"
-              className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
-            >
-              <PlusCircle size={18} />
-              <span className="hidden sm:inline">Create Poll</span>
-            </Link>
+            {!isPublicPage && (
+              <Link
+                to="/create"
+                data-testid="create-poll-btn"
+                className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
+              >
+                <PlusCircle size={18} />
+                <span className="hidden sm:inline">Create Poll</span>
+              </Link>
+            )}
 
-            {!loading && (
+            {!isPublicPage && !loading && (
               <div className="flex items-center">
                 {user && !user.isAnonymous ? (
                   <div className="relative" ref={menuRef}>
@@ -283,7 +287,7 @@ export default function Layout() {
       )}
 
       <main className="flex-1 w-full">
-        {pendingRequests.length > 0 && location.pathname !== "/dashboard" && (
+        {pendingRequests.length > 0 && location.pathname !== "/dashboard" && !isPublicPage && (
           <div className="max-w-5xl mx-auto px-4 mt-6 animate-fade-in-up" data-testid="pending-auth-request">
             {pendingRequests.map(req => (
               <div key={req.deviceId} className="mb-4 bg-brand-green/10 border-2 border-brand-green/20 p-4 sm:p-6 rounded-[2rem] flex flex-col sm:flex-row items-center gap-4 sm:gap-6 shadow-lg shadow-brand-green/5">
@@ -321,10 +325,16 @@ export default function Layout() {
           </div>
         )}
 
-        <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+        {isPublicPage ? (
+          <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+        ) : (
+          <DeviceEnrollmentGate>
+            <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+          </DeviceEnrollmentGate>
+        )}
       </main>
 
-      {keyMismatchError && !activeAdminToken && (
+      {keyMismatchError && !activeAdminToken && !isPublicPage && (
         <div data-testid="mismatch-error" className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center">
           {!showPhraseInput ? (
             <div 

@@ -22,6 +22,8 @@ const mockUseAuth = vi.fn(() => ({
   loading: false,
   keyMismatchError: null,
   pendingRequests: [],
+  isDeviceRegistered: true,
+  enrollDevice: vi.fn(),
   signInWithGoogle: vi.fn(),
   signOutUser: vi.fn(),
   resetAccount: vi.fn(),

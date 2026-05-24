@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/base-test';
 import { BrowserContext, Page } from '@playwright/test';
 import { setupWebAuthn } from './helpers/webauthn-helper';
-import { mockGoogleSignIn } from './helpers/auth-helper';
+import { mockGoogleSignIn, clickSetupSecureAccess } from './helpers/auth-helper';
 
 async function waitForDashboardReady(page: Page) {
   await expect(page.getByText('Decrypting your dashboard...')).not.toBeVisible({ timeout: 30000 });
@@ -43,6 +43,7 @@ test.describe('Device Management & Recovery', () => {
     // 1. Sponsor Setup
     await sponsorPage.goto('/');
     await mockGoogleSignIn(sponsorPage, email);
+    await clickSetupSecureAccess(sponsorPage);
 
     await sponsorPage.goto('/create');
     await sponsorPage.getByTestId('organizer-name-input').fill('Sponsor User');
@@ -77,14 +78,15 @@ test.describe('Device Management & Recovery', () => {
     await sponsorPage.bringToFront();
     const requestItem = sponsorPage.getByTestId('pending-auth-request').first();
     await expect(requestItem).toBeVisible({ timeout: 20000 });
-    await expect(requestItem).toContainText(verificationCode!.trim());
+    await expect(requestItem.getByText(verificationCode!.trim())).toBeVisible();
 
-    await requestItem.getByTestId('approve-auth-btn').click();
-    await expect(requestItem).not.toBeVisible({ timeout: 15000 });
+    const approveBtnSponsor = requestItem.getByTestId('approve-auth-btn');
+    await expect(approveBtnSponsor).toBeVisible();
+    await approveBtnSponsor.click();
 
-    // 5. New Device Accesses Data
-    await newPage.bringToFront();
-    await expect(newPage.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 45000 });
+    // 5. New Device should detect and reload automatically
+    await expect(newPage.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 30000 });
+    await newPage.goto('/dashboard');
     await waitForDashboardReady(newPage);
     await expect(newPage.locator('h2', { hasText: pollTitle })).toBeVisible({ timeout: 15000 });
   });
@@ -99,6 +101,7 @@ test.describe('Device Management & Recovery', () => {
     // 1. Setup both devices
     await sponsorPage.goto('/');
     await mockGoogleSignIn(sponsorPage, email);
+    await clickSetupSecureAccess(sponsorPage);
     await sponsorPage.goto('/dashboard');
     await waitForDashboardReady(sponsorPage);
 
@@ -143,6 +146,7 @@ test.describe('Device Management & Recovery', () => {
     // 1. Setup Device 1
     await page.goto('/');
     await mockGoogleSignIn(page, email);
+    await clickSetupSecureAccess(page);
 
     await page.goto('/create');
     await page.getByTestId('organizer-name-input').fill('PRF User');

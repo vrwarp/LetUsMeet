@@ -1,5 +1,5 @@
 import { test, expect } from './helpers/base-test';
-import { mockGoogleSignIn } from './helpers/auth-helper';
+import { mockGoogleSignIn, clickSetupSecureAccess } from './helpers/auth-helper';
 import { setupWebAuthn } from './helpers/webauthn-helper';
 import { BrowserContext, Page } from '@playwright/test';
 
@@ -32,6 +32,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     // 1. Sign in as a new user
     const email = `genesis-${Date.now()}@example.com`;
     await mockGoogleSignIn(page, email);
+    await clickSetupSecureAccess(page);
 
     // 2. Verify dashboard/profile shows "Protected by Zero-Knowledge" or similar
     // And verify recovery is enabled
@@ -61,6 +62,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.goto('/');
     const email = `multidevice-${Date.now()}@example.com`;
     await mockGoogleSignIn(sponsorPage, email);
+    await clickSetupSecureAccess(sponsorPage);
     await sponsorPage.goto('/dashboard');
     await expect(sponsorPage.getByTestId('device-list')).toContainText('Current');
 
@@ -111,6 +113,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.goto('/');
     const email = `revocation-${Date.now()}@example.com`;
     await mockGoogleSignIn(sponsorPage, email);
+    await clickSetupSecureAccess(sponsorPage);
     await sponsorPage.goto('/dashboard');
     await expect(sponsorPage.getByTestId('device-list')).toContainText('Current');
 

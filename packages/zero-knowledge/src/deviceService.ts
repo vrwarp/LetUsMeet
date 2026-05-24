@@ -445,6 +445,18 @@ export async function loadFromKeystore(ledgerId: string): Promise<LedgerCredenti
   };
 }
 
+export async function hasAccountKeys(): Promise<boolean> {
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) return false;
+  try {
+    const keys = await store.getAccountKeys();
+    return !!keys;
+  } catch (e) {
+    console.error("Failed to fetch account keys:", e);
+    return false;
+  }
+}
+
 export async function verifyAmk(): Promise<boolean> {
   const user = auth.getCurrentUser();
   if (!user || user.isAnonymous) return true;
