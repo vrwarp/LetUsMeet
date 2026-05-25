@@ -182,7 +182,7 @@ export default function DashboardPage() {
       clearTimeout(timer);
       window.removeEventListener('resize', updatePaths);
     };
-  }, [accountData, recoveryStatus, updatePaths]);
+  }, [accountData, recoveryStatus, fetching, loading, updatePaths]);
 
   useEffect(() => {
     if (loading || !user || user.isAnonymous) {
