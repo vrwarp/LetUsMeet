@@ -91,7 +91,7 @@ export default function PrivacyPolicyPage() {
           </div>
           <div className="space-y-6">
             <p className="text-lg text-neutral-300 leading-relaxed">
-              Using Natural Language Extraction transmits your input query to a third-party AI sub-processor (Google Gemini) for parsing.
+              Using Natural Language Extraction transmits your input query to third-party AI sub-processors (Cerebras as primary, Google Gemini as fallback) for parsing.
             </p>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
               <h3 className="font-bold mb-2 flex items-center gap-2">
