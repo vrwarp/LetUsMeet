@@ -39,7 +39,8 @@ export default function ResultsPage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showShareCopied, setShowShareCopied] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedLinkType, setCopiedLinkType] = useState<'poll' | 'results' | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -208,10 +209,16 @@ export default function ResultsPage() {
     }
   };
 
+  const getResultsLink = () => {
+    return getShareableUrl();
+  };
+
+  const getPollLink = () => {
+    return getShareableUrl().replace("/results", "");
+  };
+
   const handleShare = () => {
-    navigator.clipboard.writeText(getShareableUrl());
-    setShowShareCopied(true);
-    setTimeout(() => setShowShareCopied(false), 3000);
+    setShowShareModal(true);
   };
 
   const handleComposeEmail = () => {
@@ -522,8 +529,9 @@ export default function ResultsPage() {
                 icon={<Share2 className="w-6 h-6" />}
                 label={isAdmin ? "Share Poll" : undefined}
                 onAction={handleShare}
-                isSuccess={showShareCopied}
+                isSuccess={false}
                 theme="dark"
+                data-testid="share-button"
               />
             </div>
           </div>
@@ -570,6 +578,110 @@ export default function ResultsPage() {
           </div>
           <div className="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-auto p-1 md:p-4">
              {renderMatrixTable(true)}
+          </div>
+        </div>
+      )}
+
+      {showShareModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 md:p-10 border border-neutral-100 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Decorative Blur */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-green/5 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Close Button */}
+            <button 
+              onClick={() => {
+                setShowShareModal(false);
+                setCopiedLinkType(null);
+              }}
+              className="absolute top-6 right-6 p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 rounded-full transition-colors"
+              aria-label="Close share dialog"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex flex-col gap-6">
+              <div>
+                <h3 className="text-2xl font-black text-neutral-800 tracking-tight mb-2">Share this Poll</h3>
+                <p className="text-neutral-500 text-sm font-medium">Which link would you like to copy?</p>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                {/* Option 1: Poll Link */}
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(getPollLink());
+                    setCopiedLinkType('poll');
+                    setTimeout(() => {
+                      setShowShareModal(false);
+                      setCopiedLinkType(null);
+                    }, 1200);
+                  }}
+                  data-testid="share-poll-link-btn"
+                  className={`w-full text-left p-6 rounded-3xl border-2 transition-all flex items-start gap-4 hover:scale-[1.01] active:scale-[0.99] ${
+                    copiedLinkType === 'poll'
+                      ? 'border-brand-green bg-brand-green-light/20'
+                      : 'border-neutral-100 bg-white hover:border-neutral-200 hover:bg-neutral-50/50'
+                  }`}
+                >
+                  <div className={`p-3 rounded-2xl ${
+                    copiedLinkType === 'poll' ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-600'
+                  }`}>
+                    <Users size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-neutral-800 text-base">Poll Link (For Voting)</span>
+                      {copiedLinkType === 'poll' && (
+                        <span className="text-xs font-bold text-brand-green uppercase tracking-wider flex items-center gap-1">
+                          <CheckCircle2 size={14} /> Copied
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-neutral-500 text-xs mt-1 leading-relaxed">
+                      Allow others to view details and submit their availability.
+                    </p>
+                  </div>
+                </button>
+
+                {/* Option 2: Results Link */}
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(getResultsLink());
+                    setCopiedLinkType('results');
+                    setTimeout(() => {
+                      setShowShareModal(false);
+                      setCopiedLinkType(null);
+                    }, 1200);
+                  }}
+                  data-testid="share-results-link-btn"
+                  className={`w-full text-left p-6 rounded-3xl border-2 transition-all flex items-start gap-4 hover:scale-[1.01] active:scale-[0.99] ${
+                    copiedLinkType === 'results'
+                      ? 'border-brand-green bg-brand-green-light/20'
+                      : 'border-neutral-100 bg-white hover:border-neutral-200 hover:bg-neutral-50/50'
+                  }`}
+                >
+                  <div className={`p-3 rounded-2xl ${
+                    copiedLinkType === 'results' ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-600'
+                  }`}>
+                    <CalendarCheck size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-neutral-800 text-base">Results Link (For Viewing)</span>
+                      {copiedLinkType === 'results' && (
+                        <span className="text-xs font-bold text-brand-green uppercase tracking-wider flex items-center gap-1">
+                          <CheckCircle2 size={14} /> Copied
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-neutral-500 text-xs mt-1 leading-relaxed">
+                      Allow others to view the response grid, totals, and final date.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

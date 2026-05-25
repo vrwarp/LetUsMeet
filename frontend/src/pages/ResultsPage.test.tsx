@@ -223,4 +223,49 @@ describe('ResultsPage', () => {
     appendSpy.mockRestore();
     removeSpy.mockRestore();
   });
+
+  it('opens a dialog/modal when clicking share, allowing user to copy results or poll link', async () => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Share Test Poll',
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes: new Map(),
+        isFinalized: false
+      } as any, 'Synced');
+      return () => {};
+    });
+
+    const mockWriteText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: mockWriteText
+      }
+    });
+
+    vi.mocked(pollService.getShareableUrl).mockImplementation(() => 'http://localhost/poll/mock-poll-id-123/results#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=');
+
+    renderPage();
+
+    expect(await screen.findByText('Share Test Poll')).toBeInTheDocument();
+
+    const shareButton = screen.getByTestId('share-button');
+    expect(shareButton).toBeInTheDocument();
+    shareButton.click();
+
+    expect(await screen.findByText('Share this Poll')).toBeInTheDocument();
+    expect(await screen.findByText('Which link would you like to copy?')).toBeInTheDocument();
+
+    const pollLinkBtn = screen.getByTestId('share-poll-link-btn');
+    pollLinkBtn.click();
+
+    expect(mockWriteText).toHaveBeenCalled();
+    const copiedVal = mockWriteText.mock.calls[0][0];
+    expect(copiedVal).toContain('/poll/mock-poll-id-123');
+    expect(copiedVal).not.toContain('/results');
+  });
 });
