@@ -697,3 +697,50 @@ export async function resetUserAccountRemote(): Promise<void> {
   await store.resetRemoteStore();
 }
 
+async function getBlindedKeystoreDocId(ledgerId: string): Promise<string | null> {
+  const user = auth.getCurrentUser();
+  if (!user || user.isAnonymous) return null;
+
+  const { amk: activeAmk } = await getActiveAmk();
+  const activeDocId = await blindLedgerId(activeAmk, ledgerId);
+  const entry = await store.getKeystoreEntry(activeDocId);
+  if (entry) return activeDocId;
+
+  const deviceId = getDeviceId();
+  const accountKeys = await store.getAccountKeys();
+  if (accountKeys) {
+    const amkIds = Object.keys(accountKeys.keyring).filter(
+      id => accountKeys.keyring[id]?.[deviceId] && id !== accountKeys.activeAmkId
+    );
+    for (const amkId of amkIds) {
+      try {
+        const historicalAmk = await getAmkById(amkId);
+        const historicalDocId = await blindLedgerId(historicalAmk, ledgerId);
+        const historicalEntry = await store.getKeystoreEntry(historicalDocId);
+        if (historicalEntry) {
+          return historicalDocId;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+  }
+  return null;
+}
+
+export async function archiveKeystoreEntry(ledgerId: string): Promise<void> {
+  const docId = await getBlindedKeystoreDocId(ledgerId);
+  if (!docId) {
+    throw new Error(`Keystore entry for ledger ${ledgerId} not found.`);
+  }
+  await store.setKeystoreArchivedStatus(docId, true);
+}
+
+export async function unarchiveKeystoreEntry(ledgerId: string): Promise<void> {
+  const docId = await getBlindedKeystoreDocId(ledgerId);
+  if (!docId) {
+    throw new Error(`Keystore entry for ledger ${ledgerId} not found.`);
+  }
+  await store.setKeystoreArchivedStatus(docId, false);
+}
+

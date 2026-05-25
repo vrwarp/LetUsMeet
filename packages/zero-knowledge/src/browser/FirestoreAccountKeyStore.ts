@@ -9,7 +9,8 @@ import {
   where,
   deleteDoc,
   getDocs,
-  writeBatch
+  writeBatch,
+  updateDoc
 } from "firebase/firestore";
 import { getDb, getAuth } from "../config";
 import type { AccountKeyStore } from "../core/interfaces";
@@ -85,6 +86,12 @@ export class FirestoreAccountKeyStore implements AccountKeyStore {
     const uid = this.getUid();
     const ref = doc(getDb(), "users", uid, "keystore", ledgerId);
     await setDoc(ref, entry);
+  }
+
+  async setKeystoreArchivedStatus(docId: string, isArchived: boolean): Promise<void> {
+    const uid = this.getUid();
+    const ref = doc(getDb(), "users", uid, "keystore", docId);
+    await updateDoc(ref, { isArchived });
   }
 
   async getPendingDevice(deviceId: string): Promise<PendingDevice | null> {
