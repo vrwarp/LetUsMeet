@@ -135,24 +135,52 @@ export default function DashboardPage() {
       }
     });
     
-    setPaths({
-      passkey: passkeyPath,
-      backup: backupPath,
-      devices: devicesPaths
+    setPaths(prev => {
+      const changed = 
+        prev.passkey !== passkeyPath ||
+        prev.backup !== backupPath ||
+        Object.keys(prev.devices).length !== Object.keys(devicesPaths).length ||
+        Object.keys(devicesPaths).some(key => prev.devices[key] !== devicesPaths[key]);
+      
+      if (!changed) return prev;
+      return {
+        passkey: passkeyPath,
+        backup: backupPath,
+        devices: devicesPaths
+      };
     });
   }, [accountData]);
 
   useEffect(() => {
-    updatePaths();
-    window.addEventListener('resize', updatePaths);
-    
-    const timer = setTimeout(updatePaths, 100);
+    // 1. Initial draw scheduled on the next browser paint cycle
     const frame = requestAnimationFrame(updatePaths);
     
+    // 2. React to font loading reflows using standard Fonts API
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(updatePaths);
+    }
+    
+    // 3. Dynamic ResizeObserver to watch for layout viewport changes
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      observer = new ResizeObserver(() => {
+        updatePaths();
+      });
+      observer.observe(containerRef.current);
+    }
+    
+    // 4. Single short-term fallback timer to capture state transition settles
+    const timer = setTimeout(updatePaths, 150);
+    
+    window.addEventListener('resize', updatePaths);
+    
     return () => {
-      window.removeEventListener('resize', updatePaths);
-      clearTimeout(timer);
       cancelAnimationFrame(frame);
+      if (observer) {
+        observer.disconnect();
+      }
+      clearTimeout(timer);
+      window.removeEventListener('resize', updatePaths);
     };
   }, [accountData, recoveryStatus, updatePaths]);
 
@@ -500,7 +528,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
           {/* Desktop View: Interactive visual topology web */}
           <div ref={containerRef} className="grid grid-cols-3 gap-2 sm:gap-6 items-center relative px-1 sm:px-6">
             {/* SVG Connector Lines Overlay */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none block" xmlns="http://www.w3.org/2000/svg">
+            <svg width="100%" height="100%" className="absolute inset-0 pointer-events-none block" xmlns="http://www.w3.org/2000/svg">
               {/* Biometric Passkey (top-left) to Master Key (center) */}
               {paths.passkey && (
                 recoveryStatus.isSealed ? (
@@ -571,14 +599,14 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   /* Mobile styles: circular button */
                   w-12 h-12 rounded-full border shadow-md active:scale-95 flex-shrink-0
                   ${recoveryStatus.isSealed 
-                    ? 'bg-brand-green border-brand-green text-white hover:bg-brand-green-dark shadow-brand-green/20' 
-                    : 'bg-red-500 border-red-600 text-white animate-pulse shadow-red-500/20'
+                    ? 'bg-brand-green border-brand-green text-white max-md:hover:bg-brand-green-dark shadow-brand-green/20' 
+                    : 'bg-red-500 border-red-600 text-white animate-pulse shadow-red-500/20 max-md:hover:bg-red-600'
                   }
                   /* Desktop override styles */
                   md:w-full md:max-w-[220px] md:h-auto md:rounded-2xl md:p-3 md:shadow-none md:active:scale-100 md:border md:block
                   ${recoveryStatus.isSealed 
-                    ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800' 
-                    : 'md:bg-red-50/50 md:border-red-200 md:text-neutral-800'
+                    ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800 md:hover:bg-brand-green/[0.08] md:hover:border-brand-green/30' 
+                    : 'md:bg-red-50/50 md:border-red-200 md:text-neutral-800 md:hover:bg-red-50/80 md:hover:border-red-300'
                   }
                 `}
               >
@@ -627,14 +655,14 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   /* Mobile styles: circular button */
                   w-12 h-12 rounded-full border shadow-md active:scale-95 flex-shrink-0
                   ${hasPhrase 
-                    ? 'bg-brand-green border-brand-green text-white hover:bg-brand-green-dark shadow-brand-green/20' 
-                    : 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20'
+                    ? 'bg-brand-green border-brand-green text-white max-md:hover:bg-brand-green-dark shadow-brand-green/20' 
+                    : 'bg-amber-500 border-amber-600 text-white shadow-amber-500/20 max-md:hover:bg-amber-600'
                   }
                   /* Desktop override styles */
                   md:w-full md:max-w-[220px] md:h-auto md:rounded-2xl md:p-3 md:shadow-none md:active:scale-100 md:border md:block
                   ${hasPhrase 
-                    ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800' 
-                    : 'md:bg-amber-50/50 md:border-amber-200 md:text-neutral-800'
+                    ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800 md:hover:bg-brand-green/[0.08] md:hover:border-brand-green/30' 
+                    : 'md:bg-amber-50/50 md:border-amber-200 md:text-neutral-800 md:hover:bg-amber-50/80 md:hover:border-amber-300'
                   }
                 `}
               >
@@ -732,14 +760,14 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       /* Mobile styles: circular button */
                       w-12 h-12 rounded-full border shadow-md active:scale-95 flex-shrink-0
                       ${isCurrent 
-                        ? 'bg-brand-green border-brand-green text-white shadow-brand-green/20' 
-                        : 'bg-neutral-900 border-black text-white shadow-neutral-950/20'
+                        ? 'bg-brand-green border-brand-green text-white shadow-brand-green/20 max-md:hover:bg-brand-green-dark' 
+                        : 'bg-neutral-900 border-black text-white shadow-neutral-950/20 max-md:hover:bg-neutral-800'
                       }
                       /* Desktop override styles */
                       md:w-full md:max-w-[220px] md:h-auto md:rounded-2xl md:p-3 md:shadow-sm md:active:scale-100 md:border md:block
                       ${isCurrent 
-                        ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800' 
-                        : 'md:bg-white md:border-neutral-100 md:text-neutral-800 md:hover:border-brand-red/20'
+                        ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800 md:hover:bg-brand-green/[0.08] md:hover:border-brand-green/30' 
+                        : 'md:bg-white md:border-neutral-100 md:text-neutral-800 md:hover:bg-neutral-50/80 md:hover:border-neutral-200 md:hover:border-brand-red/20'
                       }
                     `}
                   >
