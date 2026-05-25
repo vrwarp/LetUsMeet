@@ -8,6 +8,7 @@ export interface EncryptedData {
 export interface KeystoreEntry extends EncryptedData {
   amkId: string;    // Explicitly declare which AMK encrypted this payload
   updatedAt: number;
+  isArchived?: boolean;
 }
 
 export interface DecryptedKeystoreEntry extends KeystoreEntry {

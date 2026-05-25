@@ -2,7 +2,9 @@ import {
   createLedgerSession,
   subscribeToUserKeystore as zkSubscribeToUserKeystore,
   resetLocalStorage,
-  resetUserAccountRemote
+  resetUserAccountRemote,
+  archiveKeystoreEntry,
+  unarchiveKeystoreEntry
 } from "@letusmeet/zero-knowledge";
 import { calculatePollState } from "./pollReducer";
 import type { PollState, PollMetadata } from "../types";
@@ -109,3 +111,5 @@ export async function resetKeystore() {
   await resetUserAccountRemote();
   await resetLocalStorage();
 }
+
+export { archiveKeystoreEntry, unarchiveKeystoreEntry };

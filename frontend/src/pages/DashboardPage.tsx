@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { subscribeToUserKeystore, getLedgerSession } from "@/lib/pollService";
+import { subscribeToUserKeystore, getLedgerSession, archiveKeystoreEntry, unarchiveKeystoreEntry } from "@/lib/pollService";
 import {
   getRecoveryStatus,
   enablePrfRecovery,
@@ -13,7 +13,7 @@ import {
   rejectDeviceRequest
 } from "@letusmeet/zero-knowledge";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key } from "lucide-react";
+import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
 import type { PollMetadata, PendingDevice } from "../types";
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
@@ -29,11 +29,52 @@ interface DecryptedDashboardEntry {
   symmetricKey: string;
   metadata: PollMetadata;
   isOrganizer: boolean;
+  isArchived?: boolean;
 }
 
 export default function DashboardPage() {
   const { user, loading, pendingRequests } = useAuth();
   const [entries, setEntries] = useState<DecryptedDashboardEntry[]>([]);
+  
+  const activeEntries = entries.filter(e => !e.isArchived);
+  const archivedEntries = entries.filter(e => e.isArchived);
+  const hasArchivedPolls = archivedEntries.length > 0;
+  const [isArchivedExpanded, setIsArchivedExpanded] = useState(false);
+  
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  const handleArchive = async (pollId: string, title: string) => {
+    const entry = activeEntries.find(e => e.pollId === pollId);
+    const isOrganizer = entry?.isOrganizer;
+    const warningMsg = isOrganizer
+      ? `Archive poll "${title}"?\n\nThis will hide the poll from your main dashboard. Because you are the Organizer, you will not be able to manage, edit, or close this poll unless you restore it from the Archive section first.`
+      : `Archive poll "${title}"?\n\nThis will hide the poll from your main dashboard view. You can restore it and adjust your responses at any time from the Archive section at the bottom.`;
+
+    if (!window.confirm(warningMsg)) return;
+
+    try {
+      setActionInProgress(pollId);
+      await archiveKeystoreEntry(pollId);
+    } catch (e) {
+      console.error("Failed to archive poll:", e);
+      alert("Failed to archive poll.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleUnarchive = async (pollId: string) => {
+    try {
+      setActionInProgress(pollId);
+      await unarchiveKeystoreEntry(pollId);
+    } catch (e) {
+      console.error("Failed to restore poll:", e);
+      alert("Failed to restore poll.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") === "participant") ? "participant" : "organizer";
 
@@ -215,7 +256,8 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                 pollId: entry.ledgerId,
                 symmetricKey: session.exportSessionKey(),
                 metadata: genesis.action.payload,
-                isOrganizer
+                isOrganizer,
+                isArchived: entry.isArchived
               } as DecryptedDashboardEntry;
             }
           } catch (e) {
@@ -330,7 +372,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
         </div>
       </div>
 
-      {entries.length === 0 ? (
+      {activeEntries.length === 0 ? (
         <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50">
           <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Calendar size={32} />
@@ -362,7 +404,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
                 activeTab === "organizer" ? "bg-brand-green/10 text-brand-green" : "bg-neutral-100 text-neutral-500"
               }`}>
-                {entries.filter(e => e.isOrganizer).length}
+                {activeEntries.filter(e => e.isOrganizer).length}
               </span>
             </button>
             <button
@@ -379,13 +421,13 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
                 activeTab === "participant" ? "bg-brand-green/10 text-brand-green" : "bg-neutral-100 text-neutral-500"
               }`}>
-                {entries.filter(e => !e.isOrganizer).length}
+                {activeEntries.filter(e => !e.isOrganizer).length}
               </span>
             </button>
           </div>
         </div>
 
-          {activeTab === "organizer" && entries.filter(e => e.isOrganizer).length === 0 ? (
+          {activeTab === "organizer" && activeEntries.filter(e => e.isOrganizer).length === 0 ? (
             <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
               <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Calendar size={32} />
@@ -398,7 +440,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                 Create New Poll
               </Link>
             </div>
-          ) : activeTab === "participant" && entries.filter(e => !e.isOrganizer).length === 0 ? (
+          ) : activeTab === "participant" && activeEntries.filter(e => !e.isOrganizer).length === 0 ? (
             <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
               <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Users size={32} />
@@ -410,7 +452,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             </div>
           ) : (
             <div className="grid gap-6">
-              {entries
+              {activeEntries
                 .filter(e => (activeTab === "organizer" ? e.isOrganizer : !e.isOrganizer))
                 .map((entry) => (
                   <div key={entry.pollId} className="bg-white p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow group">
@@ -445,6 +487,14 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       </div>
 
                       <div className="flex items-center gap-2 sm:gap-3">
+                        <button
+                          onClick={() => handleArchive(entry.pollId, entry.metadata.title)}
+                          disabled={actionInProgress === entry.pollId}
+                          className="p-2.5 sm:p-3 text-neutral-400 hover:text-red-500 rounded-xl sm:rounded-2xl border border-neutral-100 hover:border-red-100 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          title="Archive Poll"
+                        >
+                          <Archive size={18} />
+                        </button>
                         <Link
                           to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
                           className="px-4 sm:px-6 py-2.5 sm:py-3 bg-neutral-50 text-neutral-600 rounded-xl sm:rounded-2xl font-bold hover:bg-neutral-100 transition-colors text-sm sm:text-base whitespace-nowrap"
@@ -464,6 +514,75 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             </div>
           )}
         </>
+      )}
+
+      {/* 2. Archived Polls Section */}
+      {hasArchivedPolls && (
+        <div className="mt-8 bg-neutral-50/50 border border-neutral-100 rounded-[2.5rem] p-6 sm:p-8 mb-10">
+          <button
+            onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
+            className="flex items-center justify-between w-full text-left focus:outline-none group/btn cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <Archive className="text-neutral-400 group-hover/btn:text-brand-green transition-colors" size={24} />
+              <div>
+                <h3 className="text-xl font-black text-neutral-800 group-hover/btn:text-brand-green transition-colors">Archived Polls</h3>
+                <p className="text-sm font-medium text-neutral-400">These polls are hidden from your active lists. You can restore them to your active dashboard at any time.</p>
+              </div>
+            </div>
+            <div className={`p-2 bg-white rounded-xl border border-neutral-100 text-neutral-400 group-hover/btn:text-brand-green group-hover/btn:border-brand-green/20 transition-all duration-200 ${isArchivedExpanded ? 'rotate-180 text-brand-green' : ''}`}>
+              <ChevronDown size={20} />
+            </div>
+          </button>
+
+          {isArchivedExpanded && (
+            <div className="grid gap-4 mt-6 animate-fade-in-down">
+              {archivedEntries.map((entry) => (
+                <div key={entry.pollId} className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[1.5rem] border border-neutral-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h4 className="text-lg font-bold text-neutral-700">{entry.metadata.title}</h4>
+                      {entry.isOrganizer ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-green/10 text-brand-green font-black">
+                          Organizer
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600">
+                          Participant
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-bold text-neutral-400">
+                      Location: {entry.metadata.location || "None"} • Mode: {entry.metadata.schedulingMode === "EXACT" ? "Exact Times" : "Flexible"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+                    <button
+                      onClick={() => handleUnarchive(entry.pollId)}
+                      disabled={actionInProgress === entry.pollId}
+                      className="p-2 text-neutral-400 hover:text-brand-green rounded-xl border border-neutral-100 hover:border-brand-green/20 hover:bg-brand-green/5 transition-colors disabled:opacity-50"
+                      title="Restore to Active Dashboard"
+                    >
+                      <ArchiveRestore size={16} />
+                    </button>
+                    <Link
+                      to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
+                      className="px-3 py-1.5 bg-neutral-50 text-neutral-600 rounded-xl font-bold hover:bg-neutral-100 transition-colors text-xs"
+                    >
+                      View
+                    </Link>
+                    <Link
+                      to={`/poll/${entry.pollId}/results#key=${entry.symmetricKey}`}
+                      className="px-3 py-1.5 bg-brand-green text-white rounded-xl font-bold hover:bg-brand-green-dark transition-colors text-xs"
+                    >
+                      Results
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Spacing / Divider */}

@@ -83,6 +83,8 @@ export {
   rejectDeviceRequest,
   resetLocalStorage,
   resetUserAccountRemote,
+  archiveKeystoreEntry,
+  unarchiveKeystoreEntry,
   DecryptedDevice
 } from "./deviceService";
 

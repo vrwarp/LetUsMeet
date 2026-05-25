@@ -383,6 +383,12 @@ export class MockAccountKeyStore implements AccountKeyStore {
     this.keystore[ledgerId] = JSON.parse(JSON.stringify(entry));
   }
 
+  async setKeystoreArchivedStatus(docId: string, isArchived: boolean): Promise<void> {
+    if (this.keystore[docId]) {
+      this.keystore[docId].isArchived = isArchived;
+    }
+  }
+
   async getPendingDevice(deviceId: string): Promise<PendingDevice | null> {
     const pending = this.pendingDevices[deviceId];
     return pending ? JSON.parse(JSON.stringify(pending)) : null;

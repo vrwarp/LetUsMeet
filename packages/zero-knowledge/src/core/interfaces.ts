@@ -81,6 +81,9 @@ export interface AccountKeyStore {
   /** Set a keystore entry. */
   setKeystoreEntry(ledgerId: string, entry: KeystoreEntry): Promise<void>;
 
+  /** Set a keystore entry's archival status. */
+  setKeystoreArchivedStatus(docId: string, isArchived: boolean): Promise<void>;
+
   /** Get a pending device request. */
   getPendingDevice(deviceId: string): Promise<PendingDevice | null>;
 
