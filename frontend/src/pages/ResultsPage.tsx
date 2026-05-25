@@ -347,7 +347,7 @@ export default function ResultsPage() {
                   }`}>
                     {
                       vote.selections[slot.id] === "YES" ? "✓" : 
-                      vote.selections[slot.id] === "IF_NEED_BE" ? "?" : 
+                      vote.selections[slot.id] === "IF_NEED_BE" ? "⚠" : 
                       vote.selections[slot.id] === "BLANK" ? "" : 
                       "×"
                     }

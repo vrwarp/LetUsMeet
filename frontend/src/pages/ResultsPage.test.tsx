@@ -80,6 +80,37 @@ describe('ResultsPage', () => {
     expect(row).toHaveTextContent('1');
   });
 
+  it('renders availability grid showing ⚠ for IF_NEED_BE selections', async () => {
+    const votes = new Map();
+    votes.set('pub1', { 
+      responseId: 'r1',
+      participantName: 'Alice', 
+      selections: { t1: 'IF_NEED_BE' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: { 
+          title: 'Meeting Results', 
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: false
+      } as any, 'Synced');
+      return () => {};
+    });
+    
+    renderPage();
+    
+    expect(await screen.findByText('Meeting Results')).toBeInTheDocument();
+    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('⚠')).toBeInTheDocument();
+  });
+
   it('shows No responses yet message', async () => {
     vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({ 
