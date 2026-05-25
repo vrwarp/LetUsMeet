@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Outlet, Link, useLocation, useSearchParams, useNavigate, useNavigation } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { analyzeMnemonicTypos } from "@/lib/recoveryCorrector";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp?inline";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
@@ -43,6 +44,9 @@ export default function Layout() {
   const [isRecovering, setIsRecovering] = useState(false);
   const { user, loading, keyMismatchError, signInWithGoogle, signOutUser, resetAccount, deleteAccount, recoverWithPhrase, pendingRequests } = useAuth();
   const [isWaitingForAuth, setIsWaitingForAuth] = useState(false);
+  const typoReport = useMemo(() => {
+    return analyzeMnemonicTypos(mnemonicInput);
+  }, [mnemonicInput]);
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isClaimed, setIsClaimed] = useState(false);
@@ -517,6 +521,21 @@ export default function Layout() {
                   disabled={isRecovering}
                 />
 
+                {typoReport.hasOovWords && (
+                  <div className="w-full bg-red-50 border border-red-100 text-brand-red p-4 rounded-2xl mb-4 text-xs font-semibold text-left space-y-1">
+                    <p className="font-bold">Spelling mistakes found:</p>
+                    <ul className="list-disc pl-4 space-y-1 font-medium">
+                      {typoReport.wordReports
+                        .filter(w => !w.inDict)
+                        .map((w, idx) => (
+                          <li key={idx}>
+                            Word #{w.index + 1} <span className="underline font-bold text-neutral-800">"{w.word}"</span> is not recognized. 
+                            {w.suggestions.length > 0 && ` Did you mean: ${w.suggestions.slice(0, 3).join(', ')}?`}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="flex gap-2.5 w-full">
                   <button 
                     onClick={() => setShowPhraseInput(false)}
@@ -527,7 +546,7 @@ export default function Layout() {
                   </button>
                   <button 
                     onClick={handleRecover}
-                    disabled={isRecovering || !mnemonicInput.trim()}
+                    disabled={isRecovering || !typoReport.isValid}
                     className="flex-[2] bg-brand-green text-white py-3 rounded-full font-bold hover:bg-brand-green-dark shadow-lg shadow-brand-green/10 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
                   >
                     {isRecovering && <Loader2 className="w-4 h-4 animate-spin" />}
