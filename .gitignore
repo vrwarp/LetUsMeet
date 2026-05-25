@@ -105,3 +105,5 @@ functions/lib/
 functions/typings/
 firebase-data/
 
+# Agents
+.agents/
