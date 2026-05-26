@@ -12,6 +12,7 @@ describe('VotePollPage', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
     (useAuth as any).mockReturnValue({
       user: { uid: 'user123', displayName: 'Test User', email: 'test@example.com', isAnonymous: false },
       loading: false,
@@ -134,6 +135,11 @@ describe('VotePollPage', () => {
     renderPage();
     await screen.findByText('Mock ZK Meeting');
     
+    const nameInput = screen.getByLabelText(/Your Name/i);
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: 'Test User' } });
+    });
+
     mockSession.appendEvent.mockRejectedValueOnce(new Error('Vote Failed'));
     
     const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
@@ -210,5 +216,24 @@ describe('VotePollPage', () => {
     await screen.findByText('Mock ZK Meeting');
     expect(screen.getByText(/Switch between your responses/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Olive Orange/i })).toBeInTheDocument();
+  });
+
+  it('saves and loads drafts from localStorage', async () => {
+    localStorage.setItem('draft_mock-poll-id-123', JSON.stringify({
+      participantName: 'Draft User',
+      participantEmail: 'draft@example.com',
+      selections: { t1: 'IF_NEED_BE' }
+    }));
+
+    renderPage();
+    await screen.findByText('Mock ZK Meeting');
+
+    const nameInput = screen.getByLabelText(/Your Name/i);
+    await waitFor(() => {
+      expect(nameInput).toHaveValue('Draft User');
+    });
+
+    const emailInput = screen.getByLabelText(/Email Address/i);
+    expect(emailInput).toHaveValue('draft@example.com');
   });
 });
