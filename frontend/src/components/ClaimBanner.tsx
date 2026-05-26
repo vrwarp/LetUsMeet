@@ -6,7 +6,7 @@ import {
   extractKeyFromFragment, 
   getLedgerSession
 } from "@/lib/pollService";
-import { loadFromKeystore } from "@letusmeet/zero-knowledge";
+import { loadFromKeystore } from "charproof";
 
 interface LayoutContext {
   activeAdminToken: string | null;

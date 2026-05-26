@@ -6,7 +6,7 @@ import {
   subscribeToLedger, 
   getLedgerSession
 } from "@/lib/pollService";
-import type { LedgerSession } from "@letusmeet/zero-knowledge";
+import type { LedgerSession } from "charproof";
 import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 
 interface TimeSlotInput {

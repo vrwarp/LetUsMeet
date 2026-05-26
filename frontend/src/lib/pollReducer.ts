@@ -1,4 +1,4 @@
-import type { DecryptedLedgerEvent } from "@letusmeet/zero-knowledge";
+import type { DecryptedLedgerEvent } from "charproof";
 import type { PollState, VoteData } from "../types";
 
 export function calculatePollState(events: DecryptedLedgerEvent[]): PollState {

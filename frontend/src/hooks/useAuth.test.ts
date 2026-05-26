@@ -35,8 +35,8 @@ vi.mock('@/firebase', () => ({
   db: {},
 }));
 
-// Mock @letusmeet/zero-knowledge
-vi.mock('@letusmeet/zero-knowledge', () => ({
+// Mock charproof
+vi.mock('charproof', () => ({
   initializeZK: vi.fn(),
   verifyAmk: vi.fn().mockResolvedValue(true),
   getDeviceId: vi.fn().mockReturnValue('test-device-id'),

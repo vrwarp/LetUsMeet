@@ -3,12 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './DashboardPage';
 import * as pollService from '@/lib/pollService';
-import * as deviceService from '@letusmeet/zero-knowledge';
+import * as deviceService from 'charproof';
 import { useAuth } from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth');
 vi.mock('@/lib/pollService');
-vi.mock('@letusmeet/zero-knowledge', () => ({
+vi.mock('charproof', () => ({
   initializeZK: vi.fn(),
   getRecoveryStatus: vi.fn(),
   getDeviceId: vi.fn(),

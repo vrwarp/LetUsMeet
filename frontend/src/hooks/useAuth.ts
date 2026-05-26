@@ -8,7 +8,7 @@ import {
   clearPrfSessionCache,
   verifyAmk, clearAmkSessionCache, subscribePendingRequests, recoverAmkWithPhrase, registerCurrentDevice,
   getActiveAmk, loadDeviceKeysFromIndexedDB, hasAccountKeys
-} from "@letusmeet/zero-knowledge";
+} from "charproof";
 import { resetKeystore } from "@/lib/pollService";
 import type { PendingDevice } from "@/types";
 

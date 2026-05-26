@@ -11,7 +11,7 @@ import {
   setupPhraseRecovery,
   subscribeAuthorizedDevices,
   rejectDeviceRequest
-} from "@letusmeet/zero-knowledge";
+} from "charproof";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
 import type { PollMetadata, PendingDevice } from "../types";

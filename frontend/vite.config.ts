@@ -24,10 +24,10 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     server: {
       deps: {
-        inline: [/src\/lib/],
+        inline: [/src\/lib/, 'charproof'],
       },
     },
-    include: ['src/**/*.{test,spec}.{ts,tsx}', '../packages/zero-knowledge/src/**/*.{test,spec}.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

@@ -23,7 +23,7 @@ import {
   getShareableUrl,
   getLedgerSession
 } from "@/lib/pollService";
-import type { LedgerSession } from "@letusmeet/zero-knowledge";
+import type { LedgerSession } from "charproof";
 import { useAuth } from "../hooks/useAuth";
 import type { PollState, VoteValue, PollAction } from "../types";
 import ActionCard from "@/components/ActionCard";

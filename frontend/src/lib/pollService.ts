@@ -5,13 +5,13 @@ import {
   resetUserAccountRemote,
   archiveKeystoreEntry,
   unarchiveKeystoreEntry
-} from "@letusmeet/zero-knowledge";
+} from "charproof";
 import { calculatePollState } from "./pollReducer";
 import type { PollState, PollMetadata } from "../types";
-import type { DecryptedLedgerEvent, DecryptedKeystoreEntry, LedgerSession } from "@letusmeet/zero-knowledge";
+import type { DecryptedLedgerEvent, DecryptedKeystoreEntry, LedgerSession } from "charproof";
 
 // Re-export for pages
-export { createLedgerSession, getLedgerSession } from "@letusmeet/zero-knowledge";
+export { createLedgerSession, getLedgerSession } from "charproof";
 
 // === URL UTILITIES ===
 

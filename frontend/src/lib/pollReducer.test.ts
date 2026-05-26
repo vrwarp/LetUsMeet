@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePollState } from './pollReducer';
 import type { PollMetadata, VoteData } from '../types';
-import type { DecryptedLedgerEvent } from '@letusmeet/zero-knowledge';
+import type { DecryptedLedgerEvent } from 'charproof';
 
 describe('Poll Reducer', () => {
   const adminPub = 'mock-admin-pubkey';

@@ -14,7 +14,7 @@ import {
   generateVerificationCode,
   subscribeCurrentDeviceStatus,
   rejectDeviceRequest
-} from "@letusmeet/zero-knowledge";
+} from "charproof";
 import type { PendingDevice } from "@/types";
 
 declare global {

@@ -13,7 +13,7 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-MEASUREMENT-ID-PLACEHOLDER",
 };
 
-import { initializeZK } from "@letusmeet/zero-knowledge";
+import { initializeZK } from "charproof";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
