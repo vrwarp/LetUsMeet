@@ -122,18 +122,53 @@ export default function VotePollPage() {
   // Auto-initialize form with first vote if not already editing something specific
   const hasInitializedRef = useRef(false);
   useEffect(() => {
-    if (userVotes.length > 0 && !hasInitializedRef.current && pollState?.metadata) {
+    if (hasInitializedRef.current) return;
+    if (!pollState?.metadata) return; // Wait for poll data to load
+    if (loading) return; // Wait for auth to resolve
+
+    const savedDraftStr = localStorage.getItem(`draft_${pollId}`);
+    let draftLoaded = false;
+
+    if (savedDraftStr) {
+      try {
+        const draft = JSON.parse(savedDraftStr);
+        setSelections(draft.selections || {});
+        setParticipantName(draft.participantName || "");
+        setParticipantEmail(draft.participantEmail || "");
+        setEditingResponseId(draft.editingResponseId || crypto.randomUUID());
+        draftLoaded = true;
+      } catch (e) {
+        console.error("Failed to parse saved draft:", e);
+      }
+    }
+
+    if (!draftLoaded && userVotes.length > 0) {
       const latest = userVotes[0];
       setSelections(latest.selections);
       setParticipantName(latest.participantName);
       setParticipantEmail(latest.email || "");
       setEditingResponseId(latest.responseId);
-      hasInitializedRef.current = true;
-    } else if (user?.displayName && !participantName && !hasInitializedRef.current) {
+    } else if (!draftLoaded && user?.displayName && !participantName) {
       setParticipantName(user.displayName);
       setParticipantEmail(user.email || "");
     }
-  }, [userVotes.length, pollState?.metadata, user?.displayName, user?.email]);
+
+    hasInitializedRef.current = true;
+  }, [userVotes.length, pollState?.metadata, user?.displayName, user?.email, pollId, loading, participantName]);
+
+  useEffect(() => {
+    if (hasInitializedRef.current && pollId) {
+      localStorage.setItem(
+        `draft_${pollId}`,
+        JSON.stringify({
+          editingResponseId,
+          participantName,
+          participantEmail,
+          selections,
+        })
+      );
+    }
+  }, [editingResponseId, participantName, participantEmail, selections, pollId]);
 
   const handleNewResponse = () => {
     setEditingResponseId(crypto.randomUUID());
@@ -182,6 +217,7 @@ export default function VotePollPage() {
       const action: PollAction = { type: "VOTE_UPSERT", payload: voteData };
       await session.appendEvent(action);
       
+      localStorage.removeItem(`draft_${pollId}`);
       setSuccess(true);
     } catch (err: any) {
       console.error("Vote submission failed:", err);
@@ -199,6 +235,7 @@ export default function VotePollPage() {
     try {
       const action: PollAction = { type: "VOTE_RETRACTED", payload: { responseId: editingResponseId } };
       await session.appendEvent(action);
+      localStorage.removeItem(`draft_${pollId}`);
       setSuccess(true);
     } catch (err: any) {
       setError("Failed to retract vote.");
