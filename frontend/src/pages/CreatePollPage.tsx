@@ -1,4 +1,24 @@
 import { useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
+
+
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Clock, X, Sparkles } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
@@ -8,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
 interface TimeSlotInput {
+  id: string;
   date: string;
   startTime?: string; // for EXACT
   endTime?: string;   // for EXACT
@@ -20,6 +41,47 @@ import timeFuzzyMeat from "../assets/time-fuzzy-meat.webp";
 
 function generateId() {
   return Math.random().toString(36).substring(2, 15);
+}
+
+
+function SortableSlotItem({
+  id,
+  children
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group/item">
+      <div className="absolute left-[-16px] top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 hidden md:block">
+        <div {...attributes} {...listeners}>
+          <GripVertical size={20} />
+        </div>
+      </div>
+      <div className="md:hidden absolute left-0 top-1/2 -translate-y-1/2 p-2 z-20 cursor-grab active:cursor-grabbing text-neutral-400">
+         <div {...attributes} {...listeners}>
+          <GripVertical size={20} />
+        </div>
+      </div>
+      {children}
+    </div>
+  );
 }
 
 export default function CreatePollPage() {
@@ -44,6 +106,30 @@ export default function CreatePollPage() {
   useEffect(() => {
     setIsReady(true);
   }, []);
+
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setSlots((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
@@ -76,15 +162,18 @@ export default function CreatePollPage() {
   const addSlot = () => {
     const lastSlot = slots[slots.length - 1];
     const defaultDate = new Date().toISOString().split('T')[0];
+    const newId = generateId();
     
     if (schedulingMode === "EXACT") {
       setSlots([...slots, { 
+        id: newId,
         date: lastSlot?.date || defaultDate, 
         startTime: lastSlot?.startTime || "09:00", 
         endTime: lastSlot?.endTime || "10:00" 
       }]);
     } else {
       setSlots([...slots, { 
+        id: newId,
         date: lastSlot?.date || defaultDate, 
         label: "", 
         time: "" 
@@ -147,7 +236,7 @@ export default function CreatePollPage() {
 
           if (data?.time_slots?.length > 0) {
             setPendingGeneratedSlots(data.time_slots.map((s) => ({
-              date: s.date, startTime: s.start_time, endTime: s.end_time, label: "", time: ""
+              id: generateId(), date: s.date, startTime: s.start_time, endTime: s.end_time, label: "", time: ""
             })));
             setAiReasoning(data.reasoning);
           } else {
@@ -160,7 +249,7 @@ export default function CreatePollPage() {
 
           if (data?.fuzzy_slots?.length > 0) {
             setPendingGeneratedSlots(data.fuzzy_slots.map((s) => ({
-              date: s.date, label: s.label, time: s.time || "", startTime: "", endTime: ""
+              id: generateId(), date: s.date, label: s.label, time: s.time || "", startTime: "", endTime: ""
             })));
             setAiReasoning(data.reasoning);
           } else {
@@ -209,12 +298,12 @@ export default function CreatePollPage() {
         description,
         timeSlots: schedulingMode === "EXACT"
           ? slots.map(slot => ({
-            id: generateId(),
+            id: slot.id || generateId(),
             startTime: new Date(`${slot.date}T${slot.startTime || "09:00"}`).toISOString(),
             endTime: new Date(`${slot.date}T${slot.endTime || "10:00"}`).toISOString(),
           })) as any[]
           : slots.map(slot => ({
-            id: generateId(),
+            id: slot.id || generateId(),
             date: slot.date,
             label: slot.label || "General",
             time: slot.time || undefined,
@@ -224,9 +313,9 @@ export default function CreatePollPage() {
       const { pollId, key, adminToken } = await createBlindPoll(metadata);
       navigate(`/poll/${pollId}?adminToken=${adminToken}#key=${key}`);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to create poll", err);
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -490,9 +579,19 @@ export default function CreatePollPage() {
               </div>
             </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={slots.map(s => s.id)}
+              strategy={rectSortingStrategy}
+            >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:pl-8">
             {slots.map((slot, index) => (
-              <div key={index} className="relative group">
+              <SortableSlotItem key={slot.id} id={slot.id}>
+              <div className="relative group pl-8 md:pl-0">
                 <div className="flex flex-col gap-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100 transition-all hover:border-neutral-200 shadow-sm relative">
                     <div className="flex items-center gap-2">
                       <label className="relative group/date cursor-pointer flex-1 min-w-0">
@@ -638,8 +737,13 @@ export default function CreatePollPage() {
                   </div>
                 </div>
               </div>
+              </SortableSlotItem>
             ))}
 
+          </div>
+          </SortableContext>
+          </DndContext>
+          <div className="mt-4 md:pl-8">
             <button
               type="button"
               onClick={addSlot}
