@@ -34,7 +34,7 @@ test.describe('Multi-user Flows', () => {
       await slotCards.nth(0).click(); // YES
       await organizerPage.getByTestId('participant-name-input').fill('Organizer');
       await organizerPage.getByTestId('vote-submit-btn').click();
-      await expect(organizerPage.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
+      await organizerPage.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
 
       // 2. Participant 1 votes
       const p1Page = await p1Context.newPage();
@@ -49,7 +49,7 @@ test.describe('Multi-user Flows', () => {
 
       await p1Page.getByTestId('participant-name-input').fill('Participant One');
       await p1Page.getByTestId('vote-submit-btn').click();
-      await expect(p1Page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
+      await p1Page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
 
       // 3. Participant 2 votes
       const p2Page = await p2Context.newPage();
@@ -61,10 +61,6 @@ test.describe('Multi-user Flows', () => {
 
       await p2Page.getByTestId('participant-name-input').fill('Participant Two');
       await p2Page.getByTestId('vote-submit-btn').click();
-      await expect(p2Page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
-
-      // 4. View Results
-      await p2Page.getByTestId('view-results-link').click();
       await p2Page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
 
       // Verify matrix

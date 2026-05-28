@@ -63,6 +63,7 @@ describe('VotePollPage', () => {
       <MemoryRouter initialEntries={[`/poll/${pollId}#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=`]}>
         <Routes>
           <Route path="/poll/:pollId" element={<VotePollPage />} />
+          <Route path="/poll/:pollId/results" element={<div>Results Page Mock</div>} />
         </Routes>
       </MemoryRouter>
     );
@@ -85,7 +86,7 @@ describe('VotePollPage', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Vote Recorded!/i)).toBeInTheDocument();
+      expect(screen.getByText(/Results Page Mock/i)).toBeInTheDocument();
       expect(mockSession.appendEvent).toHaveBeenCalled();
     });
   });

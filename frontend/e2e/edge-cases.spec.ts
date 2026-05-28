@@ -54,6 +54,6 @@ test.describe('Error & Edge Cases', () => {
     // Fill the name and it should work
     await page.getByTestId('participant-name-input').fill('Alice');
     await submitBtn.click();
-    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
+    await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
   });
 });

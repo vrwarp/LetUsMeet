@@ -47,11 +47,7 @@ test.describe('Phase 1 Critical User Journeys', () => {
     // Submit vote
     await page.getByTestId('vote-submit-btn').click();
 
-    // Wait for success screen
-    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
-
-    // Poll Success -> Results
-    await page.getByTestId('view-results-link').click();
+    // Wait for results page
     await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
 
     // Check results table

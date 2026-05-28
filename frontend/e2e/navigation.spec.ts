@@ -22,14 +22,9 @@ test.describe('Navigation Flows', () => {
     const pollUrl = page.url();
     await expect(page.getByTestId('poll-title')).toContainText('Nav Test Poll');
 
-    // Navigate to Results directly from URL change or after voting
-    // Let's vote to get to the success screen
+    // Let's vote
     await page.getByTestId('participant-name-input').fill('Nav Voter');
     await page.getByTestId('vote-submit-btn').click();
-    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
-
-    // Poll Success -> Results
-    await page.getByTestId('view-results-link').click();
     await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
     await expect(page.getByRole('heading', { name: /Availability Grid/i })).toBeVisible();
 

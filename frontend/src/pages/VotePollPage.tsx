@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
@@ -19,6 +19,7 @@ export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { user, loading } = useAuth();
   const [isReady, setIsReady] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsReady(true);
@@ -62,7 +63,6 @@ export default function VotePollPage() {
     }
   };
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [editingResponseId, setEditingResponseId] = useState<string>(crypto.randomUUID());
 
   // 1. Initialize Crypto and Subscribe
@@ -218,7 +218,7 @@ export default function VotePollPage() {
       await session.appendEvent(action);
       
       localStorage.removeItem(`draft_${pollId}`);
-      setSuccess(true);
+      navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
     } catch (err: any) {
       console.error("Vote submission failed:", err);
       setError(err.message || "Failed to submit encrypted vote.");
@@ -236,7 +236,7 @@ export default function VotePollPage() {
       const action: PollAction = { type: "VOTE_RETRACTED", payload: { responseId: editingResponseId } };
       await session.appendEvent(action);
       localStorage.removeItem(`draft_${pollId}`);
-      setSuccess(true);
+      navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
     } catch (err: any) {
       setError("Failed to retract vote.");
     } finally {
@@ -282,30 +282,6 @@ export default function VotePollPage() {
           <Link to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
             View Final Results
           </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (success) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <div className="bg-brand-green-light/50 rounded-3xl p-10 border border-brand-green-light">
-          <CheckCircle className="w-16 h-16 text-brand-green mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-neutral-800 mb-3">Vote Recorded!</h2>
-          <p className="text-neutral-600 mb-8">Your availability has been encrypted and added to the ledger.</p>
-          <div className="flex flex-col gap-4">
-            <Link 
-              to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} 
-              data-testid="view-results-link"
-              className="btn-primary-green w-full text-center py-4"
-            >
-              View Group Availability
-            </Link>
-            <button onClick={() => setSuccess(false)} className="text-neutral-600 font-semibold">
-              Back to poll
-            </button>
-          </div>
         </div>
       </div>
     );
