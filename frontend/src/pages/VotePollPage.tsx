@@ -28,6 +28,7 @@ export default function VotePollPage() {
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
   const [session, setSession] = useState<LedgerSession | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
   
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
   const [participantName, setParticipantName] = useState("");
@@ -84,16 +85,26 @@ export default function VotePollPage() {
         if (mounted) setSession(s);
 
         // Subscribe to Ledger
-        const unsubscribe = subscribeToLedger(s, (state, status) => {
-          if (!mounted) return;
-          if (state) {
-            setPollState(state);
-            setIsLoading(false);
-          } else if (status === "No valid events found.") {
-            setIsLoading(false);
+        const unsubscribe = subscribeToLedger(
+          s,
+          (state, status) => {
+            if (!mounted) return;
+            if (state) {
+              setPollState(state);
+              setIsLoading(false);
+              setConnectionError(false);
+            } else if (status === "No valid events found.") {
+              setIsLoading(false);
+              setConnectionError(false);
+            }
+            setSyncStatus(status);
+          },
+          (err) => {
+            if (!mounted) return;
+            console.error("Ledger subscription failed:", err);
+            setConnectionError(true);
           }
-          setSyncStatus(status);
-        });
+        );
 
         return unsubscribe;
       } catch (err: any) {
@@ -205,6 +216,12 @@ export default function VotePollPage() {
     setIsSubmitting(true);
     setError(null);
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setError("You are currently offline. Please check your internet connection and try again.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const voteData: VoteData = {
         responseId: editingResponseId,
@@ -289,6 +306,24 @@ export default function VotePollPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+      {connectionError && (
+        <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
+            <span>Connection sluggish or offline. Trying to reconnect automatically...</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setConnectionError(false);
+              window.location.reload();
+            }}
+            className="px-4 py-1.5 bg-amber-600 text-white text-xs font-black rounded-lg hover:bg-amber-700 transition-colors shadow-sm"
+          >
+            Retry Now
+          </button>
+        </div>
+      )}
       {/* Header Card - Restored Design */}
       <div className="bg-white rounded-[3rem] shadow-2xl border border-neutral-100 mb-12 overflow-hidden">
         <div className="bg-white text-brand-charcoal px-4 sm:px-8 py-8 sm:py-12 relative overflow-hidden">
