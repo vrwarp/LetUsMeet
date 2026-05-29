@@ -102,7 +102,7 @@ export default function ClaimBanner() {
           >
             {isClaiming ? "Adding..." : "Add to My Dashboard"}
           </button>
-          <p className="text-[10px] text-neutral-500 font-medium leading-normal">
+          <p className="text-[10px] text-neutral-600 font-medium leading-normal">
             Requires Google sign-in to sync securely across all your devices.
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function ClaimBanner() {
             >
               {copiedAdminLink ? "Copied Link!" : "Copy Admin Link"}
             </button>
-            <p className="text-[10px] text-neutral-500 font-medium leading-normal font-sans">
+            <p className="text-[10px] text-neutral-600 font-medium leading-normal font-sans">
               Save this secret link securely. Access is lost forever if misplaced.
             </p>
           </div>

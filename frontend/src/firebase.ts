@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { initializeFirestore, connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFirestoreEmulator, initializeFirestore, getFirestore } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 const firebaseConfig = {
@@ -14,6 +14,7 @@ const firebaseConfig = {
 };
 
 import { initializeZK } from "charproof";
+import { setupMockZkStorage } from "./lib/mockZkStorage";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -26,7 +27,7 @@ let dbInstance;
 try {
   dbInstance = initializeFirestore(app, {
     experimentalAutoDetectLongPolling: true,
-    experimentalForceLongPolling: useEmulator, // Only force in dev/test for stability
+    experimentalForceLongPolling: useEmulator,
   });
 } catch (e) {
   dbInstance = getFirestore(app);
@@ -37,6 +38,10 @@ export const functions = getFunctions(app);
 
 // Initialize Zero-Knowledge Library
 initializeZK({ db, auth });
+
+if (typeof window !== 'undefined' && (window as any).__MOCK_ZK === 'true') {
+  setupMockZkStorage();
+}
 
 if (useEmulator) {
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';

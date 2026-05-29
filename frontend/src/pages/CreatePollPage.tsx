@@ -645,7 +645,7 @@ export default function CreatePollPage() {
               onClick={addSlot}
               data-testid="add-slot-btn"
               disabled={!isReady}
-              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-300 rounded-xl text-neutral-800 hover:border-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px] disabled:text-neutral-600 disabled:border-neutral-200 disabled:cursor-not-allowed"
             >
               <Plus size={20} />
               Add time slot

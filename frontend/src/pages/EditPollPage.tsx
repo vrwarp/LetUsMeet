@@ -408,7 +408,7 @@ export default function EditPollPage() {
               type="button"
               onClick={addSlot}
               disabled={!isReady}
-              className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-neutral-200 rounded-2xl text-neutral-400 hover:border-brand-green hover:text-brand-green hover:bg-brand-green-light/20 transition-all font-bold text-sm bg-white/50 group disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-neutral-300 rounded-2xl text-neutral-700 hover:border-brand-green hover:text-brand-green hover:bg-brand-green-light/20 transition-all font-bold text-sm bg-white/50 group disabled:text-neutral-600 disabled:border-neutral-200 disabled:cursor-not-allowed"
             >
               <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center group-hover:bg-brand-green group-hover:text-white transition-all">
                 <Plus size={20} />

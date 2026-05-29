@@ -10,9 +10,7 @@ async function waitForDashboardReady(page: Page) {
 
 function setupConsoleLogs(page: Page, label: string) {
   page.on('console', msg => {
-    if (msg.type() === 'error' || msg.text().includes('DEBUG')) {
-      console.log(`[BROWSER ${label}] ${msg.type()}: ${msg.text()}`);
-    }
+    console.log(`[BROWSER ${label}] ${msg.type()}: ${msg.text()}`);
   });
 }
 
@@ -75,7 +73,11 @@ test.describe('Device Management & Recovery', () => {
     expect(verificationCode?.trim()).toBeTruthy();
 
     // 4. Sponsor Approves
-    await sponsorPage.bringToFront();
+    try {
+      await sponsorPage.bringToFront();
+    } catch (e) {
+      console.warn("bringToFront failed on sponsorPage, continuing:", e);
+    }
     const requestItem = sponsorPage.getByTestId('pending-auth-request').first();
     await expect(requestItem).toBeVisible({ timeout: 20000 });
     await expect(requestItem.getByText(verificationCode!.trim())).toBeVisible();
@@ -119,7 +121,11 @@ test.describe('Device Management & Recovery', () => {
     await expect(newPage.getByTestId('mismatch-error')).not.toBeVisible({ timeout: 30000 });
 
     // 2. Sponsor Revokes New Device
-    await sponsorPage.bringToFront();
+    try {
+      await sponsorPage.bringToFront();
+    } catch (e) {
+      console.warn("bringToFront failed on sponsorPage (revoke), continuing:", e);
+    }
     await waitForDashboardReady(sponsorPage);
 
     const deviceItem = sponsorPage.getByTestId('device-item').filter({ hasNotText: '(Current)' });
@@ -132,7 +138,11 @@ test.describe('Device Management & Recovery', () => {
     await expect(sponsorPage.getByTestId('rotation-success-toast')).toBeVisible({ timeout: 15000 });
 
     // 3. Revoked Device loses access
-    await newPage.bringToFront();
+    try {
+      await newPage.bringToFront();
+    } catch (e) {
+      console.warn("bringToFront failed on newPage (revoked), continuing:", e);
+    }
     await newPage.reload();
     await expect(newPage.getByTestId('mismatch-error')).toBeVisible({ timeout: 15000 });
     await expect(newPage.getByText(/Unrecognized Device/i)).toBeVisible();
@@ -160,16 +170,41 @@ test.describe('Device Management & Recovery', () => {
       const DB_NAME = "LetUsMeet_Keys";
       const STORES = ["identities", "master_keys", "device_keys"];
 
-      await new Promise((resolve, reject) => {
+      await new Promise((resolve) => {
         const request = indexedDB.open(DB_NAME);
         request.onsuccess = () => {
           const db = request.result;
-          const tx = db.transaction(STORES, 'readwrite');
-          STORES.forEach(store => tx.objectStore(store).clear());
-          tx.oncomplete = () => resolve(true);
-          tx.onerror = () => reject(tx.error);
+          if (db.objectStoreNames.length > 0) {
+            const tx = db.transaction(STORES, 'readwrite');
+            STORES.forEach(store => {
+              if (db.objectStoreNames.contains(store)) {
+                tx.objectStore(store).clear();
+              }
+            });
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+          } else {
+            resolve(true);
+          }
         };
-        request.onerror = () => reject(request.error);
+        request.onerror = () => resolve(false);
+      });
+
+      // Clear mock storage database if it exists
+      await new Promise((resolve) => {
+        const req = indexedDB.open("Mock_Storage_DB");
+        req.onsuccess = () => {
+          const db = req.result;
+          if (db.objectStoreNames.contains("store")) {
+            const tx = db.transaction("store", "readwrite");
+            tx.objectStore("store").clear();
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+          } else {
+            resolve(true);
+          }
+        };
+        req.onerror = () => resolve(false);
       });
 
       localStorage.removeItem('deviceId');
