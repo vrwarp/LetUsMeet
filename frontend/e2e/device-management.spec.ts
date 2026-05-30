@@ -4,7 +4,7 @@ import { setupWebAuthn } from './helpers/webauthn-helper';
 import { mockGoogleSignIn, clickSetupSecureAccess } from './helpers/auth-helper';
 
 async function waitForDashboardReady(page: Page) {
-  await expect(page.getByText('Decrypting your dashboard...')).not.toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('Decrypting your dashboard...')).not.toBeVisible({ timeout: 150000 });
   await expect(page.getByTestId('dashboard-title')).toBeVisible({ timeout: 15000 });
 }
 

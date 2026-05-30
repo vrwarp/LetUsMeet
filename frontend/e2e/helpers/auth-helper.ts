@@ -71,7 +71,7 @@ export async function mockGoogleSignIn(page: Page, email: string) {
 }
 
 export async function clickSetupSecureAccess(page: Page) {
-  console.log(`[clickSetupSecureAccess] Clicking "Set up secure access"`);
+  console.log(`[clickSetupSecureAccess] Clicking "Set up secure acceess"`);
   try {
     await expect(page.getByRole('heading', { name: 'Secure your account' })).toBeVisible({ timeout: 10000 });
     const setupBtn = page.getByRole('button', { name: 'Set up secure access' });
@@ -79,8 +79,14 @@ export async function clickSetupSecureAccess(page: Page) {
     await setupBtn.click();
     // Wait a moment for WebAuthn prompt to resolve (virtual authenticator handles it instantly, but still good to wait)
     await page.waitForTimeout(500);
-    await expect(page.getByRole('heading', { name: 'Secure your account' })).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Secure your account' })).not.toBeVisible({ timeout: 60000 });
+    // Give webkit time to process the WebAuthn registration
+    const name = page.context().browser()?.browserType()?.name();
+    if (name == 'webkit') {
+      await page.waitForTimeout(500);
+    }
   } catch (error) {
     console.log(`[clickSetupSecureAccess] Interstitial not found or didn't complete, this might be expected depending on state.`, error);
+    throw error;
   }
 }

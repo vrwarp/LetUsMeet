@@ -51,4 +51,22 @@ export async function clearMockZkStore() {
  */
 export async function clearEmulators() {
   await Promise.all([clearFirestore(), clearAuth(), clearMockZkStore()]);
+
+  // Pre-populate the chaff_pool/current document to avoid long-polling stalls on non-existent documents in WebKit
+  try {
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'demo-letusmeet';
+    const chaffUrl = `http://127.0.0.1:8081/v1/projects/${projectId}/databases/(default)/documents/chaff_pool/current`;
+    await fetch(chaffUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `projects/${projectId}/databases/(default)/documents/chaff_pool/current`,
+        fields: {
+          activePollIds: { arrayValue: { values: [] } }
+        }
+      })
+    });
+  } catch (e) {
+    console.error(`Failed to pre-populate chaff pool: ${e}`);
+  }
 }
