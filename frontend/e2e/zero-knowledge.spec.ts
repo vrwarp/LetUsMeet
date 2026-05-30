@@ -148,9 +148,26 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await sponsorPage.goto('/dashboard');
     const otherDeviceRow = sponsorPage.getByTestId('device-item').filter({ hasNotText: 'Current' });
 
-    // Confirm revocation (MUST be registered before the click)
-    sponsorPage.once('dialog', dialog => dialog.accept());
-    await otherDeviceRow.getByTestId('revoke-device-btn').click();
+    const isMobile = sponsorPage.viewportSize()?.width != null && sponsorPage.viewportSize()!.width < 768;
+
+    if (isMobile) {
+      // Mobile: tap device node to open the Authorized Devices modal, then revoke from there
+      await expect(otherDeviceRow).toBeVisible({ timeout: 15000 });
+      await otherDeviceRow.tap();
+
+      // Wait for the modal to appear
+      const modalRevokeBtn = sponsorPage.getByTestId('revoke-device-btn-modal');
+      await expect(modalRevokeBtn).toBeVisible({ timeout: 10000 });
+
+      // Confirm revocation (MUST be registered before the click)
+      sponsorPage.once('dialog', dialog => dialog.accept());
+      await modalRevokeBtn.tap();
+    } else {
+      // Desktop: revoke button is directly visible on the device item card
+      // Confirm revocation (MUST be registered before the click)
+      sponsorPage.once('dialog', dialog => dialog.accept());
+      await otherDeviceRow.getByTestId('revoke-device-btn').click();
+    }
 
     // 4. Verify AMK rotation (should be transparent to sponsor)
     await expect(sponsorPage.getByTestId('rotation-success-toast')).toBeVisible();

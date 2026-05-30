@@ -1107,16 +1107,15 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                           </div>
                           {!isCurrent && (
                             <button
-                              onClick={() => {
-                                if (confirm("Are you sure you want to revoke this device?")) {
-                                  handleRevoke(device.deviceId);
-                                  // Close modal if last revoked
-                                  if (Object.keys(accountData?.devices || {}).length <= 2) {
-                                    setActiveModal(null);
-                                  }
+                              onClick={async () => {
+                                await handleRevoke(device.deviceId);
+                                // Close modal if last revoked
+                                if (Object.keys(accountData?.devices || {}).length <= 2) {
+                                  setActiveModal(null);
                                 }
                               }}
                               disabled={!isReady}
+                              data-testid="revoke-device-btn-modal"
                               className="p-1.5 text-neutral-400 hover:text-brand-red hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
                               title="Revoke Access"
                             >

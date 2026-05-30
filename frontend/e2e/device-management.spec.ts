@@ -128,12 +128,30 @@ test.describe('Device Management & Recovery', () => {
     }
     await waitForDashboardReady(sponsorPage);
 
-    const deviceItem = sponsorPage.getByTestId('device-item').filter({ hasNotText: '(Current)' });
-    await expect(deviceItem).toBeVisible({ timeout: 15000 });
+    const isMobile = sponsorPage.viewportSize()?.width != null && sponsorPage.viewportSize()!.width < 768;
 
-    // Set up dialog handler BEFORE clicking
-    sponsorPage.once('dialog', dialog => dialog.accept());
-    await deviceItem.getByTestId('revoke-device-btn').click();
+    if (isMobile) {
+      // Mobile: tap device node to open the Authorized Devices modal, then revoke from there
+      const deviceNode = sponsorPage.getByTestId('device-item').filter({ hasNotText: '(Current)' });
+      await expect(deviceNode).toBeVisible({ timeout: 15000 });
+      await deviceNode.tap();
+
+      // Wait for the modal to appear
+      const modalRevokeBtn = sponsorPage.getByTestId('revoke-device-btn-modal');
+      await expect(modalRevokeBtn).toBeVisible({ timeout: 10000 });
+
+      // The modal's revoke button calls confirm() internally — set up handler before clicking
+      sponsorPage.once('dialog', dialog => dialog.accept());
+      await modalRevokeBtn.tap();
+    } else {
+      // Desktop: revoke button is directly visible on the device item card
+      const deviceItem = sponsorPage.getByTestId('device-item').filter({ hasNotText: '(Current)' });
+      await expect(deviceItem).toBeVisible({ timeout: 15000 });
+
+      // Set up dialog handler BEFORE clicking
+      sponsorPage.once('dialog', dialog => dialog.accept());
+      await deviceItem.getByTestId('revoke-device-btn').click();
+    }
 
     await expect(sponsorPage.getByTestId('rotation-success-toast')).toBeVisible({ timeout: 15000 });
 
