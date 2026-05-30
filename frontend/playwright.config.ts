@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = 'http://localhost:5000';
+const baseURL = 'http://localhost:5270';
 
 export default defineConfig({
   testDir: './e2e',
@@ -37,7 +37,22 @@ export default defineConfig({
       name: 'webkit',
       use: {
         ...devices['Desktop Safari'],
-        baseURL: 'http://127.0.0.1:5000',
+        baseURL: 'http://127.0.0.1:5270',
+        navigationTimeout: 120000,
+        actionTimeout: 120000,
+      },
+    },
+    {
+      name: 'chromium-mobile',
+      use: {
+        ...devices['Pixel 5'],
+      },
+    },
+    {
+      name: 'webkit-mobile',
+      use: {
+        ...devices['iPhone 12'],
+        baseURL: 'http://127.0.0.1:5270',
         navigationTimeout: 120000,
         actionTimeout: 120000,
       },
