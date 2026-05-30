@@ -191,6 +191,7 @@ export default function Layout() {
               <Link
                 to="/create"
                 data-testid="create-poll-btn"
+                aria-label="Create Poll"
                 className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
               >
                 <PlusCircle size={18} />
