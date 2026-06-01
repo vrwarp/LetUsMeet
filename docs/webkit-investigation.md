@@ -37,6 +37,34 @@ signal, run WebKit alone with nothing else competing for CPU/IO.**
 Takeaway: the *stall* is real and roughly fixed-duration per step (good debugging
 target); the *failure count* observed here is unreliable.
 
+## UPDATE 2026-06-01 (#5) — transport tuning is a DEAD END; 30s is a fixed missing-doc timeout
+
+Tried `experimentalLongPollingOptions: { timeoutSeconds: 5 }` (WebKit only): `getAccountKeys`
+still **30108ms** (vs 30054ms untuned) — zero effect. The ~30s is a FIXED timeout,
+immune to the client long-poll timeout setting.
+
+Transport configs tried, all fail:
+| Config | getAccountKeys |
+|---|---|
+| forceLongPolling: true (default) | ~30.0s |
+| forceLongPolling: false | ~60s (worse) |
+| forceLongPolling: true + timeoutSeconds: 5 | ~30.1s |
+
+Why the `chaff_pool` pre-seed trick can't be reused: it works by making the **exact read
+doc exist**. Genesis reads `account_keys/default`, which MUST be absent to trigger setup —
+so it can't be pre-seeded. Transport flags don't move the 30s, and the doc can't be made
+to exist. **Test-harness/transport tuning is therefore a dead end for the genesis read.**
+
+Remaining viable fixes: (1) exclude WebKit from E2E (not in `npm test`); (2) upstream
+charproof change so `getAccountKeys` uses a bounded/one-shot read with fast fallback.
+
+Infra note: the Docker build context was bloating with `frontend/test-results` (the
+`.dockerignore` pattern `test-results` didn't match the `frontend/` path) and filled the
+disk mid-investigation. Fixed `.dockerignore` (added `frontend/test-results`,
+`playwright-report`) and pruned 54GB of Docker cache/images.
+
+---
+
 ## UPDATE 2026-06-01 (#4) — ROOT CAUSE CONFIRMED: Firestore getDoc/setDoc stream-confirmation stall on WebKit
 
 Patched charproof's `getActiveAmk`/`setupGenesisDevice` with internal timing markers (via

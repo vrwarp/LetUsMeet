@@ -4,7 +4,9 @@ functions/node_modules
 frontend/dist
 functions/lib
 frontend/playwright-report
+frontend/test-results
 test-results
+playwright-report
 .git
 .firebase
 *.log
