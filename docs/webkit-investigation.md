@@ -37,6 +37,56 @@ signal, run WebKit alone with nothing else competing for CPU/IO.**
 Takeaway: the *stall* is real and roughly fixed-duration per step (good debugging
 target); the *failure count* observed here is unreliable.
 
+## UPDATE 2026-06-01 (#4) — ROOT CAUSE CONFIRMED: Firestore getDoc/setDoc stream-confirmation stall on WebKit
+
+Patched charproof's `getActiveAmk`/`setupGenesisDevice` with internal timing markers (via
+`scripts/patch-charproof-diagnostic.cjs`, injected in the Docker build after `npm ci`).
+Isolated WebKit genesis run:
+
+```
+🔬 [GEN] getAccountKeys START
+🔬 [GEN] getAccountKeys END +30054ms          ← 30s in the missing-doc getDoc
+🔬 [GEN] setupGenesis START
+🔬 [GEN] loadDeviceKeys done +5ms
+🔬 [GEN] generateDeviceKeyPair END +7ms        ← keypair gen 2ms (mock works; candidate #2 DEAD)
+🔬 [GEN] before derivePrfMasterKey +10ms
+⏳ [Enroll] getActiveAmk() resolved in 60133ms ← a SECOND ~30s after this point
+```
+
+**Confirmed:** `store.getAccountKeys()` — the `getDoc(users/{uid}/account_keys/default)`
+of a **non-existent document** — takes **30s** on WebKit. `setupGenesisDevice` compute is
+10ms. The remaining ~30s (total 60s) is after `before derivePrfMasterKey`, where the only
+Firestore op is the genesis **write** `setAccountKeys()` — almost certainly the same
+mechanism (not yet bracketed with a marker).
+
+**Mechanism:** the Firestore SDK's watch/long-poll **stream-confirmation** is
+pathologically slow on the Playwright WebKit (GTK/Linux) build against the **emulator**.
+The `/Listen` and `/Write` HTTP POSTs return in <100ms (proven), but the SDK promise that
+resolves `getDoc` (confirm absence) / `setDoc` (confirm commit) waits ~30s for the stream.
+Corroborated by the pre-existing `chaff_pool` pre-seed workaround comment ("avoid
+long-polling stalls on non-existent documents in WebKit"). Transport toggling does NOT
+help: `forceLongPolling:true` → ~30–45s; `forceLongPolling:false` → ~60s (worse).
+
+**Scope:** reproduces only WebKit + Firestore **emulator** + Playwright. Real Safari vs
+real Firestore is unlikely to exhibit this → most likely a TEST-ENVIRONMENT issue, not a
+user-facing production bug. `account_keys/default` is per-user and MUST be absent to
+trigger genesis, so the `chaff_pool` pre-seed trick can't be applied directly.
+
+**Open fix directions (need a decision):**
+1. Test-harness transport: find a Firestore emulator/WebKit config that doesn't stall
+   stream confirmations (neither force-long-polling state works; may need a different
+   SDK transport or emulator setting).
+2. charproof read strategy: `getDocFromServer`/one-shot REST read for `getAccountKeys`
+   instead of watch-based `getDoc` (upstream change).
+3. Accept WebKit is unsupported in E2E and exclude it from the suite (it's not in
+   `npm test`).
+
+NOTE: build-time diagnostic patch lives in `scripts/patch-charproof-diagnostic.cjs` +
+`Dockerfile.e2e` RUN step; app-level diagnostics in `firebase.ts`/`useAuth.ts`/
+`DeviceEnrollmentGate.tsx`. All uncommitted — revert before shipping.
+
+---
+
 ## UPDATE 2026-06-01 (#3) — stall localized to a 45s NON-I/O gap inside setupGenesisDevice
 
 Instrumented the enrollment chain (`enrollDevice`/`getActiveAmk` timing), request
