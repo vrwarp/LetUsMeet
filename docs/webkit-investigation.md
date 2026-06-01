@@ -37,7 +37,55 @@ signal, run WebKit alone with nothing else competing for CPU/IO.**
 Takeaway: the *stall* is real and roughly fixed-duration per step (good debugging
 target); the *failure count* observed here is unreliable.
 
-## UPDATE 2026-06-01 — partial isolated run narrows it to the WRITE path
+## UPDATE 2026-06-01 (#2) — instrumentation FALSIFIES the I/O theories; it's a UI state-transition hang
+
+Added direct instrumentation (timed `/Write/channel`, and monkey-patched
+`IDBFactory.prototype.open`) and ran device-management on WebKit isolated. Results
+**falsify the entire performance framing**, including update #1 below:
+
+| Suspect | Verdict | Evidence |
+|---|---|---|
+| Firestore reads (T1/T2) | FAST | 62/69 `/Listen/channel` <100ms |
+| Firestore writes (T3) | FAST | 46/46 `/Write/channel` <1s (max 858ms) |
+| charproof IndexedDB (T4) | FAST | `LetUsMeet_Keys` opens 0–70ms |
+| Firebase Auth IndexedDB (T5) | FAST | `firebaseLocalStorageDb` 0–137ms |
+
+**The wall-clock is consumed by 60s Playwright timeouts on UI transitions that don't
+happen.** In one device-management run: 5 × `Timeout: 60000ms`, of which 3 were
+`getByRole('heading', { name: 'Secure your account' })` **not disappearing** (the
+`DeviceEnrollmentGate`), plus a `waitForURL('/poll/…')`. The `Load failed` errors remain
+navigation-teardown beacons (red herring).
+
+**Mechanism:** `clickSetupSecureAccess` clicks "Set up secure access" →
+`DeviceEnrollmentGate.handleEnroll` → `useAuth.enrollDevice` → `getActiveAmk()` →
+`setIsDeviceRegistered(true)`. The gate hides only when `isDeviceRegistered` flips true.
+All I/O inside `getActiveAmk` (genesis `setDoc` + IndexedDB writes) is proven fast, yet
+the flag flips **tens of seconds late, sometimes >60s → hard failure**. Cross-checking
+the earlier partial run (tests *passed* with ~49s gaps) vs this run (gate exceeds 60s →
+fail) shows the same operation is **slow-and-variable**, which is why the suite is both
+slow AND flaky.
+
+**Conclusion:** this is a **functional / state-propagation problem on WebKit, not slow
+I/O.** The hidden delay is somewhere in the `enrollDevice → getActiveAmk → genesis`
+chain that is NOT network and NOT IndexedDB — candidates: the charproof PRF
+serialization (`globalPrfLock` / `prfPromise` await chain), a `setTimeout`/backoff on the
+auth path, React 19 state-flush on WebKit, or a render gate awaiting `document.fonts.ready`.
+
+**Next experiment:** time the enrollment chain itself — wrap `enrollDevice` and log
+`performance.now()` before/after `getActiveAmk()`, and add timing inside the
+`derivePrfMasterKey` await (app-side can't edit charproof, so instrument at the
+`enrollDevice` boundary). One isolated WebKit run then shows whether the seconds are in
+`getActiveAmk` (→ charproof PRF/auth chain) or after it returns (→ React/render).
+
+NOTE: the I/O instrumentation (timed writes, `IDBFactory.open` patch) currently lives in
+`frontend/src/firebase.ts` as DIAGNOSTIC blocks — remove or gate before shipping.
+
+---
+
+## UPDATE 2026-06-01 (#1, SUPERSEDED) — partial isolated run narrows it to the WRITE path
+
+> Superseded by #2: writes were later proven fast. Kept for the reasoning trail.
+
 
 A WebKit run in isolation (killed at 18/25, full log preserved) was mined directly.
 Findings, with evidence:
