@@ -37,6 +37,50 @@ signal, run WebKit alone with nothing else competing for CPU/IO.**
 Takeaway: the *stall* is real and roughly fixed-duration per step (good debugging
 target); the *failure count* observed here is unreliable.
 
+## UPDATE 2026-06-01 — partial isolated run narrows it to the WRITE path
+
+A WebKit run in isolation (killed at 18/25, full log preserved) was mined directly.
+Findings, with evidence:
+
+1. **Reads are fast and fully logged.** 69/78 `/Listen/channel` returned 200; 62 in
+   <100ms, all <6s. Matches the "emulator calls are instant" observation.
+2. **The 5s abort wrapper never fired** (`aborted (5s timeout)` count = 0). It is
+   irrelevant to the stall and can be removed.
+3. **`TypeError: Load failed` errors are a red herring.** All 16 are `RID=rpc …
+   TYPE=xmlhttp` WebChannel *terminate beacons* fired at page unload; they fail in
+   0–3ms because WebKit is tearing down the document on navigation. They correlate with
+   `[hosting] GET /` (new navigation), not with the freeze.
+4. **The 30–48s freezes land immediately after `MockPrfProvider.createCredential`**,
+   i.e. inside genesis/setup. Example: `02:51:41 [Mock PRF] Creating… + Listen resolved
+   13ms` → **48s of silence** → `02:52:29` next activity (teardown beacon + fresh boot).
+   14 such gaps (≥8s) totalling ~13 min in the partial run; individual gaps 60–153s.
+5. **The diagnostic wrapper only times `/Listen/channel`.** For every other request
+   (incl. `/Write/channel`) the `else` branch logs *only on failure* — so successful
+   **writes are never logged** (`Write/channel resolved` count = 0, not because writes
+   don't happen but because they're untimed). The freeze window's only Firestore traffic
+   is the genesis **write** (`setAccountKeys` → `setDoc`), which is precisely the
+   untimed path.
+
+**Conclusion (high confidence):** the stall is in **Firestore writes over the WebChannel
+`/Write/channel` endpoint under `experimentalForceLongPolling`, hanging ~30–48s on
+WebKit** — invisible until now because only reads were instrumented. This is Theory 3
+narrowed to the write path, and it explains why manual observation said "reads are
+instant" (only reads were logged).
+
+**Remaining ambiguity:** the genesis window also contains an un-instrumented IndexedDB
+write (`saveDeviceKeys`, Theory 4). Favoring the Firestore-write explanation: the stalls
+recur across many later tests (voting/edits = Firestore writes; only one genesis
+IndexedDB write per context), and the *pre-existing* 30–45s predates the IndexedDB store
+(it was present with the old localStorage store too).
+
+**Decisive next experiment:** widen the fetch wrapper to time ALL requests (or at least
+`/Write/channel`), not just `/Listen/channel`; run WebKit isolated once.
+- `Write/channel resolved in ~45000ms` → confirmed transport stall → fix = transport
+  selection (e.g. `experimentalForceLongPolling: false` for WebKit, keep auto-detect).
+- Writes fast → it's the IndexedDB path (Theory 4) instead → fix = memoize `openDB`.
+
+---
+
 ## Key reframe
 
 "Fetches are instant" + "looks like a deadlock before continuing" points away from a
