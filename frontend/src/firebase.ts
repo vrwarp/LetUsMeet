@@ -68,7 +68,7 @@ const firebaseConfig = {
 };
 
 import { initializeZK } from "charproof";
-import { setupMockZkStorage } from "./lib/mockZkStorage";
+
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -93,24 +93,6 @@ export const functions = getFunctions(app);
 // Initialize Zero-Knowledge Library
 initializeZK({ db, auth });
 
-if (typeof window !== 'undefined') {
-  let mockZkVal = (window as any).__MOCK_ZK;
-  if (mockZkVal === 'true') {
-    setupMockZkStorage();
-  }
-  Object.defineProperty(window, '__MOCK_ZK', {
-    get() {
-      return mockZkVal;
-    },
-    set(val) {
-      mockZkVal = val;
-      if (val === 'true') {
-        setupMockZkStorage();
-      }
-    },
-    configurable: true
-  });
-}
 
 if (useEmulator) {
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
