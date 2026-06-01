@@ -328,8 +328,8 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       await revokeDevice(deviceId);
       setShowRotationSuccess(true);
       setTimeout(() => setShowRotationSuccess(false), 5000);
-    } catch (e) {
-      console.error("Failed to revoke device:", e);
+    } catch (e: any) {
+      console.error("Failed to revoke device:", e?.message || String(e), e?.stack);
       alert("Failed to revoke device.");
     }
   };

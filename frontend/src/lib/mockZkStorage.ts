@@ -1,4 +1,4 @@
-import { setDeviceServiceProviders, setPrfProviders, setSessionProviders } from "charproof";
+import { setDeviceServiceProviders, setPrfProviders, setSessionProviders, exportSymmetricKey, importSymmetricKey } from "charproof";
 
 export function setupMockZkStorage() {
   console.log("⚠️ E2E / ZK Mock Mode detected: Initializing persistent Mock ZK IndexedDB storage.");
@@ -68,11 +68,22 @@ export function setupMockZkStorage() {
     },
     saveMasterKey: async (uid: string, key: any) => {
       console.log(`🔑 [MockZK] saveMasterKey for UID: ${uid}`);
-      await mockDbSet("master_" + uid, key);
+      try {
+        // exportSymmetricKey handles both real CryptoKey and MockCryptoKey, returns base64url
+        const b64url = await exportSymmetricKey(key);
+        await mockDbSet("master_" + uid, { __symKey: true, b64url });
+      } catch (e) {
+        console.warn("[MockZK] saveMasterKey: could not export key", e);
+        await mockDbSet("master_" + uid, key);
+      }
     },
     loadMasterKey: async (uid: string) => {
       console.log(`🔑 [MockZK] loadMasterKey for UID: ${uid}`);
-      return await mockDbGet("master_" + uid);
+      const val = await mockDbGet("master_" + uid);
+      if (val && val.__symKey && val.b64url) {
+        return importSymmetricKey(val.b64url);
+      }
+      return val;
     },
     saveIdentityKey: async (uid: string, key: any) => {
       console.log(`🔑 [MockZK] saveIdentityKey for UID: ${uid}`);
