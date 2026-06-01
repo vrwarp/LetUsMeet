@@ -3,60 +3,6 @@ import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { connectFirestoreEmulator, initializeFirestore, getFirestore } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
-if (typeof window !== 'undefined') {
-  // Only apply listen channel timeout workaround for WebKit (Safari), which can
-  // get stuck in network queue locks with Firestore long-polling streams.
-  // Firefox and Chrome handle reconnects gracefully without this intervention.
-  const isWebKit = /WebKit/.test(navigator.userAgent) && !/Firefox/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-
-  if (isWebKit) {
-    const originalFetch = window.fetch;
-    window.fetch = async function (...args) {
-      const url = typeof args[0] === 'string' ? args[0] : (args[0] as any).url || 'unknown';
-      const start = performance.now();
-
-      const isFirestoreListenChannel = url.includes('/Listen/channel');
-
-      if (isFirestoreListenChannel) {
-        const controller = new AbortController();
-        const signal = controller.signal;
-
-        const timeoutId = setTimeout(() => {
-          console.warn(`⏱️ [Timeout] Aborting Firestore Listen Channel stream after 5 seconds: ${url}`);
-          controller.abort();
-        }, 5000);
-
-        const options = args[1] || {};
-        (options as any).signal = signal;
-        args[1] = options;
-
-        try {
-          const response = await originalFetch.apply(this, args);
-          clearTimeout(timeoutId);
-          console.log(`🌐 [Fetch] ${url} resolved in ${(performance.now() - start).toFixed(2)}ms with status ${response.status}`);
-          return response;
-        } catch (err: any) {
-          clearTimeout(timeoutId);
-          if (err.name === 'AbortError') {
-            console.error(`🌐 [Fetch] ${url} aborted (5s timeout)`);
-            throw new TypeError('Failed to fetch');
-          }
-          console.error(`🌐 [Fetch] ${url} failed in ${(performance.now() - start).toFixed(2)}ms`, err);
-          throw err;
-        }
-      }
-
-      try {
-        const response = await originalFetch.apply(this, args);
-        return response;
-      } catch (err) {
-        console.error(`🌐 [Fetch] ${url} failed in ${(performance.now() - start).toFixed(2)}ms`, err);
-        throw err;
-      }
-    };
-  }
-}
-
 const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-letusmeet",
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "demo-app-id-placeholder",
@@ -77,12 +23,30 @@ const isLocalhost = typeof window !== 'undefined' &&
 
 const useEmulator = import.meta.env.DEV || isLocalhost;
 
+// WebKit + the Firestore emulator: when BOTH autoDetectLongPolling and forceLongPolling
+// are enabled, the auto-detect probing breaks the WebChannel stream on WebKit so that
+// every getDoc/setDoc waits ~30s for its stream ack to arrive — making the E2E suite
+// unusably slow/flaky. Forcing long-polling with auto-detect OFF and a short poll cycle
+// makes acks arrive immediately. Scoped to the emulator so production Safari is unaffected.
+// See docs/webkit-investigation.md.
+const isWebKitUA = typeof navigator !== 'undefined'
+  && /WebKit/.test(navigator.userAgent)
+  && !/Firefox/.test(navigator.userAgent)
+  && !/Chrome/.test(navigator.userAgent);
+
 let dbInstance;
 try {
-  dbInstance = initializeFirestore(app, {
-    experimentalAutoDetectLongPolling: true,
-    experimentalForceLongPolling: useEmulator,
-  });
+  const firestoreSettings = (isWebKitUA && useEmulator)
+    ? {
+        experimentalAutoDetectLongPolling: false,
+        experimentalForceLongPolling: true,
+        experimentalLongPollingOptions: { timeoutSeconds: 5 },
+      }
+    : {
+        experimentalAutoDetectLongPolling: true,
+        experimentalForceLongPolling: useEmulator,
+      };
+  dbInstance = initializeFirestore(app, firestoreSettings);
 } catch (e) {
   dbInstance = getFirestore(app);
 }

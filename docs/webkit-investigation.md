@@ -1,6 +1,22 @@
 # WebKit E2E Slowness Investigation
 
-**Status:** Open. Captured 2026-06-01 during the `mockZkStorage` removal work.
+**Status: RESOLVED 2026-06-01.** Root cause: on WebKit + the Firestore emulator, setting
+BOTH `experimentalAutoDetectLongPolling: true` and `experimentalForceLongPolling: true`
+made auto-detect probing break the WebChannel stream, so every `getDoc`/`setDoc` waited
+~30s for its stream ack — making genesis (and all write-heavy flows) blow past Playwright's
+60s timeouts. **Fix** (`frontend/src/firebase.ts`, scoped to `isWebKitUA && useEmulator` so
+production Safari is untouched): force long-polling with `autoDetectLongPolling: false` +
+`experimentalLongPollingOptions: { timeoutSeconds: 5 }`.
+
+**Result:** full WebKit suite **23 passed in 3.2 min** (was 14 passed / 9 failed in ~56 min).
+`getActiveAmk()` genesis dropped from ~60s to **274ms**.
+
+The detailed reasoning trail (six falsified hypotheses, instrumentation, the read-fix that
+worked-but-was-insufficient, and the final transport fix) is preserved in the updates below.
+
+---
+
+(historical) Captured 2026-06-01 during the `mockZkStorage` removal work.
 
 > Note: `mockZkStorage` removal was validated against Chromium + Firefox (both 23/23,
 > fast). WebKit was **not** cleanly validated — see the data-quality caveat below. Do
