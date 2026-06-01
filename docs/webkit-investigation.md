@@ -37,6 +37,43 @@ signal, run WebKit alone with nothing else competing for CPU/IO.**
 Takeaway: the *stall* is real and roughly fixed-duration per step (good debugging
 target); the *failure count* observed here is unreliable.
 
+## UPDATE 2026-06-01 (#6) — read-fix works but is INSUFFICIENT; writes have the same 30s stall (FINAL)
+
+Patched `getAccountKeys` to a bounded read (race `getDoc` vs 3s timeout → treat as
+missing) and added a marker around the genesis write. Isolated WebKit run:
+
+```
+🔬 [FIX] getAccountKeys bounded-timeout 3s -> null
+🔬 [GEN] getAccountKeys END +3002ms          (was 30s — read fix works)
+🔬 [GEN] setAccountKeys END +30063ms          (the WRITE is ALSO 30s)
+⏳ [Enroll] getActiveAmk() resolved in 33069ms (was 60s)
+→ test STILL fails: page.waitForURL Timeout 60000ms (poll creation = more writes)
+```
+
+`setAccountKeys` (setDoc) measured at 30063ms / 30065ms / 106ms — i.e. **~30s per write,
+intermittent** (first write to a previously-missing doc stalls; some later writes fast).
+
+**Unified root cause (final):** WebKit does not deliver the Firestore watch/long-poll
+stream promptly against the emulator. `getDoc` on a missing doc waits ~30s for the initial
+snapshot; `setDoc` waits ~30s for the write to echo back through the listener stream. Same
+broken stream, both directions. Likely a WebKit response-streaming/buffering issue (chunks
+not surfaced to the app until the connection cycles ~30s).
+
+**Conclusion:** there is **no clean app/test-side fix**.
+- Read fix (bounded `getDoc`) works but only covers reads.
+- The write stall is pervasive (every `setDoc`) and can't be safely bounded — you'd
+  proceed before the write is confirmed.
+- Transport tuning (3 configs) had no effect on the 30s.
+
+**Recommendation:** exclude WebKit / webkit-mobile from the E2E suite (they are NOT in
+`npm test`, and this is a test-environment artifact — real Safari vs real Firestore is not
+implicated). Revert all diagnostic instrumentation. If WebKit E2E coverage is ever
+required, the fix must live upstream (charproof using bounded/REST one-shot reads AND a
+write path that doesn't block on listener echo) or in the Firestore-emulator/WebKit
+transport itself — out of scope for app/test code.
+
+---
+
 ## UPDATE 2026-06-01 (#5) — transport tuning is a DEAD END; 30s is a fixed missing-doc timeout
 
 Tried `experimentalLongPollingOptions: { timeoutSeconds: 5 }` (WebKit only): `getAccountKeys`
