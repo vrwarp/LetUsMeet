@@ -37,6 +37,50 @@ signal, run WebKit alone with nothing else competing for CPU/IO.**
 Takeaway: the *stall* is real and roughly fixed-duration per step (good debugging
 target); the *failure count* observed here is unreliable.
 
+## UPDATE 2026-06-01 (#3) — stall localized to a 45s NON-I/O gap inside setupGenesisDevice
+
+Instrumented the enrollment chain (`enrollDevice`/`getActiveAmk` timing), request
+START+END for every non-asset fetch, IndexedDB `open()` timing, AND IndexedDB
+transaction (`get`/`put`) timing. One isolated WebKit genesis test:
+
+- `getActiveAmk()` resolves in **45110ms / 60152ms** (varies; >60s → the 60s test
+  timeout fires first → hard fail). The post-`setState` gate dismissal is prompt, so the
+  delay is entirely inside `getActiveAmk`, NOT React.
+- Chronological fetch trace: `getAccountKeys()` getDoc completes at ~10.9s, then **a 45s
+  window with ZERO network activity**, then `derivePrfMasterKey` logs "Creating
+  credential" at ~55.9s. No fetch starts-without-ending (XHR/fetch both covered).
+- IndexedDB `open()`: all <150ms. IndexedDB transactions (`get`/`put`): **all <41ms**
+  (69 @ 0–9ms, 8 @ 10–99ms, 77 total). 
+
+  ⚠ CORRECTION: an earlier ad-hoc bucket grep mis-reported "27 tx @ 10–40s, 7 @ >40s";
+  that was a regex parsing artifact around the emoji prefix. Re-extraction proved ALL
+  IDB transactions are fast. (Recorded so this false lead isn't repeated.)
+
+**Eliminated by direct measurement:** Firestore reads, Firestore writes, transport
+(forceLongPolling on AND off both stall), IndexedDB open, IndexedDB transactions, React
+render. **The 45s is pure in-JS time inside `setupGenesisDevice`**, in the window between
+`loadDeviceKeys()` (fast IDB) and `derivePrfMasterKey()`'s `createCredential` log — i.e.
+`generateDeviceKeyPair()` + `exportDevicePrivateKey/PublicKey()` + `getDeviceId()`. These
+are supposed to be MockCryptoProvider (instant) under `__MOCK_ZK`, yet consume 45s.
+
+**Leading hypothesis (untested):** despite the "MOCK mode" banner, the **device keypair
+generation is NOT actually mocked** (or hits real `crypto.subtle.generateKey` for
+RSA-OAEP), and WebKit-in-Docker software RSA keygen / entropy is pathologically slow.
+Alternatively a busy-wait/sync-deopt in the mock path. CANNOT be resolved from app-level
+instrumentation — needs charproof-internal timing.
+
+**Next experiment:** patch `node_modules/charproof/dist/.../setupGenesisDevice` timing
+via a Dockerfile `RUN sed` step (survives `npm ci`, gets bundled by vite), logging before
+`generateDeviceKeyPair`, after it, after exports, before `derivePrfMasterKey`. That names
+the exact ~45s call. Then the fix follows (ensure the op is genuinely mocked / cheap on
+WebKit).
+
+NOTE: working tree currently carries DIAGNOSTIC instrumentation in `firebase.ts`
+(fetch + IDB patches), `useAuth.ts` (enroll timing), `DeviceEnrollmentGate.tsx` (gate
+timing). All uncommitted; revert before shipping.
+
+---
+
 ## UPDATE 2026-06-01 (#2) — instrumentation FALSIFIES the I/O theories; it's a UI state-transition hang
 
 Added direct instrumentation (timed `/Write/channel`, and monkey-patched
