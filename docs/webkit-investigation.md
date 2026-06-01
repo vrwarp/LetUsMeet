@@ -2,6 +2,10 @@
 
 **Status:** Open. Captured 2026-06-01 during the `mockZkStorage` removal work.
 
+> Note: `mockZkStorage` removal was validated against Chromium + Firefox (both 23/23,
+> fast). WebKit was **not** cleanly validated — see the data-quality caveat below. Do
+> not assume WebKit is green without an isolated run.
+
 ## Symptom
 
 WebKit (and webkit-mobile) E2E suites are functionally green but take ~20–25× longer
@@ -15,13 +19,23 @@ complete quickly, so the lost time is **not** in a slow network fetch or in WebC
 |----------------|---------------------------------|-----------|
 | chromium       | 23 passed                       | ~2–3 min  |
 | firefox        | 23 passed                       | ~1.8 min  |
-| webkit         | 14 passed, 1 flaky, 2 skipped   | **55.8 min** |
-| webkit-mobile  | 15 passed, 2 skipped            | **55.7 min** |
+| webkit (run A) | 14 passed, 1 flaky, 2 skipped   | 55.8 min  |
+| webkit (run B) | 14 passed, **9 failed**, 2 skipped | 49.4 min  |
+| webkit-mobile  | 15 passed, 2 skipped            | 55.7 min  |
 
-Two WebKit runs landed within 6 seconds of each other → the stall is **deterministic
-and per-step**, consistent with a fixed backoff/timeout signature rather than network
-jitter. (The flaky was `fuzzy-scheduling`; exit-code-1s are CI retry accounting, not
-behavioral breaks.)
+**Slowness is consistent (~50–56 min); pass/fail is NOT.** Two WebKit runs on identical
+code gave 1 flaky vs 9 failed. The failures are timeout-driven — the per-step stalls
+cross Playwright's expect/test timeout thresholds.
+
+⚠ **Data-quality caveat:** these runs were launched concurrently (3 background Docker
+containers + a foreground `npm test`) on one machine. Resource contention inflates
+already-marginal timeouts into hard failures, so the 9-failed rate is contaminated and
+must not be read as a clean code signal. Run B was also the *shortest* (49.4m),
+consistent with bailing early under contention. **To get a trustworthy WebKit pass/fail
+signal, run WebKit alone with nothing else competing for CPU/IO.**
+
+Takeaway: the *stall* is real and roughly fixed-duration per step (good debugging
+target); the *failure count* observed here is unreliable.
 
 ## Key reframe
 
