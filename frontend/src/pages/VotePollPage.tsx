@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, CheckCircle, Calendar as CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
 import { 
   extractKeyFromFragment, 
   subscribeToLedger, 
@@ -19,6 +19,7 @@ export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { user, loading } = useAuth();
   const [isReady, setIsReady] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsReady(true);
@@ -27,6 +28,7 @@ export default function VotePollPage() {
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Initializing...");
   const [session, setSession] = useState<LedgerSession | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
   
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
   const [participantName, setParticipantName] = useState("");
@@ -62,7 +64,6 @@ export default function VotePollPage() {
     }
   };
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [editingResponseId, setEditingResponseId] = useState<string>(crypto.randomUUID());
 
   // 1. Initialize Crypto and Subscribe
@@ -84,16 +85,26 @@ export default function VotePollPage() {
         if (mounted) setSession(s);
 
         // Subscribe to Ledger
-        const unsubscribe = subscribeToLedger(s, (state, status) => {
-          if (!mounted) return;
-          if (state) {
-            setPollState(state);
-            setIsLoading(false);
-          } else if (status === "No valid events found.") {
-            setIsLoading(false);
+        const unsubscribe = subscribeToLedger(
+          s,
+          (state, status) => {
+            if (!mounted) return;
+            if (state) {
+              setPollState(state);
+              setIsLoading(false);
+              setConnectionError(false);
+            } else if (status === "No valid events found.") {
+              setIsLoading(false);
+              setConnectionError(false);
+            }
+            setSyncStatus(status);
+          },
+          (err) => {
+            if (!mounted) return;
+            console.error("Ledger subscription failed:", err);
+            setConnectionError(true);
           }
-          setSyncStatus(status);
-        });
+        );
 
         return unsubscribe;
       } catch (err: any) {
@@ -205,6 +216,12 @@ export default function VotePollPage() {
     setIsSubmitting(true);
     setError(null);
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setError("You are currently offline. Please check your internet connection and try again.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const voteData: VoteData = {
         responseId: editingResponseId,
@@ -218,7 +235,7 @@ export default function VotePollPage() {
       await session.appendEvent(action);
       
       localStorage.removeItem(`draft_${pollId}`);
-      setSuccess(true);
+      navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
     } catch (err: any) {
       console.error("Vote submission failed:", err);
       setError(err.message || "Failed to submit encrypted vote.");
@@ -236,7 +253,7 @@ export default function VotePollPage() {
       const action: PollAction = { type: "VOTE_RETRACTED", payload: { responseId: editingResponseId } };
       await session.appendEvent(action);
       localStorage.removeItem(`draft_${pollId}`);
-      setSuccess(true);
+      navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
     } catch (err: any) {
       setError("Failed to retract vote.");
     } finally {
@@ -287,32 +304,26 @@ export default function VotePollPage() {
     );
   }
 
-  if (success) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <div className="bg-brand-green-light/50 rounded-3xl p-10 border border-brand-green-light">
-          <CheckCircle className="w-16 h-16 text-brand-green mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-neutral-800 mb-3">Vote Recorded!</h2>
-          <p className="text-neutral-600 mb-8">Your availability has been encrypted and added to the ledger.</p>
-          <div className="flex flex-col gap-4">
-            <Link 
-              to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} 
-              data-testid="view-results-link"
-              className="btn-primary-green w-full text-center py-4"
-            >
-              View Group Availability
-            </Link>
-            <button onClick={() => setSuccess(false)} className="text-neutral-600 font-semibold">
-              Back to poll
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+      {connectionError && (
+        <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
+            <span>Connection sluggish or offline. Trying to reconnect automatically...</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setConnectionError(false);
+              window.location.reload();
+            }}
+            className="px-4 py-1.5 bg-amber-600 text-white text-xs font-black rounded-lg hover:bg-amber-700 transition-colors shadow-sm"
+          >
+            Retry Now
+          </button>
+        </div>
+      )}
       {/* Header Card - Restored Design */}
       <div className="bg-white rounded-[3rem] shadow-2xl border border-neutral-100 mb-12 overflow-hidden">
         <div className="bg-white text-brand-charcoal px-4 sm:px-8 py-8 sm:py-12 relative overflow-hidden">

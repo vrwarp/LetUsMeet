@@ -84,17 +84,24 @@ export async function createBlindPoll(metadata: PollMetadata) {
 
 export function subscribeToLedger(
   session: LedgerSession,
-  onUpdate: (state: PollState | null, status: string) => void
+  onUpdate: (state: PollState | null, status: string) => void,
+  onError?: (error: Error) => void
 ): () => void {
   onUpdate(null, "Decrypting ledger...");
-  return session.subscribe((events: DecryptedLedgerEvent[]) => {
-    if (events.length === 0) {
-      onUpdate(null, "No valid events found.");
-      return;
+  return session.subscribe(
+    (events: DecryptedLedgerEvent[]) => {
+      if (events.length === 0) {
+        onUpdate(null, "No valid events found.");
+        return;
+      }
+      const state = calculatePollState(events);
+      onUpdate(state, "Synced");
+    },
+    (error) => {
+      onUpdate(null, "Network connection lost.");
+      onError?.(error);
     }
-    const state = calculatePollState(events);
-    onUpdate(state, "Synced");
-  });
+  );
 }
 
 // === DASHBOARD KEYSTORE SUBSCRIPTION ===

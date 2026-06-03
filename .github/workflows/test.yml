@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox]
+        browser: [chromium, chromium-mobile, firefox, webkit, webkit-mobile]
     steps:
     - uses: actions/checkout@v4
     - name: Setup Node.js

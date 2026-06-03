@@ -1,7 +1,4 @@
 import { test } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 /**
  * Clears the Firestore emulator data for the current project.
@@ -32,23 +29,26 @@ export async function clearAuth() {
 }
 
 /**
- * Clears the shared Vite ZK Mock Store file.
- */
-export async function clearMockZkStore() {
-  try {
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    const storePath = path.join(currentDir, '..', '..', 'mock-zk-store.json');
-    if (fs.existsSync(storePath)) {
-      fs.writeFileSync(storePath, '{}', 'utf-8');
-    }
-  } catch (e) {
-    console.error(`Failed to clear Mock ZK store: ${e}`);
-  }
-}
-
-/**
- * Clears both Firestore and Auth emulators, and the Vite mock ZK store.
+ * Clears both Firestore and Auth emulators.
  */
 export async function clearEmulators() {
-  await Promise.all([clearFirestore(), clearAuth(), clearMockZkStore()]);
+  await Promise.all([clearFirestore(), clearAuth()]);
+
+  // Pre-populate the chaff_pool/current document to avoid long-polling stalls on non-existent documents in WebKit
+  try {
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'demo-letusmeet';
+    const chaffUrl = `http://127.0.0.1:8081/v1/projects/${projectId}/databases/(default)/documents/chaff_pool/current`;
+    await fetch(chaffUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `projects/${projectId}/databases/(default)/documents/chaff_pool/current`,
+        fields: {
+          activePollIds: { arrayValue: { values: [] } }
+        }
+      })
+    });
+  } catch (e) {
+    console.error(`Failed to pre-populate chaff pool: ${e}`);
+  }
 }

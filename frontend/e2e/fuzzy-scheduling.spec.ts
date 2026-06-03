@@ -50,11 +50,7 @@ test.describe('Fuzzy Scheduling', () => {
     // Submit vote
     await page.getByTestId('vote-submit-btn').click();
     
-    // Check success state
-    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
-    
-    // 3. View Results
-    await page.getByTestId('view-results-link').click();
+    // Wait for results
     await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
     
     // Check matrix for the vote

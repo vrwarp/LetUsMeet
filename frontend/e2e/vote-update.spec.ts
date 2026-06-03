@@ -20,11 +20,12 @@ test.describe('Vote Update Flow', () => {
     await page.getByTestId('participant-name-input').fill('Changeable Voter');
     await page.getByTestId('vote-submit-btn').click();
 
-    // Wait for success
-    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
+    // Wait for results
+    await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
 
-    // Click "Back to poll"
-    await page.getByRole('button', { name: /Back to poll/i }).click();
+    // Click "Back to Poll" link on results page to go back
+    await page.getByRole('link', { name: /Back to Poll/i }).click();
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
 
     // The form should be visible again
     await expect(page.getByTestId('vote-submit-btn')).toBeVisible();
@@ -34,7 +35,7 @@ test.describe('Vote Update Flow', () => {
     await page.getByTestId('slot-card').nth(0).click(); // IF_NEED_BE
     await page.getByTestId('vote-submit-btn').click();
 
-    // Should see success again
-    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
+    // Should see results page again
+    await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
   });
 });

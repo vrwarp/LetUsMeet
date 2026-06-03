@@ -55,7 +55,7 @@ test.beforeEach(async ({ context }, testInfo) => {
   await clearEmulators();
 
   // Clear virtual authenticators if chromium
-  const isChromium = testInfo.project.name === 'chromium';
+  const isChromium = testInfo.project.name.includes('chromium');
   if (isChromium) {
     await clearWebAuthn(context);
   } else {

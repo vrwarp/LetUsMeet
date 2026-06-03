@@ -160,7 +160,7 @@ export async function enableVirtualAuthenticator(context: BrowserContext) {
  * High-level helper to setup WebAuthn for a context based on the current project.
  */
 export async function setupWebAuthn(context: BrowserContext, testInfo: TestInfo) {
-  const isChromium = testInfo.project.name === 'chromium';
+  const isChromium = testInfo.project.name.includes('chromium');
   if (isChromium) {
     await enableVirtualAuthenticator(context);
   } else {

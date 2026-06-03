@@ -244,14 +244,24 @@ export default function DashboardPage() {
     });
 
 const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
+      console.log(`⏱️ [Perf] subscribeToUserKeystore triggered with ${keystoreEntries.length} entries`);
+      const startDashboard = performance.now();
       const decryptedResults = await Promise.all(
         keystoreEntries.map(async (entry) => {
+          const startEntry = performance.now();
           try {
             if (!entry.ledgerId) return null;
+            const startSession = performance.now();
             const session = await getLedgerSession(entry.ledgerId);
+            console.log(`⏱️ [Perf] getLedgerSession(${entry.ledgerId}) took ${(performance.now() - startSession).toFixed(2)}ms`);
+            
+            const startGenesis = performance.now();
             const genesis = await session.getGenesisEvent();
+            console.log(`⏱️ [Perf] getGenesisEvent(${entry.ledgerId}) took ${(performance.now() - startGenesis).toFixed(2)}ms`);
+            
             if (genesis?.action?.type === "POLL_CREATED") {
               const isOrganizer = session.getSignerPublicKey() === genesis.signerPublicKey;
+              console.log(`⏱️ [Perf] Decrypted entry ${entry.ledgerId} successfully in ${(performance.now() - startEntry).toFixed(2)}ms`);
               return {
                 pollId: entry.ledgerId,
                 symmetricKey: session.exportSessionKey(),
@@ -261,7 +271,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               } as DecryptedDashboardEntry;
             }
           } catch (e) {
-            console.warn("Failed to decrypt dashboard entry", entry.ledgerId, e);
+            console.warn(`⏱️ [Perf] Failed to decrypt entry ${entry.ledgerId} in ${(performance.now() - startEntry).toFixed(2)}ms`, e);
           }
           return null;
         })
@@ -271,6 +281,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
         (entry): entry is DecryptedDashboardEntry => entry !== null
       );
 
+      console.log(`⏱️ [Perf] Total Dashboard Decryption of ${decryptedEntries.length} entries took ${(performance.now() - startDashboard).toFixed(2)}ms`);
       setEntries(decryptedEntries);
       setFetching(false);
     });
@@ -317,8 +328,8 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       await revokeDevice(deviceId);
       setShowRotationSuccess(true);
       setTimeout(() => setShowRotationSuccess(false), 5000);
-    } catch (e) {
-      console.error("Failed to revoke device:", e);
+    } catch (e: any) {
+      console.error("Failed to revoke device:", e?.message || String(e), e?.stack);
       alert("Failed to revoke device.");
     }
   };
@@ -1107,16 +1118,15 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                           </div>
                           {!isCurrent && (
                             <button
-                              onClick={() => {
-                                if (confirm("Are you sure you want to revoke this device?")) {
-                                  handleRevoke(device.deviceId);
-                                  // Close modal if last revoked
-                                  if (Object.keys(accountData?.devices || {}).length <= 2) {
-                                    setActiveModal(null);
-                                  }
+                              onClick={async () => {
+                                await handleRevoke(device.deviceId);
+                                // Close modal if last revoked
+                                if (Object.keys(accountData?.devices || {}).length <= 2) {
+                                  setActiveModal(null);
                                 }
                               }}
                               disabled={!isReady}
+                              data-testid="revoke-device-btn-modal"
                               className="p-1.5 text-neutral-400 hover:text-brand-red hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
                               title="Revoke Access"
                             >

@@ -54,6 +54,37 @@ test.describe('Error & Edge Cases', () => {
     // Fill the name and it should work
     await page.getByTestId('participant-name-input').fill('Alice');
     await submitBtn.click();
-    await expect(page.locator('h2', { hasText: 'Vote Recorded!' })).toBeVisible();
+    await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);
+  });
+
+  test('displays connection/network error when attempting operation while offline', async ({ page }) => {
+    await page.goto('/');
+
+    // 1. Create a poll first
+    await page.locator('header').getByTestId('create-poll-btn').click();
+    await page.getByTestId('organizer-name-input').fill('Test Resiliency');
+    const pollTitle = `Offline Test Poll ${Date.now()}`;
+    await page.getByTestId('poll-title-input').fill(pollTitle);
+    await page.getByTestId('add-slot-btn').click();
+    
+    const createBtn = page.getByTestId('create-submit-btn');
+    await createBtn.click();
+    await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
+
+    // 2. Turn network offline
+    await page.context().setOffline(true);
+    await page.waitForFunction(() => !navigator.onLine);
+
+    // 3. Try to submit a vote while offline
+    await page.getByTestId('participant-name-input').fill('Bob Offline');
+    const submitBtn = page.getByTestId('vote-submit-btn');
+    await submitBtn.click();
+
+    // 4. Verify that the UI displays a clean error banner/message
+    const errorMsg = page.getByTestId('error-message');
+    await expect(errorMsg).toBeVisible();
+
+    // 5. Restore connection
+    await page.context().setOffline(false);
   });
 });
