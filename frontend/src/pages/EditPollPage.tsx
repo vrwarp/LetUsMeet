@@ -4,6 +4,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -90,7 +91,7 @@ function SortableSlotItem({
               <div 
                 {...attributes} 
                 {...listeners} 
-                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
+                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0 touch-none"
                 aria-label="Drag to reorder"
               >
                 <GripVertical size={20} />
@@ -173,7 +174,7 @@ function SortableSlotItem({
               <div 
                 {...attributes} 
                 {...listeners} 
-                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0"
+                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0 touch-none"
                 aria-label="Drag to reorder"
               >
                 <GripVertical size={20} />
@@ -304,6 +305,12 @@ export default function EditPollPage() {
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
