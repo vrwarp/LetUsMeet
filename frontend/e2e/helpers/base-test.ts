@@ -54,16 +54,12 @@ test.beforeEach(async ({ context }, testInfo) => {
   // Ensure we start with a clean state for every single test
   await clearEmulators();
 
-  // Clear virtual authenticators if chromium
+  // Clear virtual authenticators if chromium. WebKit and Firefox don't support
+  // headless virtual authenticators; setupWebAuthn installs a stateful
+  // navigator.credentials mock for them instead (see webauthn-helper).
   const isChromium = testInfo.project.name.includes('chromium');
   if (isChromium) {
     await clearWebAuthn(context);
-  } else {
-    // WebKit and Firefox do not support headless virtual authenticators.
-    // Inject the mock ZK flag dynamically before any application bundle script runs.
-    await context.addInitScript(() => {
-      (window as any).__MOCK_ZK = 'true';
-    });
   }
 
   // Setup WebAuthn context

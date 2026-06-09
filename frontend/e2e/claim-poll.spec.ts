@@ -1,5 +1,4 @@
 import { test, expect } from './helpers/base-test';
-import { mockWebAuthn, enableVirtualAuthenticator } from './helpers/webauthn-helper';
 import { mockGoogleSignIn } from './helpers/auth-helper';
 import { setupWebAuthn } from './helpers/webauthn-helper';
 

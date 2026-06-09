@@ -14,6 +14,11 @@ const firebaseConfig = {
 };
 
 import { initializeZK } from "charproof";
+import { MockPrfProvider } from "./lib/testing/mockPrfProvider";
+
+// Injected at build time by Vite (`define` in vite.config.ts). `true` only for
+// E2E builds; `false` in production so the test-hook branch below is eliminated.
+declare const __E2E_HOOKS__: boolean;
 
 
 const app = initializeApp(firebaseConfig);
@@ -54,8 +59,21 @@ try {
 export const db = dbInstance;
 export const functions = getFunctions(app);
 
-// Initialize Zero-Knowledge Library
-initializeZK({ db, auth });
+// Initialize Zero-Knowledge Library.
+//
+// charproof always runs the real WebCrypto provider. The only exception is E2E on
+// WebKit/Firefox, which can't use a real/virtual WebAuthn authenticator: when the
+// E2E build flag is set AND the harness opts in at runtime, we inject charproof's
+// supported `prfProvider` override with a device-scoped mock. `__E2E_HOOKS__` is a
+// compile-time constant (false in production), so this entire branch — and the
+// MockPrfProvider import — is dead-code-eliminated from production builds. There is
+// no runtime mock switch shipped to users.
+const useMockPrf =
+  __E2E_HOOKS__ &&
+  typeof window !== "undefined" &&
+  (window as Window & { __E2E_MOCK_PRF__?: string }).__E2E_MOCK_PRF__ === "true";
+
+initializeZK(useMockPrf ? { db, auth, prfProvider: new MockPrfProvider() } : { db, auth });
 
 
 if (useEmulator) {

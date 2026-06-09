@@ -9,6 +9,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Compile-time flag gating E2E-only test hooks (the mock PRF provider). Set only
+  // for E2E builds (see Dockerfile.e2e); folds to `false` in production builds so
+  // the mock provider is dead-code-eliminated and never shipped.
+  define: {
+    __E2E_HOOKS__: JSON.stringify(process.env.VITE_E2E_HOOKS === 'true'),
+  },
   server: {
     port: 5273,
     strictPort: true,
