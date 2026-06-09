@@ -23,8 +23,11 @@ RUN npm ci
 # Copy the rest of the application
 COPY . .
 
-# Build the application (root build script builds both frontend and functions)
-RUN npm run build
+# Build the application (root build script builds both frontend and functions).
+# VITE_E2E_HOOKS bakes the E2E-only test hooks (mock PRF provider) into this image
+# so WebKit/Firefox can run the device/PRF flows without a real authenticator. This
+# image is for E2E only and is never deployed; production builds omit the flag.
+RUN VITE_E2E_HOOKS=true npm run build
 
 # Default command: run E2E tests using Firebase emulators
 CMD ["npx", "firebase", "emulators:exec", "--only", "auth,firestore,functions,hosting", "npm run test:e2e --prefix frontend"]

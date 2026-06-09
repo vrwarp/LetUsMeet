@@ -33,16 +33,33 @@ Our WebKit/Firefox E2E runs relied on `__MOCK_ZK` (those browsers can't use the
 CDP virtual authenticator). With it gone, the app now correctly runs the **real**
 `WebCryptoProvider` + `WebAuthnPrfProvider` in every browser.
 
-We did **not** re-introduce an app-level mock (that would undo the hardening).
-Instead the E2E harness now stubs the authenticator at the
-`navigator.credentials` boundary, which is exactly what the real PRF provider
-consumes. The new `mockWebAuthn` is **stateful and device-scoped**: `create`
-mints a random credential + PRF secret in that context's `localStorage`; `get`
-returns the PRF result only for a credential present on *this* device and throws
-`NotAllowedError` otherwise. This reproduces the old per-device passkey semantics
-(e.g. the "Silent PRF Recovery from device loss" journey) without any mock code in
-the shipped bundle. Chromium is unaffected (it keeps the CDP virtual
-authenticator with `hasPrf: true`).
+We did **not** re-introduce the ambient/runtime mock switch. Instead we use
+charproof's **supported, build-time-gated** injection point:
+
+- `frontend/src/lib/testing/mockPrfProvider.ts` implements `PrfProvider` with a
+  **device-scoped** mock: each credential's PRF secret is stored in that browser
+  context's `localStorage`, and an assertion for a credential not present on
+  *this* device rejects with `NotAllowedError` — reproducing the old per-device
+  passkey semantics (e.g. the "Silent PRF Recovery from device loss" journey).
+- `firebase.ts` injects it via `initializeZK({ db, auth, prfProvider })` only when
+  the compile-time `__E2E_HOOKS__` flag is set **and** the harness opts in at
+  runtime (`window.__E2E_MOCK_PRF__`). `__E2E_HOOKS__` is a Vite `define`
+  (`vite.config.ts`) that is `false` in production, so the branch **and the
+  MockPrfProvider import are dead-code-eliminated** from production bundles —
+  verified by grepping `dist/`. Only `Dockerfile.e2e` builds with
+  `VITE_E2E_HOOKS=true`; that image is never deployed.
+- The app **always** runs the real WebCrypto provider; only the hardware
+  authenticator is simulated, and only in E2E.
+
+Why inject the provider rather than stub `navigator.credentials`: WebKit does not
+allow tests to override `navigator.credentials`, so a navigator-level stub fails
+there (the device list never populates). Injecting the provider is in-process and
+works uniformly on WebKit and Firefox. Chromium is unaffected — it keeps the CDP
+virtual authenticator with `hasPrf: true` and the real `WebAuthnPrfProvider`.
+
+Note: `npm run test:e2e:local` (non-Docker) builds without the flag, so the
+WebKit/Firefox PRF hook is inactive there; use the Docker `test:e2e:*` scripts
+(as CI does) or build with `VITE_E2E_HOOKS=true` for those browsers locally.
 
 ### 2. New: `session.subscribe(onUpdate, onError?)`
 
