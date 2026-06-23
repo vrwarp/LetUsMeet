@@ -15,6 +15,9 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
+import { copyToClipboard } from "@/lib/clipboard";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown, Edit3 } from "lucide-react";
 import { buttonClasses } from "@/components/buttonStyles";
 import type { PollMetadata, PendingDevice } from "../types";
@@ -38,6 +41,8 @@ interface DecryptedDashboardEntry {
 export default function DashboardPage() {
   useDocumentTitle('Dashboard · LetUsMeet');
   const { user, loading, pendingRequests } = useAuth();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
   const [entries, setEntries] = useState<DecryptedDashboardEntry[]>([]);
   
   const activeEntries = entries.filter(e => !e.isArchived);
@@ -51,17 +56,23 @@ export default function DashboardPage() {
     const entry = activeEntries.find(e => e.pollId === pollId);
     const isOrganizer = entry?.isOrganizer;
     const warningMsg = isOrganizer
-      ? `Archive poll "${title}"?\n\nThis will hide the poll from your main dashboard. Because you are the Organizer, you will not be able to manage, edit, or close this poll unless you restore it from the Archive section first.`
-      : `Archive poll "${title}"?\n\nThis will hide the poll from your main dashboard view. You can restore it and adjust your responses at any time from the Archive section at the bottom.`;
+      ? "This hides the poll from your main dashboard. Because you're the Organizer, you won't be able to manage, edit, or close it unless you restore it from the Archive section first."
+      : "This hides the poll from your main dashboard. You can restore it and adjust your responses anytime from the Archive section at the bottom.";
 
-    if (!window.confirm(warningMsg)) return;
+    if (!(await askConfirm({
+      title: `Archive poll "${title}"?`,
+      body: warningMsg,
+      confirmLabel: "Archive",
+      variant: "warning",
+    }))) return;
 
     try {
       setActionInProgress(pollId);
       await archiveKeystoreEntry(pollId);
+      toast({ variant: "success", message: "Poll archived." });
     } catch (e) {
       console.error("Failed to archive poll:", e);
-      alert("Failed to archive poll.");
+      toast({ variant: "error", message: "Failed to archive poll." });
     } finally {
       setActionInProgress(null);
     }
@@ -71,9 +82,10 @@ export default function DashboardPage() {
     try {
       setActionInProgress(pollId);
       await unarchiveKeystoreEntry(pollId);
+      toast({ variant: "success", message: "Poll restored." });
     } catch (e) {
       console.error("Failed to restore poll:", e);
-      alert("Failed to restore poll.");
+      toast({ variant: "error", message: "Failed to restore poll." });
     } finally {
       setActionInProgress(null);
     }
@@ -104,7 +116,7 @@ export default function DashboardPage() {
       await approveDeviceAuthorization(req);
     } catch (e) {
       console.error("Failed to approve device:", e);
-      alert("Failed to authorize device.");
+      toast({ variant: "error", message: "Failed to authorize device." });
     } finally {
       setApprovingId(null);
     }
@@ -277,7 +289,9 @@ export default function DashboardPage() {
         devicesRecord[dev.deviceId] = dev;
       }
       setAccountData({ devices: devicesRecord } as any);
-      getRecoveryStatus().then(setRecoveryStatus);
+      getRecoveryStatus().then(setRecoveryStatus).catch((e) => {
+        console.error("Failed to load recovery status:", e);
+      });
     });
 
 const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
@@ -337,7 +351,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       setRecoveryStatus(status);
     } catch (e) {
       console.error("Failed to enable recovery:", e);
-      alert("Failed to enable recovery. Make sure your browser supports passkeys and you have one set up.");
+      toast({ variant: "error", message: "Failed to enable recovery. Make sure your browser supports passkeys and you have one set up." });
     } finally {
       setEnablingRecovery(false);
     }
@@ -353,29 +367,38 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       setRecoveryStatus(status);
     } catch (e) {
       console.error("Failed to setup phrase recovery:", e);
-      alert("Failed to setup phrase recovery.");
+      toast({ variant: "error", message: "Failed to setup phrase recovery." });
     } finally {
       setEnablingRecovery(false);
     }
   };
 
   const handleRevoke = async (deviceId: string) => {
-    if (!confirm("Are you sure you want to revoke this device? It will lose access to all your polls immediately.")) return;
+    if (!(await askConfirm({
+      title: "Revoke this device?",
+      body: "It will lose access to all your polls immediately.",
+      confirmLabel: "Revoke device",
+      variant: "danger",
+    }))) return;
     try {
       await revokeDevice(deviceId);
       setShowRotationSuccess(true);
       setTimeout(() => setShowRotationSuccess(false), 5000);
     } catch (e: any) {
       console.error("Failed to revoke device:", e?.message || String(e), e?.stack);
-      alert("Failed to revoke device.");
+      toast({ variant: "error", message: "Failed to revoke device." });
     }
   };
 
-  const copyToClipboard = () => {
+  const handleCopyMnemonic = async () => {
     if (generatedMnemonic) {
-      navigator.clipboard.writeText(generatedMnemonic);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      const ok = await copyToClipboard(generatedMnemonic);
+      if (ok) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        toast({ variant: "error", message: "We couldn't copy your phrase. Please copy it manually." });
+      }
     }
   };
 
@@ -902,9 +925,14 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     </button>
                   ) : (
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (confirm("Would you like to regenerate your recovery phrase? This will create a NEW 24-word phrase and invalidate the old one. Make sure you write down the new phrase.")) {
+                        if (await askConfirm({
+                          title: "Regenerate your recovery phrase?",
+                          body: "This creates a NEW 24-word phrase and invalidates the old one. Make sure you write down the new phrase.",
+                          confirmLabel: "Regenerate",
+                          variant: "warning",
+                        })) {
                           handleGeneratePhrase();
                         }
                       }}
@@ -1143,8 +1171,13 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     </button>
                   ) : (
                     <button
-                      onClick={() => {
-                        if (confirm("Would you like to regenerate your recovery phrase? This will create a NEW 24-word phrase and invalidate the old one. Make sure you write down the new phrase.")) {
+                      onClick={async () => {
+                        if (await askConfirm({
+                          title: "Regenerate your recovery phrase?",
+                          body: "This creates a NEW 24-word phrase and invalidates the old one. Make sure you write down the new phrase.",
+                          confirmLabel: "Regenerate",
+                          variant: "warning",
+                        })) {
                           setActiveModal(null);
                           handleGeneratePhrase();
                         }
@@ -1264,7 +1297,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <button
-                onClick={copyToClipboard}
+                onClick={handleCopyMnemonic}
                 disabled={!isReady}
                 className="focus-ring flex-1 px-8 py-4 bg-neutral-100 text-neutral-600 rounded-2xl font-black hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >

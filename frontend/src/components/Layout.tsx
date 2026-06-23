@@ -2,6 +2,8 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { Outlet, Link, useLocation, useSearchParams, useNavigate, useNavigation } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
 import { analyzeMnemonicTypos } from "@/lib/recoveryCorrector";
 import logoImg from "@/assets/meat-lettuce-logo-transparent.webp?inline";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
@@ -44,6 +46,8 @@ export default function Layout() {
   const [mnemonicInput, setMnemonicInput] = useState("");
   const [isRecovering, setIsRecovering] = useState(false);
   const { user, loading, keyMismatchError, signInWithGoogle, signOutUser, resetAccount, deleteAccount, recoverWithPhrase, pendingRequests } = useAuth();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
   const [isWaitingForAuth, setIsWaitingForAuth] = useState(false);
   const typoReport = useMemo(() => {
     return analyzeMnemonicTypos(mnemonicInput);
@@ -129,7 +133,7 @@ export default function Layout() {
       await approveDeviceAuthorization(req);
     } catch (e) {
       console.error("Failed to approve device:", e);
-      alert("Failed to authorize device.");
+      toast({ variant: "error", message: "Failed to authorize device." });
     } finally {
       setApprovingId(null);
     }
@@ -187,7 +191,7 @@ export default function Layout() {
       setShowPhraseInput(false);
       setMnemonicInput("");
     } catch {
-      alert("We couldn't restore your account. Double-check your recovery phrase and try again.");
+      toast({ variant: "error", message: "We couldn't restore your account. Double-check your recovery phrase and try again." });
     } finally {
       setIsRecovering(false);
     }
@@ -282,11 +286,17 @@ export default function Layout() {
                             
                             <button
                               onClick={async () => {
-                                if (confirm("Delete your account? This permanently erases your access to every poll you've created or joined. This can't be undone.")) {
+                                if (await askConfirm({
+                                  title: "Delete your account?",
+                                  body: "This permanently erases your access to every poll you've created or joined. This can't be undone.",
+                                  confirmLabel: "Delete account",
+                                  variant: "danger",
+                                })) {
                                   try {
                                     await deleteAccount();
-                                  } catch (e: any) {
-                                    alert("Failed to delete account: " + e.message);
+                                  } catch (e) {
+                                    console.error("Failed to delete account:", e);
+                                    toast({ variant: "error", message: "We couldn't delete your account. Please try again." });
                                   }
                                 }
                               }}
@@ -505,9 +515,14 @@ export default function Layout() {
                 )}
 
                 <div className="pt-4 border-t border-neutral-100 mt-5 sm:mt-6 w-full flex flex-col items-center">
-                  <button 
-                    onClick={() => {
-                      if (confirm("WARNING: This will permanently delete ALL your encrypted polls and reset your account. This cannot be undone. Are you sure?")) {
+                  <button
+                    onClick={async () => {
+                      if (await askConfirm({
+                        title: "Reset your account?",
+                        body: "This permanently deletes ALL your encrypted polls and resets your account. This cannot be undone.",
+                        confirmLabel: "Reset account",
+                        variant: "danger",
+                      })) {
                         resetAccount();
                       }
                     }}

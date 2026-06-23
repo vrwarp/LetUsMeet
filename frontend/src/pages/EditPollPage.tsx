@@ -21,7 +21,7 @@ import { GripVertical } from 'lucide-react';
 
 
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, Clock, X, Lock } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, Clock, X, Lock, RotateCcw } from "lucide-react";
 import {
   extractKeyFromFragment,
   subscribeToLedger,
@@ -31,6 +31,7 @@ import {
 import type { LedgerSession } from "charproof";
 import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useToast } from "@/components/toast/toastContext";
 import { dragAnnouncements } from "@/lib/dndAnnouncements";
 
 interface TimeSlotInput {
@@ -285,6 +286,7 @@ function SortableSlotItem({
 export default function EditPollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isReady, setIsReady] = useState(false);
 
   useDocumentTitle("Edit poll — LetUsMeet");
@@ -356,10 +358,11 @@ export default function EditPollPage() {
   // 1. Initialize and Subscribe
   useEffect(() => {
     if (!pollId) return;
+    let mounted = true;
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
-      setError("Secret key missing.");
+      setError("This link is missing its key, so this poll can't be unlocked. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;
     }
@@ -367,9 +370,11 @@ export default function EditPollPage() {
     const init = async () => {
       try {
         const s = await getLedgerSession(pollId, { shareableKey: b64Key });
+        if (!mounted) return;
         setSession(s);
 
         const unsubscribe = subscribeToLedger(s, (state, status) => {
+          if (!mounted) return;
           if (state) {
             setPollState(state);
             // Only update form if not already edited by user
@@ -416,13 +421,18 @@ export default function EditPollPage() {
 
         return unsubscribe;
       } catch {
-        setError("Failed to initialize.");
-        setIsLoading(false);
+        if (mounted) {
+          setError("We couldn't reach the server to open this poll — retry.");
+          setIsLoading(false);
+        }
       }
     };
 
     const unsubPromise = init();
-    return () => { unsubPromise.then(unsub => unsub?.()); };
+    return () => {
+      mounted = false;
+      unsubPromise.then(unsub => unsub?.());
+    };
   }, [pollId, pollState?.adminPublicKey]);
 
   // Re-check admin when pollState is updated
@@ -472,10 +482,18 @@ export default function EditPollPage() {
     setIsSubmitting(true);
     setError(null);
 
+    const mode = pollState.metadata.schedulingMode;
+
+    // Guard invalid/empty dates before they throw into the generic catch.
+    if (mode === "EXACT" && slots.some(slot => !slot.date || Number.isNaN(new Date(`${slot.date}T${slot.startTime || "09:00"}`).getTime()))) {
+      setError("Every time needs a date.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      const mode = pollState.metadata.schedulingMode;
       const updatedMetadata = {
-        title,
+        title: title.trim(),
         description,
         location,
         timeSlots: mode === "EXACT"
@@ -494,7 +512,8 @@ export default function EditPollPage() {
 
       const action: PollAction = { type: "POLL_UPDATED", payload: updatedMetadata };
       await session.appendEvent(action);
-      
+
+      toast({ variant: "success", message: "Changes saved." });
       navigate(`/poll/${pollId}${window.location.search}${window.location.hash}`);
     } catch {
       setError("Failed to update poll.");
@@ -514,12 +533,25 @@ export default function EditPollPage() {
   }
 
   if (error || !pollState || !isAdmin) {
+    const canRetry = !!error && error.startsWith("We couldn't reach the server");
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
         <h1 className="text-2xl font-bold text-neutral-800 mb-4">Admin Access Required</h1>
         <p className="text-neutral-600 text-lg mb-8">{error || "You do not have the administrative key for this poll."}</p>
-        <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className="btn-primary-green inline-block">Back to Poll</Link>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {canRetry && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="btn-primary-green inline-flex items-center gap-2"
+            >
+              <RotateCcw className="w-5 h-5" aria-hidden="true" />
+              Retry
+            </button>
+          )}
+          <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className={canRetry ? "px-6 py-3 rounded-xl font-bold border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors inline-block" : "btn-primary-green inline-block"}>Back to Poll</Link>
+        </div>
       </div>
     );
   }
@@ -639,7 +671,7 @@ export default function EditPollPage() {
         <button
           type="submit"
           aria-busy={isSubmitting}
-          disabled={!isReady || isSubmitting || !title || slots.length === 0}
+          disabled={!isReady || isSubmitting || !title.trim() || slots.length === 0}
           className="btn-primary-green w-full py-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <><Save size={24} aria-hidden="true" /> Save Changes</>}

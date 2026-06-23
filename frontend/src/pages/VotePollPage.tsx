@@ -17,12 +17,17 @@ import CompactActionCard from "@/components/CompactActionCard";
 import ClaimBanner from "@/components/ClaimBanner";
 import Button from "@/components/Button";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { user, loading } = useAuth();
   const [isReady, setIsReady] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
 
   useEffect(() => {
     setIsReady(true);
@@ -32,6 +37,7 @@ export default function VotePollPage() {
   const [syncStatus, setSyncStatus] = useState("Loading this poll…");
   const [session, setSession] = useState<LedgerSession | null>(null);
   const [connectionError, setConnectionError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
   const [participantName, setParticipantName] = useState("");
@@ -53,17 +59,34 @@ export default function VotePollPage() {
     }
   }, [pollState?.metadata]);
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(getShareableUrl());
-    setShowCopied(true);
-    setTimeout(() => setShowCopied(false), 3000);
+  const handleShare = async () => {
+    const shareUrl = getShareableUrl();
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ url: shareUrl });
+        return;
+      } catch {
+        // User dismissed the share sheet or it failed — fall through to clipboard copy.
+      }
+    }
+    const ok = await copyToClipboard(shareUrl);
+    if (ok) {
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 3000);
+    } else {
+      toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+    }
   };
 
-  const handleCopyLocation = () => {
+  const handleCopyLocation = async () => {
     if (pollState?.metadata?.location) {
-      navigator.clipboard.writeText(pollState.metadata.location);
-      setShowLocationCopied(true);
-      setTimeout(() => setShowLocationCopied(false), 3000);
+      const ok = await copyToClipboard(pollState.metadata.location);
+      if (ok) {
+        setShowLocationCopied(true);
+        setTimeout(() => setShowLocationCopied(false), 3000);
+      } else {
+        toast({ variant: "error", message: "We couldn't copy the location. Try copying it manually." });
+      }
     }
   };
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +110,9 @@ export default function VotePollPage() {
       setIsLoading(false);
       return;
     }
+
+    setInitError(null);
+    setIsLoading(true);
 
     const init = async () => {
       try {
@@ -126,11 +152,11 @@ export default function VotePollPage() {
     };
 
     const unsubPromise = init();
-    return () => { 
+    return () => {
       mounted = false;
-      unsubPromise.then(unsub => unsub?.()); 
+      unsubPromise.then(unsub => unsub?.());
     };
-  }, [pollId, user?.uid, loading]);
+  }, [pollId, user?.uid, loading, retryKey]);
 
   // 2. Derive User Votes
   const userVotes = (pollState && session) ? Array.from(pollState.votes.entries())
@@ -245,8 +271,9 @@ export default function VotePollPage() {
 
       const action: PollAction = { type: "VOTE_UPSERT", payload: voteData };
       await session.appendEvent(action);
-      
+
       localStorage.removeItem(`draft_${pollId}`);
+      toast({ variant: "success", message: "Response saved — you can edit anytime." });
       navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
     } catch (err: any) {
       console.error("Vote submission failed:", err);
@@ -258,13 +285,19 @@ export default function VotePollPage() {
 
   const handleRetract = async () => {
     if (!session || !pollId) return;
-    if (!confirm("Are you sure you want to retract your vote?")) return;
+    if (!(await askConfirm({
+      title: "Retract your response?",
+      body: "This removes your response from this poll. You can submit a new one anytime.",
+      confirmLabel: "Retract",
+      variant: "danger",
+    }))) return;
 
     setIsSubmitting(true);
     try {
       const action: PollAction = { type: "VOTE_RETRACTED", payload: { responseId: editingResponseId } };
       await session.appendEvent(action);
       localStorage.removeItem(`draft_${pollId}`);
+      toast({ variant: "success", message: "Your response was retracted." });
       navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
     } catch {
       setError("Failed to retract vote.");
@@ -284,12 +317,25 @@ export default function VotePollPage() {
   }
 
   if (initError || !pollState || !pollState.metadata) {
+    const isMissingKey = initError?.startsWith("This link is missing");
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
         <h1 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h1>
         <p className="text-neutral-600 text-lg mb-8">{initError || "This poll is private. Open it using the full link the organizer shared with you."}</p>
-        <Link to="/" className="btn-primary-green inline-block">Return to Home</Link>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {initError && !isMissingKey && (
+            <button
+              type="button"
+              onClick={() => setRetryKey((k) => k + 1)}
+              className="btn-primary-green inline-flex items-center gap-2"
+            >
+              <History className="w-5 h-5 -scale-x-100" aria-hidden="true" />
+              Retry
+            </button>
+          )}
+          <Link to="/" className={initError && !isMissingKey ? "px-6 py-3 rounded-xl font-bold border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors inline-block" : "btn-primary-green inline-block"}>Return to Home</Link>
+        </div>
       </div>
     );
   }

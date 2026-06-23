@@ -2,6 +2,8 @@ import React, { useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 
 interface DeviceEnrollmentGateProps {
@@ -10,6 +12,8 @@ interface DeviceEnrollmentGateProps {
 
 export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateProps) {
   const { user, isDeviceRegistered, loading, enrollDevice, keyMismatchError, deleteAccount } = useAuth();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
   const [enrollmentState, setEnrollmentState] = useState<'idle' | 'prompting' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const gateRef = useRef<HTMLDivElement>(null);
@@ -93,11 +97,17 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               <div className="flex justify-center mt-5 w-full">
                 <button
                   onClick={async () => {
-                    if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
+                    if (await askConfirm({
+                      title: "Delete your account?",
+                      body: "This permanently deletes your account and all your access keys. You'll lose access to all your encrypted polls. This can't be undone.",
+                      confirmLabel: "Delete account",
+                      variant: "danger",
+                    })) {
                       try {
                         await deleteAccount();
-                      } catch (e: any) {
-                        setErrorMessage("Failed to delete account: " + e.message);
+                      } catch (e) {
+                        console.error("Failed to delete account:", e);
+                        toast({ variant: "error", message: "We couldn't delete your account. Please try again." });
                       }
                     }
                   }}

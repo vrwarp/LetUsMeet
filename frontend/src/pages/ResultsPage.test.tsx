@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithProviders } from '@/test/renderWithProviders';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ResultsPage from './ResultsPage';
@@ -12,7 +13,7 @@ describe('ResultsPage', () => {
   });
 
   const renderPage = (pollId = 'mock-poll-id-123') => {
-    return render(
+    return renderWithProviders(
       <MemoryRouter initialEntries={[`/poll/${pollId}/results#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=`]}>
         <Routes>
           <Route path="/poll/:pollId/results" element={<ResultsPage />} />
@@ -260,8 +261,8 @@ describe('ResultsPage', () => {
     removeSpy.mockRestore();
   });
 
-  it('does NOT finalize when the confirm dialog is declined', async () => {
-    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+  it('skips finalize when the dialog is cancelled and runs it when confirmed', async () => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementation((_session, cb) => {
       cb({
         pollId: 'p1',
         metadata: {
@@ -284,22 +285,36 @@ describe('ResultsPage', () => {
     };
     vi.mocked(pollService.getLedgerSession).mockResolvedValue(mockSession as unknown as LedgerSession);
 
-    // Decline the confirm dialog
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-
     renderPage();
 
-    // The admin-only "Confirm" finalize button should be present
-    const confirmBtn = await screen.findByRole('button', { name: /^Confirm$/i });
-    expect(confirmBtn).toBeInTheDocument();
+    // The admin-only "Confirm" finalize button should be present.
+    const finalizeBtn = await screen.findByRole('button', { name: /^Confirm$/i });
+    expect(finalizeBtn).toBeInTheDocument();
 
-    confirmBtn.click();
+    // Clicking it opens the new alertdialog instead of a native browser prompt.
+    finalizeBtn.click();
 
-    expect(confirmSpy).toHaveBeenCalled();
-    // Finalize must NOT have been dispatched
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(/close voting for everyone/i);
+
+    // Cancel: finalize must NOT be dispatched and the dialog closes.
+    screen.getByRole('button', { name: /^Cancel$/i }).click();
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
     expect(appendEvent).not.toHaveBeenCalled();
 
-    confirmSpy.mockRestore();
+    // Re-open and confirm: finalize IS dispatched.
+    (await screen.findByRole('button', { name: /^Confirm$/i })).click();
+    await screen.findByRole('alertdialog');
+    screen.getByRole('button', { name: /Confirm time/i }).click();
+
+    await waitFor(() => {
+      expect(appendEvent).toHaveBeenCalled();
+    });
+    expect(appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'POLL_FINALIZED', payload: { finalizedSlotId: 't1' } })
+    );
   });
 
   it('renders a graceful fallback (no crash) when the finalized slot id is no longer in timeSlots', async () => {

@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import Button from "@/components/Button";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useToast } from "@/components/toast/toastContext";
 import { dragAnnouncements } from "@/lib/dndAnnouncements";
 
 interface TimeSlotInput {
@@ -300,6 +301,7 @@ export default function CreatePollPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [pendingGeneratedSlots, setPendingGeneratedSlots] = useState<TimeSlotInput[] | null>(null);
   const { user } = useAuth();
+  const { toast } = useToast();
   const [isReady, setIsReady] = useState(false);
 
   useDocumentTitle("Create a poll — LetUsMeet");
@@ -496,11 +498,19 @@ export default function CreatePollPage() {
     setIsSubmitting(true);
     setError(null);
 
+    // Guard invalid/empty dates before they throw an opaque RangeError into the
+    // generic catch below.
+    if (schedulingMode === "EXACT" && slots.some(slot => !slot.date || Number.isNaN(new Date(`${slot.date}T${slot.startTime || "09:00"}`).getTime()))) {
+      setError("Every time needs a date.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const metadata = {
-        title,
+        title: title.trim(),
         location,
-        organizerName,
+        organizerName: organizerName.trim(),
         schedulingMode,
         description,
         timeSlots: schedulingMode === "EXACT"
@@ -518,6 +528,7 @@ export default function CreatePollPage() {
       };
 
       const { pollId, key, adminToken } = await createBlindPoll(metadata);
+      toast({ variant: "success", message: "Poll created — share the link to collect responses." });
       navigate(`/poll/${pollId}?adminToken=${adminToken}#key=${key}`);
 
     } catch (err: unknown) {
@@ -874,7 +885,7 @@ export default function CreatePollPage() {
             size="lg"
             data-testid="create-submit-btn"
             aria-busy={isSubmitting}
-            disabled={!isReady || isSubmitting || !title || !organizerName || slots.length === 0}
+            disabled={!isReady || isSubmitting || !title.trim() || !organizerName.trim() || slots.length === 0}
             className="w-full font-black gap-3 shadow-xl shadow-brand-green/20 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (

@@ -39,6 +39,9 @@ import CompactActionCard from "@/components/CompactActionCard";
 import { buttonClasses } from "@/components/buttonStyles";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
+import { copyToClipboard } from "@/lib/clipboard";
 
 /**
  * Safely formats the header "Confirmed/Leading time" label for a slot. Returns
@@ -79,11 +82,14 @@ function formatSlotLabel(
 export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { user, loading } = useAuth();
-  
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
+
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Getting the latest responses…");
   const [session, setSession] = useState<LedgerSession | null>(null);
   const [connectionError, setConnectionError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,22 +154,27 @@ export default function ResultsPage() {
   useEffect(() => {
     if (loading) return;
     if (!pollId) return;
+    let mounted = true;
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
-      setError("This poll requires a secret key to view results.");
+      setError("This link is missing its key, so these results can't be unlocked. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;
     }
 
+    setError(null);
+    setIsLoading(true);
+
     const init = async () => {
       try {
         const s = await getLedgerSession(pollId, { shareableKey: b64Key });
-        setSession(s);
+        if (mounted) setSession(s);
 
         const unsubscribe = subscribeToLedger(
           s,
           (state, status) => {
+            if (!mounted) return;
             if (state) {
               setPollState(state);
               setIsLoading(false);
@@ -175,6 +186,7 @@ export default function ResultsPage() {
             setSyncStatus(status);
           },
           (err) => {
+            if (!mounted) return;
             console.error("Ledger subscription failed:", err);
             setConnectionError(true);
           }
@@ -182,14 +194,19 @@ export default function ResultsPage() {
 
         return unsubscribe;
       } catch {
-        setError("We couldn't open these results. Refresh to try again.");
-        setIsLoading(false);
+        if (mounted) {
+          setError("We couldn't reach the server to open these results — retry.");
+          setIsLoading(false);
+        }
       }
     };
 
     const unsubPromise = init();
-    return () => { unsubPromise.then(unsub => unsub?.()); };
-  }, [pollId, user?.uid, loading]);
+    return () => {
+      mounted = false;
+      unsubPromise.then(unsub => unsub?.());
+    };
+  }, [pollId, user?.uid, loading, retryKey]);
 
   if (isLoading) {
     return (
@@ -202,12 +219,26 @@ export default function ResultsPage() {
   }
 
   if (error || !pollState || !pollState.metadata) {
+    const isMissingKey = error?.startsWith("This link is missing its key");
+    const canRetry = !!error && !isMissingKey;
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
         <h1 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h1>
         <p className="text-neutral-600 text-lg mb-8">{error || "Access Denied."}</p>
-        <Link to="/" className={buttonClasses("primary", "lg")}>Return to Home</Link>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {canRetry && (
+            <button
+              type="button"
+              onClick={() => setRetryKey((k) => k + 1)}
+              className={buttonClasses("primary", "lg")}
+            >
+              <RotateCcw className="w-5 h-5" aria-hidden="true" />
+              Retry
+            </button>
+          )}
+          <Link to="/" className={canRetry ? buttonClasses("secondary", "lg") : buttonClasses("primary", "lg")}>Return to Home</Link>
+        </div>
       </div>
     );
   }
@@ -257,23 +288,33 @@ export default function ResultsPage() {
 
 
 
-  const handleCopyLocation = () => {
+  const handleCopyLocation = async () => {
     if (metadata.location) {
-      navigator.clipboard.writeText(metadata.location);
-      setShowLocationCopied(true);
-      setTimeout(() => setShowLocationCopied(false), 2000);
+      const ok = await copyToClipboard(metadata.location);
+      if (ok) {
+        setShowLocationCopied(true);
+        setTimeout(() => setShowLocationCopied(false), 2000);
+      } else {
+        toast({ variant: "error", message: "We couldn't copy the location. Try copying it manually." });
+      }
     }
   };
 
   const handleFinalize = async (slotId: string) => {
     if (!session || !pollId) return;
-    if (!window.confirm("Confirm this time and close voting for everyone? Participants will no longer be able to respond. You can reopen voting later.")) return;
+    if (!(await askConfirm({
+      title: "Confirm this time and close voting for everyone?",
+      body: "Participants will no longer be able to respond. You can reopen voting later.",
+      confirmLabel: "Confirm time",
+      variant: "warning",
+    }))) return;
     setFinalizing(slotId);
     try {
       const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
       await session.appendEvent(action);
+      toast({ variant: "success", message: "Time confirmed. Voting is now closed." });
     } catch {
-      alert("We couldn't confirm that time. Try again.");
+      toast({ variant: "error", message: "We couldn't confirm that time. Try again." });
     } finally {
       setFinalizing(null);
     }
@@ -281,14 +322,20 @@ export default function ResultsPage() {
 
   const handleUnfinalize = async () => {
     if (!session || !pollId) return;
-    if (!confirm("Are you sure you want to unselect the confirmed date?")) return;
-    
+    if (!(await askConfirm({
+      title: "Reopen voting?",
+      body: "This unselects the confirmed time and lets participants respond again.",
+      confirmLabel: "Reopen voting",
+      variant: "warning",
+    }))) return;
+
     setUnfinalizing(true);
     try {
       const action: PollAction = { type: "POLL_UNFINALIZED", payload: null };
       await session.appendEvent(action);
+      toast({ variant: "success", message: "Voting reopened." });
     } catch {
-      alert("We couldn't change the confirmed time. Try again.");
+      toast({ variant: "error", message: "We couldn't change the confirmed time. Try again." });
     } finally {
       setUnfinalizing(false);
     }
@@ -302,7 +349,15 @@ export default function ResultsPage() {
     return getShareableUrl().replace("/results", "");
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ url: getResultsLink() });
+        return;
+      } catch {
+        // User dismissed the share sheet or it failed — fall through to the modal.
+      }
+    }
     setShowShareModal(true);
   };
 
@@ -318,7 +373,7 @@ export default function ResultsPage() {
       .map(v => v.participantName);
 
     if (participantsWithEmail.length === 0) {
-      alert("None of your participants added an email, so there's no one to send to yet.");
+      toast({ variant: "info", message: "None of your participants added an email, so there's no one to send to yet." });
       return;
     }
 
@@ -756,8 +811,12 @@ export default function ResultsPage() {
               <div className="flex flex-col gap-4">
                 {/* Option 1: Poll Link */}
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(getPollLink());
+                  onClick={async () => {
+                    const ok = await copyToClipboard(getPollLink());
+                    if (!ok) {
+                      toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+                      return;
+                    }
                     setCopiedLinkType('poll');
                     setTimeout(() => {
                       setShowShareModal(false);
@@ -793,8 +852,12 @@ export default function ResultsPage() {
 
                 {/* Option 2: Results Link */}
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(getResultsLink());
+                  onClick={async () => {
+                    const ok = await copyToClipboard(getResultsLink());
+                    if (!ok) {
+                      toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+                      return;
+                    }
                     setCopiedLinkType('results');
                     setTimeout(() => {
                       setShowShareModal(false);

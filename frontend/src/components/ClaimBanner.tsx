@@ -8,6 +8,8 @@ import {
   getShareableUrl
 } from "@/lib/pollService";
 import { loadFromKeystore } from "charproof";
+import { useToast } from "@/components/toast/toastContext";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface LayoutContext {
   activeAdminToken: string | null;
@@ -19,6 +21,7 @@ export default function ClaimBanner() {
   const context = useOutletContext<LayoutContext>() || { activeAdminToken: null, isClaimed: false, setIsClaimed: () => {} };
   const { activeAdminToken, isClaimed, setIsClaimed } = context;
   const { user, signInWithGoogle } = useAuth();
+  const { toast } = useToast();
   const location = useLocation();
   
   const [copiedAdminLink, setCopiedAdminLink] = useState(false);
@@ -64,9 +67,13 @@ export default function ClaimBanner() {
         // User dismissed the share sheet or it failed — fall through to clipboard copy.
       }
     }
-    navigator.clipboard.writeText(shareUrl);
-    setCopiedShareLink(true);
-    setTimeout(() => setCopiedShareLink(false), 3000);
+    const ok = await copyToClipboard(shareUrl);
+    if (ok) {
+      setCopiedShareLink(true);
+      setTimeout(() => setCopiedShareLink(false), 3000);
+    } else {
+      toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+    }
   };
 
   const handleClaim = async () => {
@@ -144,11 +151,15 @@ export default function ClaimBanner() {
           <div className="flex flex-col gap-1.5 w-full sm:w-48">
             <button
               data-testid="admin-link-button"
-              onClick={() => {
+              onClick={async () => {
                 const adminLink = `${window.location.origin}${window.location.pathname}?adminToken=${activeAdminToken}${window.location.hash}`;
-                navigator.clipboard.writeText(adminLink);
-                setCopiedAdminLink(true);
-                setTimeout(() => setCopiedAdminLink(false), 3000);
+                const ok = await copyToClipboard(adminLink);
+                if (ok) {
+                  setCopiedAdminLink(true);
+                  setTimeout(() => setCopiedAdminLink(false), 3000);
+                } else {
+                  toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+                }
               }}
               className="focus-ring w-full bg-white text-neutral-600 border border-neutral-200 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-neutral-50 transition-all active:scale-95 text-center cursor-pointer"
             >

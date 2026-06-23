@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { renderWithProviders } from '@/test/renderWithProviders';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import VotePollPage from './VotePollPage';
@@ -59,7 +60,7 @@ describe('VotePollPage', () => {
   });
 
   const renderPage = (pollId = 'mock-poll-id-123') => {
-    return render(
+    return renderWithProviders(
       <MemoryRouter initialEntries={[`/poll/${pollId}#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=`]}>
         <Routes>
           <Route path="/poll/:pollId" element={<VotePollPage />} />
