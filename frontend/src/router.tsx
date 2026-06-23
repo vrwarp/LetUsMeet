@@ -9,11 +9,13 @@ import EditPollPage from "@/pages/EditPollPage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import NotFoundPage from "@/pages/NotFoundPage";
+import ErrorState from "@/components/ErrorState";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />,
+    errorElement: <ErrorState title="This page failed to load" />,
     children: [
       { path: "/", element: <HomePage /> },
       { path: "/create", element: <CreatePollPage /> },

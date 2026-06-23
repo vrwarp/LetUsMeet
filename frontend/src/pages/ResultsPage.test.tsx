@@ -302,6 +302,42 @@ describe('ResultsPage', () => {
     confirmSpy.mockRestore();
   });
 
+  it('renders a graceful fallback (no crash) when the finalized slot id is no longer in timeSlots', async () => {
+    const votes = new Map();
+    votes.set('pub1', {
+      responseId: 'r1',
+      participantName: 'Alice',
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Orphaned Finalize Poll',
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          // The finalized slot ('removed-slot') is NOT present here — it was
+          // edited out after finalize. The header lookup must not crash.
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: true,
+        finalizedSlotId: 'removed-slot'
+      } as unknown as PollState, 'Synced');
+      return () => {};
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Orphaned Finalize Poll')).toBeInTheDocument();
+    // Graceful fallback instead of a white screen.
+    expect(
+      screen.getByText(/The confirmed time is no longer available/i)
+    ).toBeInTheDocument();
+  });
+
   it('opens a dialog/modal when clicking share, allowing user to copy results or poll link', async () => {
     vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({

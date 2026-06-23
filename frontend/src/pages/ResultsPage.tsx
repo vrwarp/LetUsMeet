@@ -27,12 +27,54 @@ import {
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import { useAuth } from "../hooks/useAuth";
-import type { PollState, VoteValue, PollAction } from "../types";
+import type {
+  PollState,
+  VoteValue,
+  PollAction,
+  SchedulingMode,
+  TimeSlot,
+} from "../types";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
 import { buttonClasses } from "@/components/buttonStyles";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+
+/**
+ * Safely formats the header "Confirmed/Leading time" label for a slot. Returns
+ * null when the slot is missing (e.g. the finalized slot was edited out of the
+ * poll after finalize) or its date is missing/invalid, so callers can render a
+ * graceful fallback instead of crashing on a non-null assertion / Invalid Date.
+ */
+function formatSlotLabel(
+  slot: TimeSlot | undefined,
+  schedulingMode: SchedulingMode
+): string | null {
+  if (!slot) return null;
+
+  if (schedulingMode === "EXACT") {
+    if (!("startTime" in slot) || !slot.startTime) return null;
+    const date = new Date(slot.startTime);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  if (!("date" in slot) || !slot.date) return null;
+  const date = new Date(slot.date + "T00:00:00");
+  if (Number.isNaN(date.getTime())) return null;
+  const dateLabel = date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  return slot.label ? `${dateLabel}, ${slot.label}` : dateLabel;
+}
 
 export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
@@ -528,14 +570,24 @@ export default function ResultsPage() {
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600 mb-1">
                       {pollState.isFinalized ? "CONFIRMED TIME" : "LEADING TIME"}
                     </p>
-                    <p className="text-xl md:text-2xl font-black leading-tight">
-                      {(() => {
-                        const slot = metadata.timeSlots.find(s => s.id === (pollState.finalizedSlotId || bestSlotId))!;
-                        return metadata.schedulingMode === "EXACT"
-                          ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                          : `${new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, ${(slot as any).label}`;
-                      })()}
-                    </p>
+                    {(() => {
+                      const slot = metadata.timeSlots.find(
+                        s => s.id === (pollState.finalizedSlotId || bestSlotId)
+                      );
+                      const formatted = formatSlotLabel(slot, metadata.schedulingMode);
+                      if (!formatted) {
+                        return (
+                          <p className="text-sm md:text-base font-medium text-neutral-600 leading-snug max-w-[260px]">
+                            The confirmed time is no longer available — reopen voting or pick a new time.
+                          </p>
+                        );
+                      }
+                      return (
+                        <p className="text-xl md:text-2xl font-black leading-tight">
+                          {formatted}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               )
