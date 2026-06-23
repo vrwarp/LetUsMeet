@@ -30,6 +30,8 @@ import {
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { dragAnnouncements } from "@/lib/dndAnnouncements";
 
 interface TimeSlotInput {
   id?: string;
@@ -89,22 +91,24 @@ function SortableSlotItem({
           <>
             {/* EXACT Row 1 */}
             <div className="flex items-center gap-2">
-              <div 
-                {...attributes} 
-                {...listeners} 
-                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0 touch-none"
-                aria-label="Drag to reorder"
+              <button
+                type="button"
+                {...attributes}
+                {...listeners}
+                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-700 transition-colors flex-shrink-0 touch-none"
               >
-                <GripVertical size={20} />
-              </div>
+                <GripVertical size={20} aria-hidden="true" />
+                <span className="sr-only">Reorder slot {index + 1}</span>
+              </button>
               <label className="relative group/date cursor-pointer flex-1 min-w-0">
                 <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                   <span className="truncate text-sm font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
                 </div>
                 <input
                   type="date"
                   required
+                  aria-label="Slot date"
                   data-testid={`slot-date-${index}`}
                   onClick={handlePickerClick}
                   onBlur={handleBlur}
@@ -121,7 +125,7 @@ function SortableSlotItem({
                 disabled={!isReady}
                 className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
               </button>
             </div>
 
@@ -130,7 +134,7 @@ function SortableSlotItem({
               <div className="flex items-center gap-2">
                 <label className="relative group/start cursor-pointer flex-1">
                   <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-indigo-500 group-focus-within/start:ring-2 group-focus-within/start:ring-indigo-500/20 transition-all w-full shadow-sm">
-                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                     <span className="text-sm">{slot.startTime || "09:00"}</span>
                   </div>
                   <input
@@ -146,10 +150,10 @@ function SortableSlotItem({
                     disabled={!isReady}
                   />
                 </label>
-                <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
+                <span className="text-neutral-600 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
                 <label className="relative group/end cursor-pointer flex-1">
                   <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full shadow-sm">
-                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                     <span className="text-sm">{slot.endTime || "10:00"}</span>
                   </div>
                   <input
@@ -172,16 +176,18 @@ function SortableSlotItem({
           <>
             {/* FUZZY Row 1: Grip handle, Label, Trash */}
             <div className="flex items-center gap-2">
-              <div 
-                {...attributes} 
-                {...listeners} 
-                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0 touch-none"
-                aria-label="Drag to reorder"
+              <button
+                type="button"
+                {...attributes}
+                {...listeners}
+                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-700 transition-colors flex-shrink-0 touch-none"
               >
-                <GripVertical size={20} />
-              </div>
+                <GripVertical size={20} aria-hidden="true" />
+                <span className="sr-only">Reorder slot {index + 1}</span>
+              </button>
               <input
                 type="text"
+                aria-label="Slot label"
                 data-testid={`slot-label-${index}`}
                 placeholder="Label (e.g. Morning)"
                 className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
@@ -196,7 +202,7 @@ function SortableSlotItem({
                 disabled={!isReady}
                 className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
               </button>
             </div>
 
@@ -204,12 +210,13 @@ function SortableSlotItem({
             <div className="flex items-center gap-2">
               <label className="relative group/date cursor-pointer flex-1 min-w-0">
                 <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                   <span className="truncate text-sm font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
                 </div>
                 <input
                   type="date"
                   required
+                  aria-label="Slot date"
                   data-testid={`slot-date-${index}`}
                   onClick={handlePickerClick}
                   onBlur={handleBlur}
@@ -222,11 +229,12 @@ function SortableSlotItem({
 
               <label className="relative group/time cursor-pointer flex-shrink-0">
                 <div className="flex items-center px-3 h-10 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-[110px] shadow-sm hover:border-neutral-300">
-                  <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
+                  <span className="text-neutral-600 font-black mr-2 text-sm" aria-hidden="true">~</span>
                   <span className="truncate text-sm">{slot.time || "--:--"}</span>
                   {slot.time && (
                     <button
                       type="button"
+                      aria-label="Clear approximate time"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -235,12 +243,13 @@ function SortableSlotItem({
                       disabled={!isReady}
                       className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
                     >
-                      <X size={12} />
+                      <X size={12} aria-hidden="true" />
                     </button>
                   )}
                 </div>
                 <input
                   type="time"
+                  aria-label="Approximate time"
                   data-testid={`slot-time-${index}`}
                   onClick={handlePickerClick}
                   onBlur={handleBlur}
@@ -277,6 +286,8 @@ export default function EditPollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const navigate = useNavigate();
   const [isReady, setIsReady] = useState(false);
+
+  useDocumentTitle("Edit poll — LetUsMeet");
 
   useEffect(() => {
     setIsReady(true);
@@ -495,8 +506,9 @@ export default function EditPollPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">{friendlyStatus(syncStatus)}</p>
+        <h1 className="sr-only">Loading poll editor</h1>
+        <Loader2 className="w-10 h-10 text-brand-green animate-spin" aria-hidden="true" />
+        <p role="status" aria-live="polite" className="text-neutral-500 font-medium">{friendlyStatus(syncStatus)}</p>
       </div>
     );
   }
@@ -504,8 +516,8 @@ export default function EditPollPage() {
   if (error || !pollState || !isAdmin) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold text-neutral-800 mb-4">Admin Access Required</h2>
+        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
+        <h1 className="text-2xl font-bold text-neutral-800 mb-4">Admin Access Required</h1>
         <p className="text-neutral-600 text-lg mb-8">{error || "You do not have the administrative key for this poll."}</p>
         <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className="btn-primary-green inline-block">Back to Poll</Link>
       </div>
@@ -520,7 +532,7 @@ export default function EditPollPage() {
         to={`/poll/${pollId}${window.location.search}${window.location.hash}`}
         className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8"
       >
-        <ArrowLeft size={16} /> Back to Poll
+        <ArrowLeft size={16} aria-hidden="true" /> Back to Poll
       </Link>
 
       <div className="mb-10">
@@ -532,7 +544,7 @@ export default function EditPollPage() {
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-title" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <Type size={16} className="text-brand-green" />
+              <Type size={16} className="text-brand-green" aria-hidden="true" />
               Meeting Title
             </label>
             <input
@@ -548,7 +560,7 @@ export default function EditPollPage() {
 
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-description" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <Type size={16} className="text-brand-green" />
+              <Type size={16} className="text-brand-green" aria-hidden="true" />
               Description
             </label>
             <textarea
@@ -562,7 +574,7 @@ export default function EditPollPage() {
 
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-location" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <MapPin size={16} className="text-brand-green" />
+              <MapPin size={16} className="text-brand-green" aria-hidden="true" />
               Location
             </label>
             <input
@@ -577,15 +589,16 @@ export default function EditPollPage() {
         </div>
 
         <div className="bg-white p-8 rounded-2xl border border-neutral-200 shadow-sm">
-          <label className="text-sm font-bold text-neutral-700 flex items-center gap-2 mb-6">
-            <CalendarIcon size={16} className="text-brand-green" />
+          <span className="text-sm font-bold text-neutral-700 flex items-center gap-2 mb-6">
+            <CalendarIcon size={16} className="text-brand-green" aria-hidden="true" />
             Time Slots
-          </label>
+          </span>
 
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
+            accessibility={{ announcements: dragAnnouncements }}
           >
             <SortableContext
               items={slots.map(s => s.id || "")}
@@ -613,7 +626,7 @@ export default function EditPollPage() {
                   disabled={!isReady}
                   className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-300 rounded-xl text-neutral-800 hover:border-brand-green hover:text-brand-green hover:bg-brand-green-light/20 transition-all font-bold text-sm min-h-[102px] w-full h-full disabled:text-neutral-600 disabled:border-neutral-200 disabled:cursor-not-allowed"
                 >
-                  <Plus size={20} />
+                  <Plus size={20} aria-hidden="true" />
                   Add time slot
                 </button>
               </div>
@@ -621,14 +634,15 @@ export default function EditPollPage() {
           </DndContext>
         </div>
 
-        {error && <div className="p-4 bg-red-50 text-red-600 rounded-xl font-bold">{error}</div>}
+        {error && <div role="alert" className="p-4 bg-red-50 text-red-600 rounded-xl font-bold">{error}</div>}
 
         <button
           type="submit"
+          aria-busy={isSubmitting}
           disabled={!isReady || isSubmitting || !title || slots.length === 0}
           className="btn-primary-green w-full py-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={24} /> Save Changes</>}
+          {isSubmitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <><Save size={24} aria-hidden="true" /> Save Changes</>}
         </button>
       </form>
     </div>

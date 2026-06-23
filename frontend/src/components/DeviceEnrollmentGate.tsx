@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 
 interface DeviceEnrollmentGateProps {
@@ -11,10 +12,13 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
   const { user, isDeviceRegistered, loading, enrollDevice, keyMismatchError, deleteAccount } = useAuth();
   const [enrollmentState, setEnrollmentState] = useState<'idle' | 'prompting' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const gateRef = useRef<HTMLDivElement>(null);
 
   // If loading, not logged in, or anonymous, let the children or other auth wrappers handle it
   // Also bypass if there is a key mismatch/unrecognized device error so that the app layout modal covers the page instead
   const shouldShowGate = !loading && user && !user.isAnonymous && !isDeviceRegistered && !keyMismatchError;
+
+  useFocusTrap(gateRef, !!shouldShowGate);
 
   const handleEnroll = async () => {
     try {

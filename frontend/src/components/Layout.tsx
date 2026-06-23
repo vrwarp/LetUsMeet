@@ -7,6 +7,7 @@ import logoImg from "@/assets/meat-lettuce-logo-transparent.webp?inline";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
 import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { 
   getLocalPublicKey, 
   requestDeviceAuthorization, 
@@ -144,6 +145,24 @@ export default function Layout() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  const mismatchOverlayRef = useRef<HTMLDivElement>(null);
+  const showMismatchOverlay = !!keyMismatchError && !activeAdminToken && !isPublicPage;
+  useFocusTrap(mismatchOverlayRef, showMismatchOverlay);
+
+  // Close the profile dropdown on Escape and return focus to its trigger.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isMenuOpen]);
 
   // Close menu on navigation
   useEffect(() => {
@@ -176,6 +195,12 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-neutral-50 text-brand-charcoal font-sans flex flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[300] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-brand-green focus:text-white focus:font-bold focus:shadow-lg focus-ring"
+      >
+        Skip to main content
+      </a>
       <ScrollToTop />
       <header className="bg-white border-b border-neutral-200 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
@@ -212,11 +237,13 @@ export default function Layout() {
                     {user && !user.isAnonymous ? (
                       <div className="relative" ref={menuRef}>
                         <button
+                          ref={menuButtonRef}
                           onClick={() => setIsMenuOpen(!isMenuOpen)}
                           data-testid="user-profile-btn"
                           className="w-[66px] sm:w-[80px] h-[38px] sm:h-[46px] flex items-center pl-1.5 pr-2.5 sm:pl-2 sm:pr-3 gap-1.5 sm:gap-2 rounded-full hover:bg-neutral-100 transition-all border border-transparent hover:border-neutral-200 group"
                           aria-expanded={isMenuOpen}
                           aria-haspopup="true"
+                          aria-controls="user-profile-menu"
                         >
                           <div className="flex-shrink-0">
                             {user.photoURL ? (
@@ -231,11 +258,11 @@ export default function Layout() {
                               </div>
                             )}
                           </div>
-                          <ChevronDown size={16} className={`text-neutral-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                          <ChevronDown size={16} className={`text-neutral-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                         </button>
 
                         {isMenuOpen && (
-                          <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-neutral-100 py-2 z-30 animate-fade-in-up overflow-hidden">
+                          <div id="user-profile-menu" className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-neutral-100 py-2 z-30 animate-fade-in-up overflow-hidden">
                             <div className="px-4 py-3 border-b border-neutral-50 mb-1">
                               <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">Signed in as</p>
                               <p className="text-sm font-bold text-brand-charcoal truncate">{user.displayName || user.email}</p>
@@ -308,19 +335,19 @@ export default function Layout() {
 
       {authError && (
         <div className="max-w-4xl mx-auto px-4 mt-4">
-          <div className="bg-red-50 border border-red-100 text-red-600 px-6 py-4 rounded-[2rem] font-medium flex items-start gap-4 shadow-lg shadow-red-100/50">
-            <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+          <div role="alert" className="bg-red-50 border border-red-100 text-red-600 px-6 py-4 rounded-[2rem] font-medium flex items-start gap-4 shadow-lg shadow-red-100/50">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <div className="flex-1">
               <p>{authError}</p>
             </div>
-            <button onClick={() => setAuthError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors">
-              <X size={20} />
+            <button onClick={() => setAuthError(null)} aria-label="Dismiss error" className="p-1 hover:bg-red-100 rounded-full transition-colors">
+              <X size={20} aria-hidden="true" />
             </button>
           </div>
         </div>
       )}
 
-      <main className="flex-1 w-full">
+      <main id="main-content" className="flex-1 w-full">
         {pendingRequests.length > 0 && location.pathname !== "/dashboard" && !isPublicPage && (
           <div className="max-w-5xl mx-auto px-4 mt-6 animate-fade-in-up" data-testid="pending-auth-request">
             {pendingRequests.map(req => (
@@ -338,12 +365,13 @@ export default function Layout() {
                   <div className="bg-white/50 px-3 py-1.5 rounded-lg border border-brand-green/20 font-mono font-bold text-brand-green-dark tracking-wider">
                     <PendingCodeDisplay publicKey={req.publicKey} />
                   </div>
-                  <button 
+                  <button
                     onClick={() => handleReject(req)}
                     className="p-2 text-neutral-500 hover:text-brand-red transition-colors"
+                    aria-label="Reject device request"
                     title="Reject"
                   >
-                    <X size={20} />
+                    <X size={20} aria-hidden="true" />
                   </button>
                   <button 
                     onClick={() => handleApprove(req)}
@@ -368,10 +396,17 @@ export default function Layout() {
         )}
       </main>
 
-      {keyMismatchError && !activeAdminToken && !isPublicPage && (
-        <div data-testid="mismatch-error" className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center">
+      {showMismatchOverlay && (
+        <div
+          ref={mismatchOverlayRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mismatch-dialog-title"
+          data-testid="mismatch-error"
+          className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center"
+        >
           {!showPhraseInput ? (
-            <div 
+            <div
               className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
               style={{
                 backgroundColor: "#ffffff",
@@ -394,7 +429,7 @@ export default function Layout() {
                 {keyMismatchError.startsWith("UNRECOGNIZED_DEVICE") ? (
                   <>
                     <span className="sr-only">Unrecognized Device</span>
-                    <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
+                    <h2 id="mismatch-dialog-title" className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
                       Unlock your polls on this device
                     </h2>
                     {!isWaitingForAuth && (
@@ -406,10 +441,10 @@ export default function Layout() {
                 ) : (
                   <>
                     <span className="sr-only">Identity Key Mismatch</span>
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 text-brand-red rounded-2xl sm:rounded-3xl flex items-center justify-center mb-3 border border-red-100 shadow-sm shadow-red-50">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 text-brand-red rounded-2xl sm:rounded-3xl flex items-center justify-center mb-3 border border-red-100 shadow-sm shadow-red-50" aria-hidden="true">
                       <AlertTriangle size={28} />
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight">
+                    <h2 id="mismatch-dialog-title" className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight">
                       This isn't the passkey we expected
                     </h2>
                     <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2.5 leading-relaxed max-w-sm">
@@ -507,17 +542,18 @@ export default function Layout() {
               </div>
 
               <div className="p-5 sm:p-10 flex flex-col items-center">
-                <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight text-center">
+                <h2 id="mismatch-dialog-title" className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight text-center">
                   Enter Recovery Phrase
                 </h2>
                 <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2 leading-relaxed text-center px-2">
-                  Enter your 24-word recovery phrase to restore access to your encrypted polls. 
+                  Enter your 24-word recovery phrase to restore access to your encrypted polls.
                 </p>
 
                 <textarea
                   value={mnemonicInput}
                   onChange={(e) => setMnemonicInput(e.target.value)}
                   placeholder="word1 word2 word3..."
+                  aria-label="Recovery phrase"
                   className="w-full h-24 bg-neutral-50 border border-neutral-200 rounded-xl sm:rounded-2xl p-4 text-neutral-800 font-mono text-xs sm:text-sm focus:ring-2 focus:ring-brand-green/20 outline-none mt-4 mb-4"
                   disabled={isRecovering}
                 />

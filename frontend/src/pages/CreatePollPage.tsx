@@ -21,13 +21,15 @@ import { GripVertical } from 'lucide-react';
 
 
 import { useNavigate, Link } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, ArrowLeft, Loader2, User, Clock, X, Sparkles } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, ArrowLeft, Loader2, User, Clock, X, Sparkles, Check } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 import { createBlindPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import Button from "@/components/Button";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { dragAnnouncements } from "@/lib/dndAnnouncements";
 
 interface TimeSlotInput {
   id: string;
@@ -90,22 +92,24 @@ function SortableSlotItem({
           <>
             {/* EXACT Row 1 */}
             <div className="flex items-center gap-2">
-              <div 
-                {...attributes} 
-                {...listeners} 
-                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0 touch-none"
-                aria-label="Drag to reorder"
+              <button
+                type="button"
+                {...attributes}
+                {...listeners}
+                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-700 transition-colors flex-shrink-0 touch-none"
               >
-                <GripVertical size={20} />
-              </div>
+                <GripVertical size={20} aria-hidden="true" />
+                <span className="sr-only">Reorder slot {index + 1}</span>
+              </button>
               <label className="relative group/date cursor-pointer flex-1 min-w-0">
                 <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                   <span className="truncate text-sm font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
                 </div>
                 <input
                   type="date"
                   required
+                  aria-label="Slot date"
                   data-testid={`slot-date-${index}`}
                   onClick={handlePickerClick}
                   onBlur={handleBlur}
@@ -122,7 +126,7 @@ function SortableSlotItem({
                 disabled={!isReady}
                 className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
               </button>
             </div>
 
@@ -131,7 +135,7 @@ function SortableSlotItem({
               <div className="flex items-center gap-2">
                 <label className="relative group/start cursor-pointer flex-1">
                   <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/start:border-indigo-500 group-focus-within/start:ring-2 group-focus-within/start:ring-indigo-500/20 transition-all w-full shadow-sm">
-                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                     <span className="text-sm">{slot.startTime || "09:00"}</span>
                   </div>
                   <input
@@ -147,10 +151,10 @@ function SortableSlotItem({
                     disabled={!isReady}
                   />
                 </label>
-                <span className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
+                <span className="text-neutral-600 font-bold text-[10px] uppercase tracking-widest flex-shrink-0">to</span>
                 <label className="relative group/end cursor-pointer flex-1">
                   <div className="flex items-center px-3 py-2 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/end:border-indigo-500 group-focus-within/end:ring-2 group-focus-within/end:ring-indigo-500/20 transition-all w-full shadow-sm">
-                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                    <Clock size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                     <span className="text-sm">{slot.endTime || "10:00"}</span>
                   </div>
                   <input
@@ -173,16 +177,18 @@ function SortableSlotItem({
           <>
             {/* FUZZY Row 1: Grip handle, Label, Trash */}
             <div className="flex items-center gap-2">
-              <div 
-                {...attributes} 
-                {...listeners} 
-                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-400 hover:text-neutral-600 transition-colors flex-shrink-0 touch-none"
-                aria-label="Drag to reorder"
+              <button
+                type="button"
+                {...attributes}
+                {...listeners}
+                className="flex items-center justify-center cursor-grab active:cursor-grabbing p-1 text-neutral-600 hover:text-neutral-700 transition-colors flex-shrink-0 touch-none"
               >
-                <GripVertical size={20} />
-              </div>
+                <GripVertical size={20} aria-hidden="true" />
+                <span className="sr-only">Reorder slot {index + 1}</span>
+              </button>
               <input
                 type="text"
+                aria-label="Slot label"
                 data-testid={`slot-label-${index}`}
                 placeholder="Label (e.g. Morning)"
                 className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-neutral-200 text-sm font-bold outline-none bg-white shadow-sm focus:ring-2 focus:ring-indigo-500/20"
@@ -197,7 +203,7 @@ function SortableSlotItem({
                 disabled={!isReady}
                 className="w-9 h-9 flex items-center justify-center bg-white text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl border border-neutral-200 shadow-sm transition-all flex-shrink-0"
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
               </button>
             </div>
 
@@ -205,12 +211,13 @@ function SortableSlotItem({
             <div className="flex items-center gap-2">
               <label className="relative group/date cursor-pointer flex-1 min-w-0">
                 <div className="flex items-center px-3 h-10 text-neutral-700 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/date:border-indigo-500 group-focus-within/date:ring-2 group-focus-within/date:ring-indigo-500/20 transition-all shadow-sm">
-                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" />
+                  <CalendarIcon size={14} className="text-indigo-400 mr-2 flex-shrink-0" aria-hidden="true" />
                   <span className="truncate text-sm font-bold">{slot.date ? new Date(slot.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : "Select date"}</span>
                 </div>
                 <input
                   type="date"
                   required
+                  aria-label="Slot date"
                   data-testid={`slot-date-${index}`}
                   onClick={handlePickerClick}
                   onBlur={handleBlur}
@@ -223,11 +230,12 @@ function SortableSlotItem({
 
               <label className="relative group/time cursor-pointer flex-shrink-0">
                 <div className="flex items-center px-3 h-10 text-neutral-600 font-bold bg-white rounded-xl border border-neutral-200 group-focus-within/time:border-indigo-400 group-focus-within/time:ring-2 group-focus-within/time:ring-indigo-500/10 transition-all w-[110px] shadow-sm hover:border-neutral-300">
-                  <span className="text-neutral-400 font-black mr-2 text-sm">~</span>
+                  <span className="text-neutral-600 font-black mr-2 text-sm" aria-hidden="true">~</span>
                   <span className="truncate text-sm">{slot.time || "--:--"}</span>
                   {slot.time && (
                     <button
                       type="button"
+                      aria-label="Clear approximate time"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -236,12 +244,13 @@ function SortableSlotItem({
                       disabled={!isReady}
                       className="ml-auto text-neutral-400 hover:text-red-500 transition-colors relative z-20"
                     >
-                      <X size={12} />
+                      <X size={12} aria-hidden="true" />
                     </button>
                   )}
                 </div>
                 <input
                   type="time"
+                  aria-label="Approximate time"
                   data-testid={`slot-time-${index}`}
                   onClick={handlePickerClick}
                   onBlur={handleBlur}
@@ -292,6 +301,8 @@ export default function CreatePollPage() {
   const [pendingGeneratedSlots, setPendingGeneratedSlots] = useState<TimeSlotInput[] | null>(null);
   const { user } = useAuth();
   const [isReady, setIsReady] = useState(false);
+
+  useDocumentTitle("Create a poll — LetUsMeet");
 
   useEffect(() => {
     setIsReady(true);
@@ -529,7 +540,7 @@ export default function CreatePollPage() {
         to={cancelDestination}
         className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8"
       >
-        <ArrowLeft size={16} /> Cancel
+        <ArrowLeft size={16} aria-hidden="true" /> Cancel
       </Link>
 
       <div className="mb-10">
@@ -541,7 +552,7 @@ export default function CreatePollPage() {
         <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="organizer-name" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <User size={16} className="text-indigo-500" />
+              <User size={16} className="text-indigo-500" aria-hidden="true" />
               Your Name
             </label>
             <input
@@ -562,7 +573,7 @@ export default function CreatePollPage() {
         <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-title" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <Type size={16} className="text-indigo-500" />
+              <Type size={16} className="text-indigo-500" aria-hidden="true" />
               Meeting Title
             </label>
             <input
@@ -580,7 +591,7 @@ export default function CreatePollPage() {
  
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-description" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <Type size={16} className="text-indigo-500" />
+              <Type size={16} className="text-indigo-500" aria-hidden="true" />
               Description (Optional)
             </label>
             <textarea
@@ -595,7 +606,7 @@ export default function CreatePollPage() {
 
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-location" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <MapPin size={16} className="text-indigo-500" />
+              <MapPin size={16} className="text-indigo-500" aria-hidden="true" />
               Location (Optional)
             </label>
             <input
@@ -613,13 +624,15 @@ export default function CreatePollPage() {
 
         {/* Scheduling Mode Selection */}
         <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm flex flex-col gap-6">
-          <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-            <Type size={16} className="text-brand-green" />
+          <span id="scheduling-mode-label" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+            <Type size={16} className="text-brand-green" aria-hidden="true" />
             Scheduling Mode
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          </span>
+          <div role="radiogroup" aria-labelledby="scheduling-mode-label" aria-label="Scheduling mode" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               type="button"
+              role="radio"
+              aria-checked={schedulingMode === "EXACT"}
               disabled={!isReady}
               onClick={() => {
                 setSchedulingMode("EXACT");
@@ -634,13 +647,21 @@ export default function CreatePollPage() {
                 '--exact-bg': `url(${timeExactLettuce})`,
               } as React.CSSProperties}
             >
+              {schedulingMode === "EXACT" && (
+                <span className="absolute top-3 right-3 z-20 flex items-center gap-1 text-brand-green-dark">
+                  <Check size={16} strokeWidth={3} aria-hidden="true" />
+                  <span className="sr-only">Selected</span>
+                </span>
+              )}
               <div className="relative z-10 flex flex-col gap-1">
                 <span className={`font-bold text-lg ${schedulingMode === "EXACT" ? "text-brand-green-dark" : "text-neutral-700"}`}>Exact Times</span>
-                <span className="text-sm text-neutral-500 leading-snug">Pick specific start and end times (e.g. 2:00–3:00 PM).</span>
+                <span className="text-sm text-neutral-600 leading-snug">Pick specific start and end times (e.g. 2:00–3:00 PM).</span>
               </div>
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={schedulingMode === "FUZZY"}
               disabled={!isReady}
               onClick={() => {
                 setSchedulingMode("FUZZY");
@@ -655,9 +676,15 @@ export default function CreatePollPage() {
                 '--fuzzy-bg': `url(${timeFuzzyMeat})`,
               } as React.CSSProperties}
             >
+              {schedulingMode === "FUZZY" && (
+                <span className="absolute top-3 right-3 z-20 flex items-center gap-1 text-brand-green-dark">
+                  <Check size={16} strokeWidth={3} aria-hidden="true" />
+                  <span className="sr-only">Selected</span>
+                </span>
+              )}
               <div className="relative z-10 flex flex-col gap-1">
                 <span className={`font-bold text-lg ${schedulingMode === "FUZZY" ? "text-brand-green-dark" : "text-neutral-700"}`}>Flexible Windows</span>
-                <span className="text-sm text-neutral-500 leading-snug">Offer flexible blocks like mornings or evenings, no exact time needed.</span>
+                <span className="text-sm text-neutral-600 leading-snug">Offer flexible blocks like mornings or evenings, no exact time needed.</span>
               </div>
             </button>
           </div>
@@ -667,7 +694,7 @@ export default function CreatePollPage() {
         <div className="bg-white p-4 sm:p-8 rounded-2xl border border-neutral-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <label className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-              <CalendarIcon size={16} className="text-brand-green" />
+              <CalendarIcon size={16} className="text-brand-green" aria-hidden="true" />
               Propose Time Slots
             </label>
           </div>
@@ -675,7 +702,7 @@ export default function CreatePollPage() {
           <div className="mb-6 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 shadow-inner">
               <div className="flex items-center gap-2 mb-2">
                 <div className="bg-indigo-100 p-1.5 rounded-lg text-indigo-600 flex-shrink-0">
-                  <Sparkles size={14} />
+                  <Sparkles size={14} aria-hidden="true" />
                 </div>
                 <label htmlFor="ai-query" className="text-sm font-bold text-indigo-900">
                   Add times with AI
@@ -710,7 +737,7 @@ export default function CreatePollPage() {
                 </div>
 
                   {aiError && (
-                    <p className="mt-2 text-xs text-red-500 font-medium bg-red-50 p-2 rounded border border-red-100">
+                    <p role="alert" className="mt-2 text-xs text-red-600 font-medium bg-red-50 p-2 rounded border border-red-100">
                       {aiError}
                     </p>
                   )}
@@ -797,6 +824,7 @@ export default function CreatePollPage() {
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
+            accessibility={{ announcements: dragAnnouncements }}
           >
             <SortableContext
               items={slots.map(s => s.id)}
@@ -825,7 +853,7 @@ export default function CreatePollPage() {
               disabled={!isReady}
               className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-dashed border-neutral-300 rounded-xl text-neutral-800 hover:border-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/30 transition-all font-bold text-sm min-h-[102px] w-full h-full disabled:text-neutral-600 disabled:border-neutral-200 disabled:cursor-not-allowed"
             >
-              <Plus size={20} />
+              <Plus size={20} aria-hidden="true" />
               Add time slot
             </button>
           </div>
@@ -834,8 +862,8 @@ export default function CreatePollPage() {
         </div>
 
         {error && (
-          <div className="p-5 bg-white border-2 border-brand-red ring-[6px] ring-brand-red/10 text-brand-red rounded-2xl text-sm font-bold shadow-xl shadow-brand-red/5 flex items-center gap-3 animate-fade-in-up">
-            <div className="w-8 h-8 bg-brand-red text-white rounded-full flex items-center justify-center flex-shrink-0">!</div>
+          <div role="alert" className="p-5 bg-white border-2 border-brand-red ring-[6px] ring-brand-red/10 text-brand-red rounded-2xl text-sm font-bold shadow-xl shadow-brand-red/5 flex items-center gap-3 animate-fade-in-up">
+            <div className="w-8 h-8 bg-brand-red text-white rounded-full flex items-center justify-center flex-shrink-0" aria-hidden="true">!</div>
             {error}
           </div>
         )}
@@ -845,18 +873,19 @@ export default function CreatePollPage() {
             type="submit"
             size="lg"
             data-testid="create-submit-btn"
+            aria-busy={isSubmitting}
             disabled={!isReady || isSubmitting || !title || !organizerName || slots.length === 0}
             className="w-full font-black gap-3 shadow-xl shadow-brand-green/20 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="animate-spin" size={24} />
+                <Loader2 className="animate-spin" size={24} aria-hidden="true" />
                 Creating...
               </>
             ) : (
               <>
                 Create poll & get link
-                <ArrowRight size={24} />
+                <ArrowRight size={24} aria-hidden="true" />
               </>
             )}
           </Button>

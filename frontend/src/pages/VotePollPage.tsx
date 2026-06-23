@@ -16,6 +16,7 @@ import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
 import ClaimBanner from "@/components/ClaimBanner";
 import Button from "@/components/Button";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
@@ -67,6 +68,12 @@ export default function VotePollPage() {
   };
   const [error, setError] = useState<string | null>(null);
   const [editingResponseId, setEditingResponseId] = useState<string>(crypto.randomUUID());
+
+  useDocumentTitle(
+    pollState?.metadata?.title
+      ? `${pollState.metadata.title} — Vote — LetUsMeet`
+      : "Vote on a poll — LetUsMeet"
+  );
 
   // 1. Initialize Crypto and Subscribe
   useEffect(() => {
@@ -269,8 +276,9 @@ export default function VotePollPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-600 font-medium">{friendlyStatus(syncStatus)}</p>
+        <h1 className="sr-only">Loading poll</h1>
+        <Loader2 className="w-10 h-10 text-brand-green animate-spin" aria-hidden="true" />
+        <p role="status" aria-live="polite" className="text-neutral-600 font-medium">{friendlyStatus(syncStatus)}</p>
       </div>
     );
   }
@@ -278,8 +286,8 @@ export default function VotePollPage() {
   if (initError || !pollState || !pollState.metadata) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h2>
+        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
+        <h1 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h1>
         <p className="text-neutral-600 text-lg mb-8">{initError || "This poll is private. Open it using the full link the organizer shared with you."}</p>
         <Link to="/" className="btn-primary-green inline-block">Return to Home</Link>
       </div>
@@ -298,8 +306,8 @@ export default function VotePollPage() {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
         <div className="bg-amber-50 rounded-3xl p-10 border border-amber-100">
-          <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
+          <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" aria-hidden="true" />
+          <h1 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h1>
           <p className="text-neutral-600 mb-6">The organizer has confirmed a time, so responses are now closed.</p>
           <Link to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
             View Final Results
@@ -312,9 +320,9 @@ export default function VotePollPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
       {connectionError && (
-        <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div role="status" aria-live="polite" data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
+            <AlertTriangle className="text-amber-500 animate-pulse" size={20} aria-hidden="true" />
             <span>Trouble connecting. We'll keep trying to reconnect...</span>
           </div>
           <button
@@ -383,7 +391,7 @@ export default function VotePollPage() {
                               {isDescriptionExpanded ? 'Show Less' : 'Show More'}
                             </span>
                             <div className={`transition-transform duration-500 ${isDescriptionExpanded ? 'rotate-180' : ''}`}>
-                              <ChevronDown size={14} className="text-neutral-600 group-hover/btn:text-brand-green-dark" />
+                              <ChevronDown size={14} className="text-neutral-600 group-hover/btn:text-brand-green-dark" aria-hidden="true" />
                             </div>
                           </button>
                         </div>
@@ -424,7 +432,7 @@ export default function VotePollPage() {
                 data-testid="view-results-link"
                 className="group flex-1 md:flex-initial flex items-center justify-center gap-3 bg-brand-green text-white hover:bg-brand-green-dark transition-all rounded-[1.5rem] md:rounded-[2rem] px-10 py-4 min-h-[72px] md:min-h-[84px] font-black text-xl active:scale-95 shadow-xl shadow-brand-green/20"
               >
-                <History className="w-7 h-7 group-hover:rotate-12 transition-transform" />
+                <History className="w-7 h-7 group-hover:rotate-12 transition-transform" aria-hidden="true" />
                 <span>Results</span>
               </Link>
 
@@ -436,7 +444,7 @@ export default function VotePollPage() {
                   title="Edit poll"
                   className="group flex items-center justify-center gap-2 px-6 md:px-0 md:w-[84px] h-[72px] md:h-[84px] rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 shadow-xl"
                 >
-                  <Edit3 className="w-6 h-6 group-hover:scale-110 transition-transform flex-shrink-0" />
+                  <Edit3 className="w-6 h-6 group-hover:scale-110 transition-transform flex-shrink-0" aria-hidden="true" />
                   <span className="text-sm font-bold md:hidden">Edit poll</span>
                 </Link>
               )}
@@ -461,7 +469,7 @@ export default function VotePollPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex-shrink-0 flex items-center justify-center text-white shadow-lg shadow-indigo-200 mt-1">
-                <History className="w-5 h-5" />
+                <History className="w-5 h-5" aria-hidden="true" />
               </div>
               <div className="flex-1">
                 <h2 className="font-bold text-neutral-800 text-base leading-snug">
@@ -482,7 +490,7 @@ export default function VotePollPage() {
                 onClick={handleNewResponse}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 whitespace-nowrap"
               >
-                <Plus size={16} />
+                <Plus size={16} aria-hidden="true" />
                 Submit New Response
               </button>
             </div>
@@ -576,8 +584,8 @@ export default function VotePollPage() {
         </section>
         
         {error && (
-          <div data-testid="error-message" className="p-4 bg-red-50 text-red-600 rounded-2xl font-bold flex items-center gap-2">
-            <AlertTriangle size={20} />
+          <div role="alert" data-testid="error-message" className="p-4 bg-red-50 text-red-600 rounded-2xl font-bold flex items-center gap-2">
+            <AlertTriangle size={20} aria-hidden="true" />
             {error}
           </div>
         )}
@@ -586,11 +594,12 @@ export default function VotePollPage() {
           <Button
             type="submit"
             size="lg"
+            aria-busy={isSubmitting}
             disabled={!isReady || isSubmitting || !participantName.trim()}
             data-testid="vote-submit-btn"
             className="flex-1 shadow-xl disabled:cursor-not-allowed"
           >
-            {isSubmitting ? <Loader2 className="animate-spin" /> : "Send my response"}
+            {isSubmitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : "Send my response"}
           </Button>
           
           {userVotes.some(v => v.responseId === editingResponseId) && (

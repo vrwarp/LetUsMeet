@@ -45,7 +45,7 @@ const CompactActionCard: React.FC<CompactActionCardProps> = ({
     >
       {/* Original Content */}
       <div className={`transition-all duration-300 flex items-center justify-center gap-3 md:gap-0 ${isSuccess ? 'opacity-0 scale-75 translate-y-2' : 'opacity-100 scale-100 translate-y-0'}`}>
-        <div className={`p-3 rounded-2xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${iconBgStyles}`}>
+        <div className={`p-3 rounded-2xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${iconBgStyles}`} aria-hidden="true">
           {icon}
         </div>
         {label && (

@@ -31,6 +31,8 @@ import type { PollState, VoteValue, PollAction } from "../types";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
 import { buttonClasses } from "@/components/buttonStyles";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
@@ -56,6 +58,32 @@ export default function ResultsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [unfinalizing, setUnfinalizing] = useState(false);
   const [showLocationCopied, setShowLocationCopied] = useState(false);
+
+  const maximizeRef = useRef<HTMLDivElement>(null);
+  const shareModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(maximizeRef, isMaximized);
+  useFocusTrap(shareModalRef, showShareModal);
+
+  useDocumentTitle(
+    pollState?.metadata?.title
+      ? `${pollState.metadata.title} — Results — LetUsMeet`
+      : "Poll results — LetUsMeet"
+  );
+
+  // Escape-to-close for the dismissable Results dialogs.
+  useEffect(() => {
+    if (!isMaximized && !showShareModal) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (isMaximized) setIsMaximized(false);
+      if (showShareModal) {
+        setShowShareModal(false);
+        setCopiedLinkType(null);
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isMaximized, showShareModal]);
 
   useEffect(() => {
     if (session && pollState?.adminPublicKey) {
@@ -124,8 +152,9 @@ export default function ResultsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">{friendlyStatus(syncStatus)}</p>
+        <h1 className="sr-only">Loading results</h1>
+        <Loader2 className="w-10 h-10 text-brand-green animate-spin" aria-hidden="true" />
+        <p role="status" aria-live="polite" className="text-neutral-600 font-medium">{friendlyStatus(syncStatus)}</p>
       </div>
     );
   }
@@ -133,8 +162,8 @@ export default function ResultsPage() {
   if (error || !pollState || !pollState.metadata) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h2>
+        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
+        <h1 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h1>
         <p className="text-neutral-600 text-lg mb-8">{error || "Access Denied."}</p>
         <Link to="/" className={buttonClasses("primary", "lg")}>Return to Home</Link>
       </div>
@@ -302,25 +331,27 @@ export default function ResultsPage() {
   const renderMatrixTable = (isCompact = false) => (
     <div className={`overflow-x-auto rounded-2xl border border-neutral-100 bg-white ${isCompact ? 'border-none shadow-none' : ''}`}>
       <table data-testid="results-matrix" className="w-full border-collapse md:min-w-[600px]">
+        <caption className="sr-only">Availability grid: each participant's response for every proposed time slot.</caption>
         <thead>
           <tr className="bg-neutral-50 border-b border-neutral-100">
-            <th className="p-4 text-left font-semibold text-neutral-700 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]">
+            <th scope="col" className="p-4 text-left font-semibold text-neutral-700 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]">
               <div className="flex items-center justify-between gap-2 overflow-hidden">
                 <span className="truncate md:overflow-visible md:whitespace-normal">Participants</span>
                 {isAdmin && (
-                  <button 
+                  <button
                     onClick={handleComposeEmail}
                     disabled={!isReady}
                     className="p-1 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green flex-shrink-0 disabled:opacity-50"
+                    aria-label="Email all participants"
                     title="Email all participants"
                   >
-                    <Send className="w-3 h-3" />
+                    <Send className="w-3 h-3" aria-hidden="true" />
                   </button>
                 )}
               </div>
             </th>
             {sortedSlots.map(slot => (
-              <th key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
+              <th scope="col" key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
                 <div className="text-[11px] md:text-sm font-bold text-neutral-800 leading-tight">
                   {metadata.schedulingMode === "EXACT" 
                     ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -350,43 +381,44 @@ export default function ResultsPage() {
         <tbody>
           {voteArray.map((vote, idx) => (
             <tr key={idx} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
-              <td className={`${isCompact ? 'p-2' : 'p-4'} sticky left-0 bg-white z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]`}>
+              <th scope="row" className={`${isCompact ? 'p-2' : 'p-4'} text-left font-bold sticky left-0 bg-white z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]`}>
                 <div className="flex flex-col min-w-0">
                   <span className="font-bold text-neutral-800 truncate">{vote.participantName}</span>
                   {vote.email && (
-                    <span className="text-[10px] text-neutral-500 font-medium truncate">{vote.email}</span>
+                    <span className="text-[10px] text-neutral-600 font-medium truncate">{vote.email}</span>
                   )}
                 </div>
-              </td>
-              {sortedSlots.map(slot => (
-                <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/20' : ''}`}>
-                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
-                    vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark" :
-                    vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-50 text-amber-800" :
-                    vote.selections[slot.id] === "BLANK" ? "bg-neutral-50 text-neutral-300" :
-                    "bg-red-50 text-red-600"
-                  }`}>
-                    {
-                      vote.selections[slot.id] === "YES" ? "✓" : 
-                      vote.selections[slot.id] === "IF_NEED_BE" ? "⚠" : 
-                      vote.selections[slot.id] === "BLANK" ? "" : 
-                      "×"
-                    }
-                  </div>
-                </td>
-              ))}
+              </th>
+              {sortedSlots.map(slot => {
+                const sel = vote.selections[slot.id] || "BLANK";
+                const glyph = sel === "YES" ? "✓" : sel === "IF_NEED_BE" ? "⚠" : sel === "BLANK" ? "" : "×";
+                const srLabel = sel === "YES" ? "Available" : sel === "IF_NEED_BE" ? "If need be" : sel === "BLANK" ? "No response" : "Not available";
+                return (
+                  <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/20' : ''}`}>
+                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
+                      sel === "YES" ? "bg-brand-green-light text-brand-green-dark" :
+                      sel === "IF_NEED_BE" ? "bg-amber-50 text-amber-800" :
+                      sel === "BLANK" ? "bg-neutral-50 text-neutral-300" :
+                      "bg-red-50 text-red-600"
+                    }`}>
+                      <span aria-hidden="true">{glyph}</span>
+                      <span className="sr-only">{srLabel}</span>
+                    </div>
+                  </td>
+                );
+              })}
               <td className="w-full"></td>
             </tr>
           ))}
         </tbody>
         <tfoot className="bg-neutral-50 font-black">
           <tr>
-            <td className="p-4 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 uppercase text-xs">TOTAL</td>
+            <th scope="row" className="p-4 text-left sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 uppercase text-xs">TOTAL</th>
             {sortedSlots.map(slot => (
               <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
                 <div data-testid={`total-${slot.id}`} className="flex items-center justify-center gap-1 font-bold text-base md:text-lg">
                   <span className="text-brand-green-dark">{voteCounts[slot.id].YES}</span>
-                  {voteCounts[slot.id].IF_NEED_BE > 0 && <span className="text-amber-500 text-sm md:text-sm">({voteCounts[slot.id].IF_NEED_BE})</span>}
+                  {voteCounts[slot.id].IF_NEED_BE > 0 && <span className="text-amber-700 text-sm md:text-sm">({voteCounts[slot.id].IF_NEED_BE})</span>}
                 </div>
               </td>
             ))}
@@ -400,9 +432,9 @@ export default function ResultsPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
       {connectionError && (
-        <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div role="status" aria-live="polite" data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
+            <AlertTriangle className="text-amber-500 animate-pulse" size={20} aria-hidden="true" />
             <span>Trouble connecting. We'll keep trying to reconnect...</span>
           </div>
           <button
@@ -418,7 +450,7 @@ export default function ResultsPage() {
         </div>
       )}
       <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8">
-        <ArrowLeft size={16} /> Back to Poll
+        <ArrowLeft size={16} aria-hidden="true" /> Back to Poll
       </Link>
 
       <div className={`${pollState.isFinalized ? 'bg-[#0a1108]' : 'bg-brand-gradient'} rounded-[3rem] shadow-2xl relative overflow-hidden transition-colors duration-700 mb-12`}>
@@ -447,7 +479,7 @@ export default function ResultsPage() {
                         {metadata.title}
                       </h1>
                       {metadata.description && (
-                        <p className="text-base md:text-lg text-white/75 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
+                        <p className="text-base md:text-lg text-white/80 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
                           {metadata.description}
                         </p>
                       )}
@@ -459,10 +491,10 @@ export default function ResultsPage() {
                       }`}>
                         <button
                           onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                          className="group/btn flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white/70 transition-all active:scale-95 shadow-lg"
+                          className="group/btn flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white/80 transition-all active:scale-95 shadow-lg"
                         >
                           {isDescriptionExpanded ? "Show Less" : "Show More"}
-                          <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isDescriptionExpanded ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isDescriptionExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
                         </button>
                       </div>
                     )}
@@ -475,25 +507,25 @@ export default function ResultsPage() {
             {bestSlotId && (
               (!pollState.isFinalized && voteArray.length < 2) ? (
                 <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full lg:ml-auto">
-                  <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center text-neutral-400">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center text-neutral-500" aria-hidden="true">
                     <CalendarCheck className="w-8 h-8" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600 mb-1">
                       Not enough responses yet
                     </p>
-                    <p className="text-sm md:text-base font-medium text-neutral-500 leading-snug max-w-[220px]">
+                    <p className="text-sm md:text-base font-medium text-neutral-600 leading-snug max-w-[220px]">
                       Once a couple of people respond, the leading time will show here.
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
-                  <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
+                  <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20" aria-hidden="true">
                     <CalendarCheck className="w-8 h-8" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600 mb-1">
                       {pollState.isFinalized ? "CONFIRMED TIME" : "LEADING TIME"}
                     </p>
                     <p className="text-xl md:text-2xl font-black leading-tight">
@@ -546,14 +578,16 @@ export default function ResultsPage() {
                   <button
                     onClick={handleUnfinalize}
                     disabled={!isReady || unfinalizing}
+                    aria-busy={unfinalizing}
+                    aria-label="Unselect confirmed date"
                     className="w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl disabled:opacity-50"
                     title="Unselect Date"
                   >
                     {unfinalizing ? (
-                      <Loader2 size={24} className="animate-spin" />
+                      <Loader2 size={24} className="animate-spin" aria-hidden="true" />
                     ) : (
                       <>
-                        <RotateCcw size={24} className="group-hover:rotate-[-45deg] transition-transform duration-500 flex-shrink-0" />
+                        <RotateCcw size={24} className="group-hover:rotate-[-45deg] transition-transform duration-500 flex-shrink-0" aria-hidden="true" />
                         <span className="text-sm font-bold md:hidden">Change Date</span>
                       </>
                     )}
@@ -561,10 +595,11 @@ export default function ResultsPage() {
                 ) : (
                   <Link
                     to={`/poll/${pollId}/edit${window.location.search}${window.location.hash}`}
+                    aria-label="Edit poll"
                     className={`w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl ${!isReady ? 'pointer-events-none opacity-50' : ''}`}
                     title="Edit Poll"
                   >
-                    <Edit3 size={24} className="group-hover:scale-110 transition-transform duration-500 flex-shrink-0" />
+                    <Edit3 size={24} className="group-hover:scale-110 transition-transform duration-500 flex-shrink-0" aria-hidden="true" />
                     <span className="text-sm font-bold md:hidden">Edit Poll</span>
                   </Link>
                 )}
@@ -589,22 +624,22 @@ export default function ResultsPage() {
       <div className="bg-white rounded-[2rem] p-8 border border-neutral-100 shadow-xl">
         <div className="flex items-center justify-between mb-8">
            <h2 className="text-2xl font-bold text-neutral-800 flex items-center gap-3">
-             <Info className="text-brand-green" /> Availability Grid
+             <Info className="text-brand-green" aria-hidden="true" /> Availability Grid
            </h2>
-           <button 
-             onClick={() => setIsMaximized(true)} 
+           <button
+             onClick={() => setIsMaximized(true)}
              disabled={!isReady}
              className="p-2 hover:bg-neutral-100 rounded-lg disabled:opacity-50"
              aria-label="Maximize availability grid"
            >
-             <Maximize2 size={20} />
+             <Maximize2 size={20} aria-hidden="true" />
            </button>
         </div>
         
         {voteArray.length === 0 ? (
           <div data-testid="results-empty-state" className="text-center py-20 px-6 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
-            <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-            <p className="text-neutral-500 font-medium">No responses yet. Share the poll link and answers will appear here in real time.</p>
+            <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" aria-hidden="true" />
+            <p className="text-neutral-600 font-medium">No responses yet. Share the poll link and answers will appear here in real time.</p>
           </div>
         ) : (
           renderMatrixTable()
@@ -612,16 +647,22 @@ export default function ResultsPage() {
       </div>
 
       {isMaximized && (
-        <div className="fixed inset-0 z-[100] bg-brand-charcoal/95 backdrop-blur-md p-3 md:p-8 flex flex-col">
+        <div
+          ref={maximizeRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="maximize-dialog-title"
+          className="fixed inset-0 z-[100] bg-brand-charcoal/95 backdrop-blur-md p-3 md:p-8 flex flex-col"
+        >
           <div className="flex justify-between items-center text-white mb-4 md:mb-8">
-            <h2 className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
-            <button 
-              onClick={() => setIsMaximized(false)} 
+            <h2 id="maximize-dialog-title" className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
+            <button
+              onClick={() => setIsMaximized(false)}
               disabled={!isReady}
               className="p-2 hover:bg-white/10 rounded-full flex-shrink-0 disabled:opacity-50"
               aria-label="Close maximization"
             >
-              <X size={32} />
+              <X size={32} aria-hidden="true" />
             </button>
           </div>
           <div className="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-auto p-1 md:p-4">
@@ -632,12 +673,18 @@ export default function ResultsPage() {
 
       {showShareModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 md:p-10 border border-neutral-100 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+          <div
+            ref={shareModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-dialog-title"
+            className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 md:p-10 border border-neutral-100 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200"
+          >
             {/* Decorative Blur */}
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-green/5 rounded-full blur-2xl pointer-events-none" />
-            
+
             {/* Close Button */}
-            <button 
+            <button
               onClick={() => {
                 setShowShareModal(false);
                 setCopiedLinkType(null);
@@ -645,13 +692,13 @@ export default function ResultsPage() {
               className="absolute top-6 right-6 p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 rounded-full transition-colors"
               aria-label="Close share dialog"
             >
-              <X size={20} />
+              <X size={20} aria-hidden="true" />
             </button>
 
             <div className="flex flex-col gap-6">
               <div>
-                <h3 className="text-2xl font-black text-neutral-800 tracking-tight mb-2">Share this Poll</h3>
-                <p className="text-neutral-500 text-sm font-medium">Which link would you like to copy?</p>
+                <h3 id="share-dialog-title" className="text-2xl font-black text-neutral-800 tracking-tight mb-2">Share this Poll</h3>
+                <p className="text-neutral-600 text-sm font-medium">Which link would you like to copy?</p>
               </div>
 
               <div className="flex flex-col gap-4">
