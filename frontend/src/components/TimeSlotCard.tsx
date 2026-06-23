@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { Check, AlertCircle, X } from "lucide-react";
 import type { VoteValue, TimeSlot } from "../types/index";
 import { cycleVote } from "@/lib/voteUtils";
@@ -17,33 +17,38 @@ const OPTIONS: { value: Exclude<VoteValue, "BLANK">; label: string }[] = [
   { value: "NO", label: "No" },
 ];
 
-export default function TimeSlotCard({ slot, value, onChange, disabled }: Props) {
-  const isExact = "startTime" in slot;
+function TimeSlotCard({ slot, value, onChange, disabled }: Props) {
   const groupRef = useRef<HTMLDivElement>(null);
 
-  let dateStr: string;
-  let timeRange: string;
-  let subtext = "";
+  // Date/time formatting only depends on the slot, so memoize it keyed on the
+  // slot — re-renders driven by `value`/`disabled` skip the Date parsing.
+  const { dateStr, timeRange, subtext } = useMemo(() => {
+    if ("startTime" in slot) {
+      const start = new Date(slot.startTime);
+      const end = new Date(slot.endTime);
+      return {
+        dateStr: start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+        timeRange: `${start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} – ${end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`,
+        subtext: "",
+      };
+    }
 
-  if (isExact) {
-    const start = new Date(slot.startTime);
-    const end = new Date(slot.endTime);
-    dateStr = start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    timeRange = `${start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} – ${end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
-  } else {
     const date = new Date(slot.date + "T00:00:00");
-    dateStr = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    timeRange = slot.label;
-
+    let sub = "";
     if (slot.time) {
       // Format time (e.g., "18:00" -> "6:00 PM")
       const [hours, minutes] = slot.time.split(':');
       const h = parseInt(hours);
       const ampm = h >= 12 ? 'PM' : 'AM';
       const formattedHours = h % 12 || 12;
-      subtext = `~ ${formattedHours}:${minutes} ${ampm}`;
+      sub = `~ ${formattedHours}:${minutes} ${ampm}`;
     }
-  }
+    return {
+      dateStr: date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+      timeRange: slot.label,
+      subtext: sub,
+    };
+  }, [slot]);
 
   // Tapping the card body (outside an option) cycles through the states,
   // preserving the original interaction.
@@ -233,3 +238,7 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
     </div>
   );
 }
+
+// Memoized: the parent (VotePollPage) passes a stable per-slot `onChange`, so a
+// card only re-renders when its own `slot`/`value`/`disabled` change.
+export default memo(TimeSlotCard);

@@ -55,9 +55,12 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
           >
             {/* Illustration Banner */}
             <div className="w-full relative aspect-[2.3] sm:aspect-[1.8] flex items-end justify-center bg-white/40 border-b border-neutral-100 px-4 pt-4 pb-0 overflow-hidden">
-              <img 
-                src={dataGardenImg} 
-                alt="Secure Account Illustration" 
+              <img
+                src={dataGardenImg}
+                alt="Secure Account Illustration"
+                width={965}
+                height={633}
+                loading="lazy"
                 className="w-full h-full object-contain max-h-[120px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
               />
             </div>

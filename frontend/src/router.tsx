@@ -1,16 +1,22 @@
 import { createBrowserRouter } from "react-router-dom";
 import HomePage from "@/pages/HomePage";
-import CreatePollPage from "@/pages/CreatePollPage";
-import VotePollPage from "@/pages/VotePollPage";
-import ResultsPage from "@/pages/ResultsPage";
 import Layout from "@/components/Layout";
-import DashboardPage from "@/pages/DashboardPage";
-import EditPollPage from "@/pages/EditPollPage";
-import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
-import TermsOfServicePage from "@/pages/TermsOfServicePage";
-import NotFoundPage from "@/pages/NotFoundPage";
 import ErrorState from "@/components/ErrorState";
+import {
+  CreatePollPage,
+  VotePollPage,
+  ResultsPage,
+  EditPollPage,
+  DashboardPage,
+  PrivacyPolicyPage,
+  TermsOfServicePage,
+  NotFoundPage,
+} from "@/pages/lazyPages";
 
+// Route-level code-splitting: each non-landing page is a separate, on-demand JS
+// chunk (see src/pages/lazyPages.ts). HomePage + Layout stay eager (above-the-
+// fold shell). The <Suspense> fallback covering these lazy routes lives in
+// Layout, around the routed <Outlet />, so the header/nav persist during loads.
 export const router = createBrowserRouter([
   {
     path: "/",

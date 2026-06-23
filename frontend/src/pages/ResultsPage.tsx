@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
   Loader2, 
@@ -15,7 +15,6 @@ import {
   Lock,
   MapPin,
   Share2,
-  Send,
   AlertTriangle
 } from "lucide-react";
 import {
@@ -38,6 +37,8 @@ import type {
 } from "../types";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
+import PageLoader from "@/components/PageLoader";
+import MatrixTable from "@/components/MatrixTable";
 import { buttonClasses } from "@/components/buttonStyles";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -208,13 +209,180 @@ export default function ResultsPage() {
     };
   }, [pollId, user?.uid, loading, retryKey]);
 
+  // --- Derived results data (memoized) ---------------------------------------
+  // Computed unconditionally (with null guards) so the hooks run on every render,
+  // then consumed in the success branch below. Memoizing keeps the maximize
+  // dialog and share/description toggles from recomputing the whole matrix.
+  const votesMap = pollState?.votes ?? null;
+  const schedulingMode = pollState?.metadata?.schedulingMode;
+  const timeSlots = pollState?.metadata?.timeSlots;
+
+  const voteArray = useMemo(
+    () =>
+      votesMap
+        ? Array.from(votesMap.entries()).map(([pubKey, data]) => ({ pubKey, ...data }))
+        : [],
+    [votesMap]
+  );
+
+  const voteCounts = useMemo(
+    () =>
+      (timeSlots ?? []).reduce((acc, slot) => {
+        acc[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0, BLANK: 0 };
+        voteArray.forEach(v => {
+          const val = v.selections[slot.id] || "BLANK";
+          acc[slot.id][val]++;
+        });
+        return acc;
+      }, {} as Record<string, Record<VoteValue, number>>),
+    [timeSlots, voteArray]
+  );
+
+  const sortedSlots = useMemo(
+    () =>
+      [...(timeSlots ?? [])].sort((a, b) => {
+        if (schedulingMode === "EXACT") {
+          return new Date((a as ExactTimeSlot).startTime).getTime() - new Date((b as ExactTimeSlot).startTime).getTime();
+        }
+        return (a as FuzzyTimeSlot).date.localeCompare((b as FuzzyTimeSlot).date);
+      }),
+    [timeSlots, schedulingMode]
+  );
+
+  const topSlotIds = useMemo(() => {
+    if (voteArray.length === 0) return [];
+    let maxScore = -1;
+    let ids: string[] = [];
+    Object.entries(voteCounts).forEach(([id, counts]) => {
+      const score = counts.YES * 2 + counts.IF_NEED_BE;
+      if (score > maxScore) {
+        maxScore = score;
+        ids = [id];
+      } else if (score === maxScore) {
+        ids.push(id);
+      }
+    });
+    return ids;
+  }, [voteCounts, voteArray.length]);
+
+  const bestSlotId = topSlotIds[0] || null;
+
+  // Per-slot formatted header date/time labels for the matrix, precomputed so
+  // MatrixTable receives plain strings and doesn't reparse Dates on every render.
+  const slotHeaderLabels = useMemo(() => {
+    const map = new Map<string, { date: string; time: string }>();
+    sortedSlots.forEach(slot => {
+      if (schedulingMode === "EXACT") {
+        const start = new Date((slot as ExactTimeSlot).startTime);
+        map.set(slot.id, {
+          date: start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+        });
+      } else {
+        const fuzzy = slot as FuzzyTimeSlot;
+        map.set(slot.id, {
+          date: new Date(fuzzy.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: fuzzy.label,
+        });
+      }
+    });
+    return map;
+  }, [sortedSlots, schedulingMode]);
+
+  // Stable matrix callbacks (useCallback) so the memoized <MatrixTable> doesn't
+  // re-render when the maximize dialog or share/description toggles flip state.
+  const handleFinalize = useCallback(async (slotId: string) => {
+    if (!session || !pollId) return;
+    if (!(await askConfirm({
+      title: "Confirm this time and close voting for everyone?",
+      body: "Participants will no longer be able to respond. You can reopen voting later.",
+      confirmLabel: "Confirm time",
+      variant: "warning",
+    }))) return;
+    setFinalizing(slotId);
+    try {
+      const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
+      await session.appendEvent(action);
+      toast({ variant: "success", message: "Time confirmed. Voting is now closed." });
+    } catch {
+      toast({ variant: "error", message: "We couldn't confirm that time. Try again." });
+    } finally {
+      setFinalizing(null);
+    }
+  }, [session, pollId, askConfirm, toast]);
+
+  const handleComposeEmail = useCallback(() => {
+    const meta = pollState?.metadata;
+    if (!meta || voteArray.length === 0) return;
+
+    const participantsWithEmail = voteArray
+      .filter(v => !!v.email)
+      .map(v => ({ name: v.participantName, email: v.email! }));
+
+    const participantsWithoutEmail = voteArray
+      .filter(v => !v.email)
+      .map(v => v.participantName);
+
+    if (participantsWithEmail.length === 0) {
+      toast({ variant: "info", message: "None of your participants added an email, so there's no one to send to yet." });
+      return;
+    }
+
+    const toString = participantsWithEmail
+      .map(p => `"${p.name}" <${p.email}>`)
+      .join(", ");
+
+    const subject = `Meeting Update: ${meta.title}`;
+
+    let bodyText = `Hi everyone,\n\n`;
+
+    if (participantsWithoutEmail.length > 0) {
+      bodyText += `[Note: The following participants' emails were unavailable and not included in this thread: ${participantsWithoutEmail.join(", ")}]\n\n`;
+    }
+
+    bodyText += `I'm writing to share an update regarding our meeting "${meta.title}".\n\n`;
+
+    if (pollState?.isFinalized && pollState?.finalizedSlotId) {
+      const slot = meta.timeSlots.find(s => s.id === pollState.finalizedSlotId);
+      if (slot) {
+        const dateStr = meta.schedulingMode === "EXACT"
+          ? new Date((slot as ExactTimeSlot).startTime).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+          : `${new Date((slot as FuzzyTimeSlot).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${(slot as FuzzyTimeSlot).label})`;
+
+        bodyText += `CONFIRMED DATE:\n${dateStr}\n\n`;
+      }
+    }
+
+    if (meta.location) {
+      bodyText += `LOCATION:\n${meta.location}\n\n`;
+    }
+
+    bodyText += `You can view the full results and the availability grid here: ${getShareableUrl()}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
+
+    const mailtoUrl = `mailto:?bcc=${encodeURIComponent(toString)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+
+    const link = document.createElement("a");
+    link.href = mailtoUrl;
+
+    // Validate protocol to prevent injection of javascript: or other schemes
+    if (link.protocol === "mailto:") {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      console.error("Invalid mailto protocol generated");
+    }
+  }, [pollState, voteArray, toast, user]);
+
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <h1 className="sr-only">Loading results</h1>
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" aria-hidden="true" />
-        <p role="status" aria-live="polite" className="text-neutral-600 font-medium">{friendlyStatus(syncStatus)}</p>
-      </div>
+      <PageLoader
+        testId="loader"
+        heading="Loading results"
+        message={friendlyStatus(syncStatus)}
+      />
     );
   }
 
@@ -243,49 +411,10 @@ export default function ResultsPage() {
     );
   }
 
-  const { metadata, votes } = pollState;
-
-  const voteArray = Array.from(votes.entries()).map(([pubKey, data]) => ({
-    pubKey,
-    ...data
-  }));
-
-  const voteCounts = metadata.timeSlots.reduce((acc, slot) => {
-    acc[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0, BLANK: 0 };
-    voteArray.forEach(v => {
-      const val = v.selections[slot.id] || "BLANK";
-      acc[slot.id][val]++;
-    });
-    return acc;
-  }, {} as Record<string, Record<VoteValue, number>>);
-
-  const sortedSlots = [...metadata.timeSlots].sort((a, b) => {
-    if (metadata.schedulingMode === "EXACT") {
-      return new Date((a as ExactTimeSlot).startTime).getTime() - new Date((b as ExactTimeSlot).startTime).getTime();
-    }
-    return (a as FuzzyTimeSlot).date.localeCompare((b as FuzzyTimeSlot).date);
-  });
-
-  const topSlotIds = (() => {
-    if (voteArray.length === 0) return [];
-    let maxScore = -1;
-    let ids: string[] = [];
-    Object.entries(voteCounts).forEach(([id, counts]) => {
-      const score = counts.YES * 2 + counts.IF_NEED_BE;
-      if (score > maxScore) {
-        maxScore = score;
-        ids = [id];
-      } else if (score === maxScore) {
-        ids.push(id);
-      }
-    });
-    return ids;
-  })();
-
-  const bestSlotId = topSlotIds[0] || null;
-
-
-
+  // `metadata` is guaranteed non-null here by the guard above. The derived data
+  // (voteArray/voteCounts/sortedSlots/topSlotIds/bestSlotId/slotHeaderLabels) is
+  // memoized at the top of the component.
+  const { metadata } = pollState;
 
 
   const handleCopyLocation = async () => {
@@ -297,26 +426,6 @@ export default function ResultsPage() {
       } else {
         toast({ variant: "error", message: "We couldn't copy the location. Try copying it manually." });
       }
-    }
-  };
-
-  const handleFinalize = async (slotId: string) => {
-    if (!session || !pollId) return;
-    if (!(await askConfirm({
-      title: "Confirm this time and close voting for everyone?",
-      body: "Participants will no longer be able to respond. You can reopen voting later.",
-      confirmLabel: "Confirm time",
-      variant: "warning",
-    }))) return;
-    setFinalizing(slotId);
-    try {
-      const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
-      await session.appendEvent(action);
-      toast({ variant: "success", message: "Time confirmed. Voting is now closed." });
-    } catch {
-      toast({ variant: "error", message: "We couldn't confirm that time. Try again." });
-    } finally {
-      setFinalizing(null);
     }
   };
 
@@ -361,169 +470,21 @@ export default function ResultsPage() {
     setShowShareModal(true);
   };
 
-  const handleComposeEmail = () => {
-    if (!metadata || voteArray.length === 0) return;
-
-    const participantsWithEmail = voteArray
-      .filter(v => !!v.email)
-      .map(v => ({ name: v.participantName, email: v.email! }));
-
-    const participantsWithoutEmail = voteArray
-      .filter(v => !v.email)
-      .map(v => v.participantName);
-
-    if (participantsWithEmail.length === 0) {
-      toast({ variant: "info", message: "None of your participants added an email, so there's no one to send to yet." });
-      return;
-    }
-
-    const toString = participantsWithEmail
-      .map(p => `"${p.name}" <${p.email}>`)
-      .join(", ");
-
-    const subject = `Meeting Update: ${metadata.title}`;
-    
-    let bodyText = `Hi everyone,\n\n`;
-    
-    if (participantsWithoutEmail.length > 0) {
-      bodyText += `[Note: The following participants' emails were unavailable and not included in this thread: ${participantsWithoutEmail.join(", ")}]\n\n`;
-    }
-
-    bodyText += `I'm writing to share an update regarding our meeting "${metadata.title}".\n\n`;
-    
-    if (pollState.isFinalized && pollState.finalizedSlotId) {
-      const slot = metadata.timeSlots.find(s => s.id === pollState.finalizedSlotId);
-      if (slot) {
-        const dateStr = metadata.schedulingMode === "EXACT"
-          ? new Date((slot as ExactTimeSlot).startTime).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-          : `${new Date((slot as FuzzyTimeSlot).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${(slot as FuzzyTimeSlot).label})`;
-        
-        bodyText += `CONFIRMED DATE:\n${dateStr}\n\n`;
-      }
-    }
-
-    if (metadata.location) {
-      bodyText += `LOCATION:\n${metadata.location}\n\n`;
-    }
-
-    bodyText += `You can view the full results and the availability grid here: ${getShareableUrl()}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
-
-    const mailtoUrl = `mailto:?bcc=${encodeURIComponent(toString)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-
-    const link = document.createElement("a");
-    link.href = mailtoUrl;
-
-    // Validate protocol to prevent injection of javascript: or other schemes
-    if (link.protocol === "mailto:") {
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      console.error("Invalid mailto protocol generated");
-    }
-  };
-
   const renderMatrixTable = (isCompact = false) => (
-    <div className={`overflow-x-auto rounded-2xl border border-neutral-100 bg-white ${isCompact ? 'border-none shadow-none' : ''}`}>
-      <table data-testid="results-matrix" className="w-full border-collapse md:min-w-[600px]">
-        <caption className="sr-only">Availability grid: each participant's response for every proposed time slot.</caption>
-        <thead>
-          <tr className="bg-neutral-50 border-b border-neutral-100">
-            <th scope="col" className="p-4 text-left font-semibold text-neutral-700 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]">
-              <div className="flex items-center justify-between gap-2 overflow-hidden">
-                <span className="truncate md:overflow-visible md:whitespace-normal">Participants</span>
-                {isAdmin && (
-                  <button
-                    onClick={handleComposeEmail}
-                    disabled={!isReady}
-                    className="p-1 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green flex-shrink-0 disabled:opacity-50"
-                    aria-label="Email all participants"
-                    title="Email all participants"
-                  >
-                    <Send className="w-3 h-3" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-            </th>
-            {sortedSlots.map(slot => (
-              <th scope="col" key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
-                <div className="text-[11px] md:text-sm font-bold text-neutral-800 leading-tight">
-                  {metadata.schedulingMode === "EXACT"
-                    ? new Date((slot as ExactTimeSlot).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-                    : new Date((slot as FuzzyTimeSlot).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-                  }
-                </div>
-                <div className="text-[10px] md:text-xs text-neutral-500 leading-tight">
-                  {metadata.schedulingMode === "EXACT"
-                    ? new Date((slot as ExactTimeSlot).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-                    : (slot as FuzzyTimeSlot).label
-                  }
-                </div>
-                {isAdmin && !pollState.isFinalized && (
-                  <button
-                    onClick={() => handleFinalize(slot.id)}
-                    disabled={!isReady || finalizing === slot.id}
-                    className="focus-ring mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm disabled:opacity-50"
-                  >
-                    {finalizing === slot.id ? "..." : "Confirm"}
-                  </button>
-                )}
-              </th>
-            ))}
-            <th className="w-full bg-neutral-50 border-b border-neutral-100"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {voteArray.map((vote, idx) => (
-            <tr key={idx} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
-              <th scope="row" className={`${isCompact ? 'p-2' : 'p-4'} text-left font-bold sticky left-0 bg-white z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]`}>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-neutral-800 truncate">{vote.participantName}</span>
-                  {vote.email && (
-                    <span className="text-[10px] text-neutral-600 font-medium truncate">{vote.email}</span>
-                  )}
-                </div>
-              </th>
-              {sortedSlots.map(slot => {
-                const sel = vote.selections[slot.id] || "BLANK";
-                const glyph = sel === "YES" ? "✓" : sel === "IF_NEED_BE" ? "⚠" : sel === "BLANK" ? "" : "×";
-                const srLabel = sel === "YES" ? "Available" : sel === "IF_NEED_BE" ? "If need be" : sel === "BLANK" ? "No response" : "Not available";
-                return (
-                  <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/20' : ''}`}>
-                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
-                      sel === "YES" ? "bg-brand-green-light text-brand-green-dark" :
-                      sel === "IF_NEED_BE" ? "bg-amber-50 text-amber-800" :
-                      sel === "BLANK" ? "bg-neutral-50 text-neutral-300" :
-                      "bg-red-50 text-red-600"
-                    }`}>
-                      <span aria-hidden="true">{glyph}</span>
-                      <span className="sr-only">{srLabel}</span>
-                    </div>
-                  </td>
-                );
-              })}
-              <td className="w-full"></td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot className="bg-neutral-50 font-black">
-          <tr>
-            <th scope="row" className="p-4 text-left sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 uppercase text-xs">TOTAL</th>
-            {sortedSlots.map(slot => (
-              <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
-                <div data-testid={`total-${slot.id}`} className="flex items-center justify-center gap-1 font-bold text-base md:text-lg">
-                  <span className="text-brand-green-dark">{voteCounts[slot.id].YES}</span>
-                  {voteCounts[slot.id].IF_NEED_BE > 0 && <span className="text-amber-700 text-sm md:text-sm">({voteCounts[slot.id].IF_NEED_BE})</span>}
-                </div>
-              </td>
-            ))}
-            <td className="w-full bg-neutral-50"></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <MatrixTable
+      sortedSlots={sortedSlots}
+      voteArray={voteArray}
+      voteCounts={voteCounts}
+      slotHeaderLabels={slotHeaderLabels}
+      finalizedSlotId={pollState.finalizedSlotId ?? null}
+      isFinalized={!!pollState.isFinalized}
+      isCompact={isCompact}
+      isAdmin={isAdmin}
+      isReady={isReady}
+      finalizing={finalizing}
+      onFinalize={handleFinalize}
+      onComposeEmail={handleComposeEmail}
+    />
   );
 
   return (

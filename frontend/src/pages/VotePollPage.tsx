@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle, Edit3 } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import type { LedgerSession } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
 import type { PollState, VoteValue, VoteData, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "../types";
 import TimeSlotCard from "@/components/TimeSlotCard";
+import PageLoader from "@/components/PageLoader";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
 import ClaimBanner from "@/components/ClaimBanner";
@@ -175,6 +176,26 @@ export default function VotePollPage() {
     [pollState, session]
   );
 
+  // Stable vote handler (functional setState — no deps) so the per-slot
+  // callbacks below stay referentially stable.
+  const handleVoteChange = useCallback((slotId: string, value: VoteValue) => {
+    setSelections(prev => ({ ...prev, [slotId]: value }));
+  }, []);
+
+  // One stable, slot-bound `(val) => handleVoteChange(slotId, val)` per slot,
+  // keyed by the slot ids. Memoized so each memoized TimeSlotCard receives the
+  // SAME `onChange` reference across renders (an inline arrow would be a fresh
+  // function every render and defeat React.memo).
+  const slotIdsKey = pollState?.metadata?.timeSlots?.map(s => s.id).join("|") ?? "";
+  const slotChangeHandlers = useMemo(() => {
+    const map = new Map<string, (value: VoteValue) => void>();
+    for (const id of slotIdsKey ? slotIdsKey.split("|") : []) {
+      map.set(id, (value: VoteValue) => handleVoteChange(id, value));
+    }
+    return map;
+    // slotIdsKey encodes the slot ids; handleVoteChange is stable.
+  }, [slotIdsKey, handleVoteChange]);
+
   // Detect organizer: signer matches the poll's admin public key (same check Results uses).
   const isAdmin = !!(session && pollState?.adminPublicKey && session.getSignerPublicKey() === pollState.adminPublicKey);
 
@@ -248,10 +269,6 @@ export default function VotePollPage() {
     setSelections(vote.selections);
   };
 
-  const handleVoteChange = (slotId: string, value: VoteValue) => {
-    setSelections(prev => ({ ...prev, [slotId]: value }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!participantName.trim()) {
@@ -321,11 +338,11 @@ export default function VotePollPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <h1 className="sr-only">Loading poll</h1>
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" aria-hidden="true" />
-        <p role="status" aria-live="polite" className="text-neutral-600 font-medium">{friendlyStatus(syncStatus)}</p>
-      </div>
+      <PageLoader
+        testId="loader"
+        heading="Loading poll"
+        message={friendlyStatus(syncStatus)}
+      />
     );
   }
 
@@ -592,7 +609,7 @@ export default function VotePollPage() {
                 key={slot.id}
                 slot={slot}
                 value={selections[slot.id] || "BLANK"}
-                onChange={(val) => handleVoteChange(slot.id, val)}
+                onChange={slotChangeHandlers.get(slot.id)!}
                 disabled={!isReady}
               />
             ))}

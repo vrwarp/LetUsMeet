@@ -15,6 +15,28 @@ export default defineConfig({
   define: {
     __E2E_HOOKS__: JSON.stringify(process.env.VITE_E2E_HOOKS === 'true'),
   },
+  // Vendor chunk splitting (Rolldown). Splits large, rarely-changing
+  // dependencies into their own chunks so they cache independently of app code
+  // and across deploys. firebase/charproof stay statically imported by app code
+  // (only route pages are lazy), so initializeApp/initializeZK ordering in
+  // firebase.ts is unchanged — this only affects how modules are grouped into
+  // output chunks, not load order.
+  build: {
+    rolldownOptions: {
+      output: {
+        // `codeSplitting` is the current (non-deprecated) Rolldown option for
+        // manual chunking; `advancedChunks` is its deprecated alias. Same shape.
+        codeSplitting: {
+          groups: [
+            { name: 'firebase', test: /node_modules[\\/](@firebase|firebase)[\\/]/ },
+            { name: 'charproof', test: /node_modules[\\/]charproof[\\/]/ },
+            { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/ },
+            { name: 'dnd', test: /node_modules[\\/]@dnd-kit[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 5273,
     strictPort: true,

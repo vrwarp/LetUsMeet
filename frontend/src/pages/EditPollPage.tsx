@@ -32,6 +32,7 @@ import type { LedgerSession } from "charproof";
 import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useToast } from "@/components/toast/toastContext";
+import PageLoader from "@/components/PageLoader";
 import { dragAnnouncements } from "@/lib/dndAnnouncements";
 
 interface TimeSlotInput {
@@ -525,11 +526,11 @@ export default function EditPollPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <h1 className="sr-only">Loading poll editor</h1>
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" aria-hidden="true" />
-        <p role="status" aria-live="polite" className="text-neutral-500 font-medium">{friendlyStatus(syncStatus)}</p>
-      </div>
+      <PageLoader
+        heading="Loading poll editor"
+        message={friendlyStatus(syncStatus)}
+        messageClassName="text-neutral-500"
+      />
     );
   }
 

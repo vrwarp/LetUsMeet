@@ -1,14 +1,15 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, Suspense } from "react";
 import { Outlet, Link, useLocation, useSearchParams, useNavigate, useNavigation } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/toast/toastContext";
 import { useConfirm } from "@/components/confirm/confirmContext";
 import { analyzeMnemonicTypos } from "@/lib/recoveryCorrector";
-import logoImg from "@/assets/meat-lettuce-logo-transparent.webp?inline";
+import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
 import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
+import PageLoader from "./PageLoader";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { 
   getLocalPublicKey, 
@@ -213,7 +214,7 @@ export default function Layout() {
       <header className="bg-white border-b border-neutral-200 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
-            <img src={logoImg} alt="" className="h-9 sm:h-10 w-auto transition-transform group-hover:scale-105" />
+            <img src={logoImg} alt="" width={273} height={229} className="h-9 sm:h-10 w-auto transition-transform group-hover:scale-105" />
             <span className="font-display font-bold text-base sm:text-2xl tracking-tight [font-variant:small-caps] block">
               <span className="text-brand-green-dark">Let</span><span className="text-brand-green-dark">Us</span><span className="text-brand-red">Meet</span>
             </span>
@@ -258,6 +259,8 @@ export default function Layout() {
                               <img
                                 src={user.photoURL}
                                 alt=""
+                                width={36}
+                                height={36}
                                 className="h-7 w-7 sm:h-9 sm:w-9 rounded-full ring-2 ring-brand-green/10 shadow-sm object-cover border border-white"
                               />
                             ) : (
@@ -402,10 +405,14 @@ export default function Layout() {
         )}
 
         {isPublicPage ? (
-          <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+          </Suspense>
         ) : (
           <DeviceEnrollmentGate>
-            <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+            <Suspense fallback={<PageLoader />}>
+              <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+            </Suspense>
           </DeviceEnrollmentGate>
         )}
       </main>
@@ -431,9 +438,12 @@ export default function Layout() {
               {/* Illustration Banner */}
               {keyMismatchError.startsWith("UNRECOGNIZED_DEVICE") && (
                 <div className="w-full relative aspect-[2.3] sm:aspect-[1.7] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
-                  <img 
-                    src={dataGardenImg} 
-                    alt="Data Garden Illustration" 
+                  <img
+                    src={dataGardenImg}
+                    alt="Data Garden Illustration"
+                    width={965}
+                    height={633}
+                    loading="lazy"
                     className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
                   />
                 </div>
@@ -553,9 +563,12 @@ export default function Layout() {
             >
               {/* Illustration Banner */}
               <div className="w-full relative aspect-[2.3] sm:aspect-[1.7] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
-                <img 
-                  src={dataGardenImg} 
-                  alt="Data Garden Illustration" 
+                <img
+                  src={dataGardenImg}
+                  alt="Data Garden Illustration"
+                  width={965}
+                  height={633}
+                  loading="lazy"
                   className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
                 />
               </div>

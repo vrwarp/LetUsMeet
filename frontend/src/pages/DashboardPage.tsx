@@ -21,6 +21,7 @@ import { useConfirm } from "@/components/confirm/confirmContext";
 import { copyToClipboard } from "@/lib/clipboard";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown, Edit3 } from "lucide-react";
 import { buttonClasses } from "@/components/buttonStyles";
+import PageLoader from "@/components/PageLoader";
 import type { PollMetadata, PendingDevice } from "../types";
 
 type AccountData = { devices: Record<string, DecryptedDevice> };
@@ -302,24 +303,15 @@ export default function DashboardPage() {
     });
 
 const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
-      console.log(`⏱️ [Perf] subscribeToUserKeystore triggered with ${keystoreEntries.length} entries`);
-      const startDashboard = performance.now();
       const decryptedResults = await Promise.all(
         keystoreEntries.map(async (entry) => {
-          const startEntry = performance.now();
           try {
             if (!entry.ledgerId) return null;
-            const startSession = performance.now();
             const session = await getLedgerSession(entry.ledgerId);
-            console.log(`⏱️ [Perf] getLedgerSession(${entry.ledgerId}) took ${(performance.now() - startSession).toFixed(2)}ms`);
-            
-            const startGenesis = performance.now();
             const genesis = await session.getGenesisEvent();
-            console.log(`⏱️ [Perf] getGenesisEvent(${entry.ledgerId}) took ${(performance.now() - startGenesis).toFixed(2)}ms`);
-            
+
             if (genesis?.action?.type === "POLL_CREATED") {
               const isOrganizer = session.getSignerPublicKey() === genesis.signerPublicKey;
-              console.log(`⏱️ [Perf] Decrypted entry ${entry.ledgerId} successfully in ${(performance.now() - startEntry).toFixed(2)}ms`);
               return {
                 pollId: entry.ledgerId,
                 symmetricKey: session.exportSessionKey(),
@@ -328,8 +320,8 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                 isArchived: entry.isArchived
               } as DecryptedDashboardEntry;
             }
-          } catch (e) {
-            console.warn(`⏱️ [Perf] Failed to decrypt entry ${entry.ledgerId} in ${(performance.now() - startEntry).toFixed(2)}ms`, e);
+          } catch {
+            // Entry failed to decrypt (e.g. a poll this device can't read) — skip it.
           }
           return null;
         })
@@ -339,7 +331,6 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
         (entry): entry is DecryptedDashboardEntry => entry !== null
       );
 
-      console.log(`⏱️ [Perf] Total Dashboard Decryption of ${decryptedEntries.length} entries took ${(performance.now() - startDashboard).toFixed(2)}ms`);
       setEntries(decryptedEntries);
       setFetching(false);
     });
@@ -425,10 +416,11 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
 
   if (loading || fetching) {
     return (
-      <div role="status" className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" aria-hidden="true" />
-        <p className="text-neutral-500 font-medium">Loading your polls...</p>
-      </div>
+      <PageLoader
+        statusOnWrapper
+        message="Loading your polls..."
+        messageClassName="text-neutral-500"
+      />
     );
   }
 
