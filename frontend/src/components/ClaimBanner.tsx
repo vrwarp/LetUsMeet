@@ -83,9 +83,9 @@ export default function ClaimBanner() {
           <Sparkles size={18} />
         </div>
         <div>
-          <h2 className="font-bold text-neutral-900 text-sm">Poll Administrative Link</h2>
+          <h2 className="font-bold text-neutral-900 text-sm">You're the organizer of this poll</h2>
           <p className="text-xs text-neutral-600 leading-relaxed mt-1">
-            You have the administrative token for this poll. Please choose one of the options on the right to secure your access.
+            Save your organizer access so you can manage this poll later. Please choose one of the options on the right to secure your access.
           </p>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function ClaimBanner() {
               {copiedAdminLink ? "Copied Link!" : "Copy Admin Link"}
             </button>
             <p className="text-[10px] text-neutral-600 font-medium leading-normal font-sans">
-              Save this secret link securely. Access is lost forever if misplaced.
+              Keep this link safe — it's the only way to manage this poll, and it can't be recovered.
             </p>
           </div>
         )}

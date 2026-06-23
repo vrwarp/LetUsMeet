@@ -118,8 +118,10 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
               onChange('YES');
             }}
             data-testid="icon-YES"
+            title="Yes"
+            aria-label="Yes"
             className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
-              value === 'YES' 
+              value === 'YES'
                 ? 'text-brand-green scale-110' 
                 : 'text-neutral-400 hover:text-brand-green hover:scale-110'
             }`}
@@ -135,6 +137,8 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
               onChange('IF_NEED_BE');
             }}
             data-testid="icon-IF_NEED_BE"
+            title="If need be"
+            aria-label="If need be"
             className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
               value === 'IF_NEED_BE'
                 ? 'text-amber-600 scale-110'
@@ -152,8 +156,10 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
               onChange('NO');
             }}
             data-testid="icon-NO"
+            title="No"
+            aria-label="No"
             className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
-              value === 'NO' 
+              value === 'NO'
                 ? 'text-neutral-700 scale-110' 
                 : 'text-neutral-400 hover:text-neutral-700 hover:scale-110'
             }`}

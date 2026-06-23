@@ -167,8 +167,8 @@ export default function Layout() {
       await recoverWithPhrase(mnemonicInput.trim());
       setShowPhraseInput(false);
       setMnemonicInput("");
-    } catch (e: any) {
-      alert("Recovery failed: " + e.message);
+    } catch {
+      alert("We couldn't restore your account. Double-check your recovery phrase and try again.");
     } finally {
       setIsRecovering(false);
     }
@@ -255,7 +255,7 @@ export default function Layout() {
                             
                             <button
                               onClick={async () => {
-                                if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
+                                if (confirm("Delete your account? This permanently erases your access to every poll you've created or joined. This can't be undone.")) {
                                   try {
                                     await deleteAccount();
                                   } catch (e: any) {
@@ -395,11 +395,11 @@ export default function Layout() {
                   <>
                     <span className="sr-only">Unrecognized Device</span>
                     <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
-                      Unlock Your Data Garden
+                      Unlock your polls on this device
                     </h2>
                     {!isWaitingForAuth && (
                       <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2.5 leading-relaxed max-w-sm">
-                        Your meeting garden is locked. Since it’s fully private, even we can’t unlock it for you! Let’s restore your keys using another device or your recovery phrase.
+                        This device isn't set up yet. Because your polls are fully private, even we can't unlock them — restore access from another device or your recovery phrase.
                       </p>
                     )}
                   </>
@@ -410,10 +410,10 @@ export default function Layout() {
                       <AlertTriangle size={28} />
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight">
-                      Identity Key Mismatch
+                      This isn't the passkey we expected
                     </h2>
                     <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2.5 leading-relaxed max-w-sm">
-                      The passkey you just used is different from the one originally used to secure your account.
+                      You signed in with a different passkey than the one that set up this account. Restore access from another device or with your recovery phrase.
                     </p>
                   </>
                 )}
@@ -450,7 +450,7 @@ export default function Layout() {
                       className="w-full bg-brand-green text-white py-3 sm:py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/10 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-xs sm:text-sm"
                     >
                       {isRecovering ? <Loader2 className="animate-spin" size={16} /> : null}
-                      Authorize from Another Device
+                      Use another device
                     </button>
 
                     <button 

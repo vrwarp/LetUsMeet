@@ -150,7 +150,7 @@ describe('ResultsPage', () => {
     });
     
     renderPage();
-    expect(await screen.findByText(/Leading/i)).toBeInTheDocument();
+    expect(await screen.findByText('LEADING TIME')).toBeInTheDocument();
   });
 
   it('safely constructs mailto link when emailing participants', async () => {

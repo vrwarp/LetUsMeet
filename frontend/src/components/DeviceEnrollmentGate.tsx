@@ -24,9 +24,9 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
     } catch (err) {
       setEnrollmentState('error');
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setErrorMessage('Registration was canceled. We need a secure key to encrypt your polls.');
+        setErrorMessage("Passkey setup was canceled. You'll need one to keep your polls encrypted — tap to try again.");
       } else {
-        setErrorMessage('Something went wrong communicating with your device. Please try again.');
+        setErrorMessage("We couldn't reach your device's security features. Please try again.");
       }
     }
   };
@@ -60,7 +60,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               </h2>
 
               <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-3 sm:mt-4 leading-relaxed max-w-sm">
-                Using <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-green hover:text-brand-green-dark underline font-bold transition-colors">zero-knowledge encryption</a>, your data is locked in a digital vault away from everyone—even LetUsMeet. To generate your private passkey, this device must be registered using your built-in security features (like Touch ID or Face ID).
+                Your polls are encrypted so only you and your group can read them — not even we can. Set up a passkey with this device's Touch ID, Face ID, or screen lock to keep them safe.
               </p>
 
               {errorMessage && (
@@ -81,7 +81,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
                       Waiting for device...
                     </>
                   ) : (
-                    "Set up secure access"
+                    "Set up my passkey"
                   )}
                 </button>
               </div>

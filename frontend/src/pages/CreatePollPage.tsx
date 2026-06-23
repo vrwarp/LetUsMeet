@@ -435,7 +435,7 @@ export default function CreatePollPage() {
             })));
             setAiReasoning(data.reasoning);
           } else {
-            setAiError("Could not understand the time slots from your query.");
+            setAiError("Hmm, we couldn't pull any times from that. Try adding specific days and times.");
           }
         } else {
           const extractFuzzySlots = httpsCallable(functions, "extractFuzzySlots");
@@ -448,7 +448,7 @@ export default function CreatePollPage() {
             })));
             setAiReasoning(data.reasoning);
           } else {
-            setAiError("Could not understand the flexible windows from your query.");
+            setAiError("Hmm, we couldn't pull any time blocks from that. Try naming days plus mornings/afternoons/evenings.");
           }
         }
         break;
@@ -510,7 +510,7 @@ export default function CreatePollPage() {
 
     } catch (err: unknown) {
       console.error("Failed to create poll", err);
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof Error ? err.message : "We couldn't create your poll. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -520,8 +520,8 @@ export default function CreatePollPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-4 sm:py-8">
       <div className="mb-10">
-        <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Create a Meeting Poll</h1>
-        <p className="text-neutral-500">Define the details and suggest some time slots.</p>
+        <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Create a poll</h1>
+        <p className="text-neutral-500">Add a few details and propose the times that could work.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -623,7 +623,7 @@ export default function CreatePollPage() {
             >
               <div className="relative z-10 flex flex-col gap-1">
                 <span className={`font-bold text-lg ${schedulingMode === "EXACT" ? "text-brand-green-dark" : "text-neutral-700"}`}>Exact Times</span>
-                <span className="text-sm text-neutral-500 leading-snug">Schedule by the minute.</span>
+                <span className="text-sm text-neutral-500 leading-snug">Pick specific start and end times (e.g. 2:00–3:00 PM).</span>
               </div>
             </button>
             <button
@@ -644,7 +644,7 @@ export default function CreatePollPage() {
             >
               <div className="relative z-10 flex flex-col gap-1">
                 <span className={`font-bold text-lg ${schedulingMode === "FUZZY" ? "text-brand-green-dark" : "text-neutral-700"}`}>Flexible Windows</span>
-                <span className="text-sm text-neutral-500 leading-snug">Schedule by the block.</span>
+                <span className="text-sm text-neutral-500 leading-snug">Offer flexible blocks like mornings or evenings, no exact time needed.</span>
               </div>
             </button>
           </div>
@@ -665,7 +665,7 @@ export default function CreatePollPage() {
                   <Sparkles size={14} />
                 </div>
                 <label htmlFor="ai-query" className="text-sm font-bold text-indigo-900">
-                  Auto-Generate with AI ✨
+                  Add times with AI
                 </label>
               </div>
 
@@ -692,7 +692,7 @@ export default function CreatePollPage() {
                     disabled={!isReady || isGenerating || !aiQuery.trim()}
                     className="w-full sm:w-[100px] h-[38px] bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap flex-shrink-0"
                   >
-                    {isGenerating ? <Loader2 size={14} className="animate-spin" /> : "Generate"}
+                    {isGenerating ? <Loader2 size={14} className="animate-spin" /> : "Add times"}
                   </button>
                 </div>
 
@@ -704,7 +704,7 @@ export default function CreatePollPage() {
 
                   {aiReasoning && (
                     <div className="text-[11px] text-indigo-800 bg-indigo-100/50 p-2 pr-7 rounded-lg border border-indigo-200/50 leading-relaxed italic relative">
-                      <span className="font-bold not-italic">AI Reasoning: </span>
+                      <span className="font-bold not-italic">How we read that: </span>
                       {aiReasoning}
                       {!pendingGeneratedSlots && (
                         <button 
@@ -834,7 +834,7 @@ export default function CreatePollPage() {
             </>
           ) : (
             <>
-              Share Poll
+              Create poll & get link
               <ArrowRight size={24} />
             </>
           )}

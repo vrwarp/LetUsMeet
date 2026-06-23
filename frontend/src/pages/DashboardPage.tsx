@@ -346,7 +346,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Decrypting your dashboard...</p>
+        <p className="text-neutral-500 font-medium">Loading your polls...</p>
       </div>
     );
   }
@@ -356,8 +356,8 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       <div className="max-w-md mx-auto py-20 text-center">
         <div className="bg-neutral-50 rounded-[3rem] p-10 border border-neutral-100">
           <Lock className="w-12 h-12 text-neutral-300 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-neutral-800 mb-4">Organizer Access Only</h2>
-          <p className="text-neutral-600 mb-8">Sign in with Google to sync your polls across devices and access your dashboard.</p>
+          <h2 className="text-2xl font-bold text-neutral-800 mb-4">Sign in to see your polls</h2>
+          <p className="text-neutral-600 mb-8">Sign in with Google to sync your polls across all your devices.</p>
           <Link to="/" className="btn-primary-green inline-block">Back to Home</Link>
         </div>
       </div>
@@ -379,7 +379,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 px-3 sm:px-4">
         <div>
           <h1 data-testid="dashboard-title" className="text-4xl font-black text-neutral-900 tracking-tight">Your Polls</h1>
-          <p className="text-neutral-500 font-medium">Manage and view your meeting schedules</p>
+          <p className="text-neutral-500 font-medium">View and manage your polls</p>
         </div>
       </div>
 
@@ -388,9 +388,9 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
           <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Calendar size={32} />
           </div>
-          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls</h2>
+          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls yet</h2>
           <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-            Created polls will appear here automatically when you're signed in.
+            Polls you create or vote in will show up here automatically.
           </p>
           <Link to="/create" className="btn-primary-green inline-block">
             Create New Poll
@@ -445,7 +445,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               </div>
               <h2 className="text-xl font-bold text-neutral-800 mb-2 font-black">No Organized Polls</h2>
               <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-                You haven't organized any polls yet. Tap below to create your first meeting poll!
+                You haven't created any polls yet. Make your first one below.
               </p>
               <Link to="/create" className="btn-primary-green inline-block">
                 Create New Poll
@@ -604,11 +604,11 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 px-3 sm:px-4">
           <div>
             <h2 className="text-3xl font-black text-neutral-900 tracking-tight">Security & Devices</h2>
-            <p className="text-neutral-500 font-medium">Manage your cryptographic keys, recovery backups, and authorized devices</p>
+            <p className="text-neutral-500 font-medium">Manage your passkey, recovery phrase, and the devices that can open your polls.</p>
           </div>
           {showRotationSuccess && (
             <div data-testid="rotation-success-toast" className="bg-brand-green text-white px-4 py-2 rounded-xl text-sm font-bold animate-fade-in-up self-start sm:self-auto">
-              AMK Rotated & Devices Migrated!
+              Device removed. Your other devices are still secure.
             </div>
           )}
         </div>
@@ -750,7 +750,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   <div className="flex-1 min-w-0 text-left">
                     <h4 className="font-bold text-neutral-800 text-xs truncate">Biometric Passkey</h4>
                     <p className={`text-[9px] font-semibold ${recoveryStatus.isSealed ? 'text-brand-green-dark' : 'text-red-600'}`}>
-                      {recoveryStatus.isSealed ? 'Linked & Synced' : 'Passkey Missing'}
+                      {recoveryStatus.isSealed ? 'Linked & Synced' : 'Set up your passkey'}
                     </p>
                   </div>
                 </div>
@@ -804,7 +804,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     <Clipboard size={16} />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <h4 className="font-bold text-neutral-800 text-xs truncate">Cold Storage Backup</h4>
+                    <h4 className="font-bold text-neutral-800 text-xs truncate">Recovery Phrase Backup</h4>
                     <p className={`text-[9px] font-semibold ${hasPhrase ? 'text-brand-green-dark' : 'text-amber-600'}`}>
                       {hasPhrase ? 'Offline Phrase Secured' : 'Backup Required'}
                     </p>
@@ -864,9 +864,9 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   }
                 `}>
                   <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
-                  <span className="text-[6px] md:text-[8px] font-black uppercase tracking-widest leading-none mt-0.5 md:mt-1">Key</span>
+                  <span className="text-[6px] md:text-[8px] font-black uppercase tracking-widest leading-none mt-0.5 md:mt-1">Your Keys</span>
                   <span className="text-[5px] md:text-[7px] opacity-85 leading-none mt-0.5 font-semibold hidden md:inline">
-                    {recoveryStatus.isSealed ? 'Secured' : 'At Risk'}
+                    {recoveryStatus.isSealed ? 'Protected' : 'Action needed'}
                   </span>
                 </div>
               </div>
@@ -913,7 +913,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                           {device.decryptedDeviceName}{isCurrent ? ' (Current)' : ''}
                         </h4>
                         <p className="text-[8px] text-neutral-400 font-semibold mt-0.5">
-                          {isCurrent ? 'Current Session' : 'Authorized Endpoint'}
+                          {isCurrent ? 'Current Session' : 'Authorized device'}
                         </p>
                       </div>
                     </div>
@@ -976,7 +976,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       <div className="min-w-0">
                         <h3 className="text-base font-black text-neutral-900 truncate">Biometric Passkey</h3>
                         <p className={`text-[10px] font-bold ${recoveryStatus.isSealed ? 'text-brand-green-dark' : 'text-red-600'}`}>
-                          {recoveryStatus.isSealed ? 'Linked & Synced' : 'Passkey Missing'}
+                          {recoveryStatus.isSealed ? 'Linked & Synced' : 'Set up your passkey'}
                         </p>
                       </div>
                     </div>
@@ -1010,7 +1010,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                 </div>
               )}
 
-              {/* Cold Storage Backup Modal Content */}
+              {/* Recovery Phrase Backup Modal Content */}
               {activeModal === "backup" && (
                 <div>
                   <div className="flex items-start justify-between gap-4 mb-4">
@@ -1021,7 +1021,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         <Key size={20} />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-base font-black text-neutral-900 truncate">Cold Storage Backup</h3>
+                        <h3 className="text-base font-black text-neutral-900 truncate">Recovery Phrase Backup</h3>
                         <p className={`text-[10px] font-bold ${hasPhrase ? 'text-brand-green-dark' : 'text-amber-600'}`}>
                           {hasPhrase ? 'Offline Phrase Secured' : 'Backup Required'}
                         </p>
@@ -1112,7 +1112,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                                 {device.decryptedDeviceName}{isCurrent ? ' (Current)' : ''}
                               </h4>
                               <p className="text-[8px] text-neutral-400 font-semibold mt-0.5">
-                                {isCurrent ? 'Current Session' : 'Authorized Endpoint'}
+                                {isCurrent ? 'Current Session' : 'Authorized device'}
                               </p>
                             </div>
                           </div>

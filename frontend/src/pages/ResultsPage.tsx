@@ -110,7 +110,7 @@ export default function ResultsPage() {
 
         return unsubscribe;
       } catch {
-        setError("Failed to initialize session.");
+        setError("We couldn't open these results. Refresh to try again.");
         setIsLoading(false);
       }
     };
@@ -199,7 +199,7 @@ export default function ResultsPage() {
       const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
       await session.appendEvent(action);
     } catch {
-      alert("Failed to finalize.");
+      alert("We couldn't confirm that time. Try again.");
     } finally {
       setFinalizing(null);
     }
@@ -214,7 +214,7 @@ export default function ResultsPage() {
       const action: PollAction = { type: "POLL_UNFINALIZED", payload: null };
       await session.appendEvent(action);
     } catch {
-      alert("Failed to unselect date.");
+      alert("We couldn't change the confirmed time. Try again.");
     } finally {
       setUnfinalizing(false);
     }
@@ -244,7 +244,7 @@ export default function ResultsPage() {
       .map(v => v.participantName);
 
     if (participantsWithEmail.length === 0) {
-      alert("No participants have provided their email address.");
+      alert("None of your participants added an email, so there's no one to send to yet.");
       return;
     }
 
@@ -336,7 +336,7 @@ export default function ResultsPage() {
                     disabled={!isReady || finalizing === slot.id}
                     className="mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm disabled:opacity-50"
                   >
-                    {finalizing === slot.id ? "..." : "Select"}
+                    {finalizing === slot.id ? "..." : "Confirm"}
                   </button>
                 )}
               </th>
@@ -400,7 +400,7 @@ export default function ResultsPage() {
         <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
             <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
-            <span>Connection sluggish or offline. Trying to reconnect automatically...</span>
+            <span>Trouble connecting. We'll keep trying to reconnect...</span>
           </div>
           <button
             type="button"
@@ -476,7 +476,7 @@ export default function ResultsPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1">
-                    {pollState.isFinalized ? "CONFIRMED DATE" : "TOP CHOICE"}
+                    {pollState.isFinalized ? "CONFIRMED TIME" : "LEADING TIME"}
                   </p>
                   <p className="text-xl md:text-2xl font-black leading-tight">
                     {(() => {
@@ -585,7 +585,7 @@ export default function ResultsPage() {
         {voteArray.length === 0 ? (
           <div data-testid="results-empty-state" className="text-center py-20 px-6 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
             <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-            <p className="text-neutral-500 font-medium">No responses yet. Share the link to start tallying!</p>
+            <p className="text-neutral-500 font-medium">No responses yet. Share the poll link and answers will appear here in real time.</p>
           </div>
         ) : (
           renderMatrixTable()

@@ -74,7 +74,7 @@ export default function VotePollPage() {
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
-      setInitError("This poll requires a secret key in the URL fragment (#key=...). Please check the link.");
+      setInitError("This link is missing the part that unlocks the poll. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;
     }
@@ -110,7 +110,7 @@ export default function VotePollPage() {
       } catch (err: any) {
         console.error("Initialization failed", err);
         if (mounted) {
-          setInitError("Failed to initialize cryptographic session.");
+          setInitError("We couldn't securely open this poll. Refresh the page to try again.");
           setIsLoading(false);
         }
       }
@@ -209,7 +209,7 @@ export default function VotePollPage() {
     }
     
     if (!session || !pollId) {
-      setError("Cryptographic keys not ready.");
+      setError("Still getting things ready — give it a second and try again.");
       return;
     }
 
@@ -217,7 +217,7 @@ export default function VotePollPage() {
     setError(null);
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setError("You are currently offline. Please check your internet connection and try again.");
+      setError("You're offline. Reconnect and we'll save your response.");
       setIsSubmitting(false);
       return;
     }
@@ -238,7 +238,7 @@ export default function VotePollPage() {
       navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
     } catch (err: any) {
       console.error("Vote submission failed:", err);
-      setError(err.message || "Failed to submit encrypted vote.");
+      setError(err.message || "We couldn't save your response. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -275,7 +275,7 @@ export default function VotePollPage() {
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
         <h2 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h2>
-        <p className="text-neutral-600 text-lg mb-8">{initError || "This poll is encrypted. You need the secret key to view it."}</p>
+        <p className="text-neutral-600 text-lg mb-8">{initError || "This poll is private. Open it using the full link the organizer shared with you."}</p>
         <Link to="/" className="btn-primary-green inline-block">Return to Home</Link>
       </div>
     );
@@ -295,7 +295,7 @@ export default function VotePollPage() {
         <div className="bg-amber-50 rounded-3xl p-10 border border-amber-100">
           <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
-          <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
+          <p className="text-neutral-600 mb-6">The organizer has confirmed a time, so responses are now closed.</p>
           <Link to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
             View Final Results
           </Link>
@@ -310,7 +310,7 @@ export default function VotePollPage() {
         <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
             <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
-            <span>Connection sluggish or offline. Trying to reconnect automatically...</span>
+            <span>Trouble connecting. We'll keep trying to reconnect...</span>
           </div>
           <button
             type="button"
@@ -499,6 +499,7 @@ export default function VotePollPage() {
             <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-green-light/50 text-brand-green-dark text-sm">1</span>
             Your Availability
           </h2>
+          <p className="text-sm text-neutral-500 -mt-4 mb-8">Tap a time to cycle through Yes → If need be → No.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {sortedSlots.map(slot => (
               <TimeSlotCard
@@ -515,7 +516,7 @@ export default function VotePollPage() {
         <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
           <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
             <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 text-sm">2</span>
-            Basic Information
+            Your details
           </h2>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -548,9 +549,10 @@ export default function VotePollPage() {
                   className="w-full"
                   disabled={!isReady}
                 />
+                <p className="text-xs text-neutral-500">Optional — lets the organizer email you when a time is confirmed.</p>
               </div>
             </div>
-            <p className="text-xs text-neutral-500 italic">This name will be encrypted and visible only to participants with the link.</p>
+            <p className="text-xs text-neutral-500 italic">Your name is encrypted and only visible to people you share the link with.</p>
           </div>
         </section>
         
@@ -568,7 +570,7 @@ export default function VotePollPage() {
             data-testid="vote-submit-btn"
             className="flex-1 bg-brand-green text-white !py-6 !text-2xl font-black rounded-3xl hover:bg-brand-green-dark shadow-xl transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Vote"}
+            {isSubmitting ? <Loader2 className="animate-spin" /> : "Send my response"}
           </button>
           
           {userVotes.some(v => v.responseId === editingResponseId) && (

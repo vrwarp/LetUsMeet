@@ -82,7 +82,7 @@ describe('VotePollPage', () => {
     const slotCard = screen.getByTestId('slot-card');
     fireEvent.click(slotCard);
 
-    const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
+    const submitBtn = screen.getByRole('button', { name: /Send my response/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -143,7 +143,7 @@ describe('VotePollPage', () => {
 
     mockSession.appendEvent.mockRejectedValueOnce(new Error('Vote Failed'));
     
-    const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
+    const submitBtn = screen.getByRole('button', { name: /Send my response/i });
     
     await act(async () => {
       fireEvent.click(submitBtn);
