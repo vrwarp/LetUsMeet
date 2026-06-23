@@ -618,7 +618,7 @@ export default function VotePollPage() {
 
         <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
           <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 text-sm">2</span>
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-green-light/50 text-brand-green-dark text-sm">2</span>
             Your details
           </h2>
           <div className="space-y-6">

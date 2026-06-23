@@ -596,7 +596,7 @@ export default function CreatePollPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="poll-title" className="text-sm font-bold text-neutral-700 flex items-center gap-2">
               <Type size={16} className="text-indigo-500" aria-hidden="true" />
-              Meeting Title
+              Poll Title
             </label>
             <input
               id="poll-title"

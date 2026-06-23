@@ -24,7 +24,7 @@ describe('CreatePollPage', () => {
       </MemoryRouter>
     );
     
-    expect(await screen.findByText(/Meeting Title/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Poll Title/i)).toBeInTheDocument();
   });
 
   it('submits the form successfully', async () => {

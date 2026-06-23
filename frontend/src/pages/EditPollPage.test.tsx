@@ -65,7 +65,7 @@ describe('EditPollPage', () => {
 
     // Editor renders (heading) and the title field is seeded from the synced state.
     expect(await screen.findByText('Edit Your Poll')).toBeInTheDocument();
-    const titleInput = await screen.findByLabelText(/Meeting Title/i);
+    const titleInput = await screen.findByLabelText(/Poll Title/i);
     await waitFor(() => {
       expect(titleInput).toHaveValue('Team Sync Poll');
     });
