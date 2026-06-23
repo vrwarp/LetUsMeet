@@ -12,8 +12,8 @@ interface Props {
 export default function TimeSlotCard({ slot, value, onChange, disabled }: Props) {
   const isExact = "startTime" in slot;
   
-  let dateStr = "";
-  let timeRange = "";
+  let dateStr: string;
+  let timeRange: string;
   let subtext = "";
 
   if (isExact) {

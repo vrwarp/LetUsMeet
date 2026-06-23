@@ -121,21 +121,17 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
 
-      if (result.user) {
-        // 1. Update user record
-        await setDoc(doc(db, "users", result.user.uid), {
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
+    if (result.user) {
+      // 1. Update user record
+      await setDoc(doc(db, "users", result.user.uid), {
+        uid: result.user.uid,
+        email: result.user.email,
+        displayName: result.user.displayName,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
 
-      }
-    } catch (error) {
-      throw error;
     }
   };
 

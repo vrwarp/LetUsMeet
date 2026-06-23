@@ -19,7 +19,6 @@ test.describe('Navigation Flows', () => {
     await page.getByTestId('create-submit-btn').click();
 
     await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
-    const pollUrl = page.url();
     await expect(page.getByTestId('poll-title')).toContainText('Nav Test Poll');
 
     // Let's vote

@@ -99,6 +99,7 @@ dist-ssr
 # Playwright
 playwright-report/
 test-results/
+a11y_*.txt
 
 # Functions
 functions/lib/

@@ -13,7 +13,7 @@ export function wrapPageGoto(page: Page) {
     try {
       await waitForRouterIdle(page, 5000);
       await page.waitForTimeout(500);
-    } catch (e) {
+    } catch {
       // Safe fallback in case the page doesn't run the React Router app
     }
     return response;

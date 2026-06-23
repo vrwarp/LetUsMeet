@@ -254,7 +254,7 @@ export default function VotePollPage() {
       await session.appendEvent(action);
       localStorage.removeItem(`draft_${pollId}`);
       navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
-    } catch (err: any) {
+    } catch {
       setError("Failed to retract vote.");
     } finally {
       setIsSubmitting(false);

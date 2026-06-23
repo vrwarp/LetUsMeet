@@ -403,7 +403,7 @@ export default function EditPollPage() {
         }
 
         return unsubscribe;
-      } catch (err: unknown) {
+      } catch {
         setError("Failed to initialize.");
         setIsLoading(false);
       }
@@ -484,7 +484,7 @@ export default function EditPollPage() {
       await session.appendEvent(action);
       
       navigate(`/poll/${pollId}${window.location.search}${window.location.hash}`);
-    } catch (err: unknown) {
+    } catch {
       setError("Failed to update poll.");
     } finally {
       setIsSubmitting(false);

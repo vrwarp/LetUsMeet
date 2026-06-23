@@ -1,5 +1,4 @@
 import { test, expect } from './helpers/base-test';
-import { mockGoogleSignIn } from './helpers/auth-helper';
 import { setupWebAuthn } from './helpers/webauthn-helper';
 
 test.describe.skip('Claim Poll Flow', () => {
@@ -9,7 +8,7 @@ test.describe.skip('Claim Poll Flow', () => {
     // Session 1: The Creator
     // ---------------------------------------------------------
     const creatorContext = await browser.newContext();
-    let pollUrl = '';
+    let pollUrl: string;
     try {
       const creatorPage = await creatorContext.newPage();
 
@@ -80,8 +79,7 @@ test.describe.skip('Claim Poll Flow', () => {
 
       // Go to dashboard and verify the poll is there
       await claimantPage.goto('/dashboard');
-      const pollTitle = pollUrl.split('/').pop()?.split('?')[0] || ''; // dummy title selector helper or exact matching
-      // Since title contains pollTitle variable not in this scope, let's keep the locator robust
+      // Keep the locator robust
       await expect(claimantPage.getByTestId('dashboard-title')).toBeVisible({ timeout: 15000 });
     } finally {
       await claimantContext.close();
@@ -93,8 +91,8 @@ test.describe.skip('Claim Poll Flow', () => {
     // Session 1: The Creator
     // ---------------------------------------------------------
     const creatorContext = await browser.newContext();
-    let resultsUrl = '';
-    let pollTitle = '';
+    let resultsUrl: string;
+    let pollTitle: string;
     try {
       await setupWebAuthn(creatorContext, test.info());
       const creatorPage = await creatorContext.newPage();

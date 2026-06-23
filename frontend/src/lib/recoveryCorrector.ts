@@ -58,8 +58,8 @@ export function analyzeMnemonicTypos(rawInput: string): TypoReport {
 
   const wordReports: WordReport[] = words.map((word, index) => {
     const isFinished = index < lastIndex || hasTrailingSpace;
-    let inDict = false;
-    let suggestions: string[] = [];
+    let inDict: boolean;
+    let suggestions: string[];
 
     if (isFinished) {
       inDict = wordlist.includes(word);

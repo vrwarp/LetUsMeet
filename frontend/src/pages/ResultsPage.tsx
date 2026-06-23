@@ -109,7 +109,7 @@ export default function ResultsPage() {
         );
 
         return unsubscribe;
-      } catch (err: any) {
+      } catch {
         setError("Failed to initialize session.");
         setIsLoading(false);
       }
@@ -155,7 +155,7 @@ export default function ResultsPage() {
     return acc;
   }, {} as Record<string, Record<VoteValue, number>>);
 
-  let sortedSlots = [...metadata.timeSlots].sort((a, b) => {
+  const sortedSlots = [...metadata.timeSlots].sort((a, b) => {
     if (metadata.schedulingMode === "EXACT") {
       return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
     }
@@ -171,7 +171,7 @@ export default function ResultsPage() {
       if (score > maxScore) {
         maxScore = score;
         ids = [id];
-      } else if (score === maxScore && score >= 0) {
+      } else if (score === maxScore) {
         ids.push(id);
       }
     });
@@ -198,7 +198,7 @@ export default function ResultsPage() {
     try {
       const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
       await session.appendEvent(action);
-    } catch (err) {
+    } catch {
       alert("Failed to finalize.");
     } finally {
       setFinalizing(null);
@@ -213,7 +213,7 @@ export default function ResultsPage() {
     try {
       const action: PollAction = { type: "POLL_UNFINALIZED", payload: null };
       await session.appendEvent(action);
-    } catch (err) {
+    } catch {
       alert("Failed to unselect date.");
     } finally {
       setUnfinalizing(false);

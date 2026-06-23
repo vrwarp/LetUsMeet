@@ -52,7 +52,7 @@ try {
         experimentalForceLongPolling: useEmulator,
       };
   dbInstance = initializeFirestore(app, firestoreSettings);
-} catch (e) {
+} catch {
   dbInstance = getFirestore(app);
 }
 

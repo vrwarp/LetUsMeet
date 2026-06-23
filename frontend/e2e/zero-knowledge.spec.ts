@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/base-test';
 import { mockGoogleSignIn, clickSetupSecureAccess } from './helpers/auth-helper';
 import { setupWebAuthn } from './helpers/webauthn-helper';
-import { BrowserContext, Page } from '@playwright/test';
+import { BrowserContext } from '@playwright/test';
 
 test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
 
@@ -25,7 +25,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await otherDeviceContext.close();
   });
 
-  test('Flow A: Initial Setup (The Genesis Device)', async ({ }) => {
+  test('Flow A: Initial Setup (The Genesis Device)', async () => {
     const page = await sponsorContext.newPage();
     await page.goto('/');
 
@@ -56,7 +56,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await expect(page.getByTestId('results-empty-state')).toBeVisible();
   });
 
-  test('Flow B: Authorizing a New Device', async ({ }) => {
+  test('Flow B: Authorizing a New Device', async () => {
     // 1. Setup Sponsor Device
     const sponsorPage = await sponsorContext.newPage();
     await sponsorPage.goto('/');
@@ -107,7 +107,7 @@ test.describe('Zero-Knowledge Pivot (Multi-Device)', () => {
     await expect(newDevicePage.getByTestId('poll-title')).toContainText('Shared Poll');
   });
 
-  test('Flow C: Device Revocation & Data Migration', async ({ }) => {
+  test('Flow C: Device Revocation & Data Migration', async () => {
     // 1. Setup two authorized devices
     const sponsorPage = await sponsorContext.newPage();
     await sponsorPage.goto('/');

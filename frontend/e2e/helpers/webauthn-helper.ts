@@ -110,7 +110,7 @@ export async function clearWebAuthn(context: BrowserContext) {
       // Store the session on the page object to prevent it from being potentially garbage collected
       (page as any)._cdpSession = cdp;
       console.log(`[WebAuthn] Cleared virtual authenticators for page: ${page.url()}`);
-    } catch (e) {
+    } catch {
       // Ignore
     }
   }
