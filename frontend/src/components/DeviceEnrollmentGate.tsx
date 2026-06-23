@@ -73,7 +73,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
                 <button
                   onClick={handleEnroll}
                   disabled={enrollmentState === 'prompting'}
-                  className="w-full bg-brand-green text-white py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/20 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  className="focus-ring w-full bg-brand-green text-white py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/20 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer text-sm"
                 >
                   {enrollmentState === 'prompting' ? (
                     <>

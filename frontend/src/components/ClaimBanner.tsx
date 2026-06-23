@@ -96,7 +96,7 @@ export default function ClaimBanner() {
     >
       {/* Left Side: Icon & Info */}
       <div className="flex items-start gap-4 max-w-xl">
-        <div className="w-10 h-10 bg-[#8C0B0B] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-red-955/10 flex-shrink-0 mt-0.5">
+        <div className="w-10 h-10 bg-brand-red text-white rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/10 flex-shrink-0 mt-0.5">
           <Sparkles size={18} />
         </div>
         <div>
@@ -114,7 +114,7 @@ export default function ClaimBanner() {
           <button
             data-testid="share-link-button"
             onClick={handleShareLink}
-            className="w-full bg-[#8C0B0B] text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-red-800 transition-all shadow-sm active:scale-95 whitespace-nowrap text-center cursor-pointer inline-flex items-center justify-center gap-1.5"
+            className="focus-ring w-full bg-brand-red text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-brand-red-dark transition-all shadow-sm active:scale-95 text-center cursor-pointer inline-flex items-center justify-center gap-1.5"
           >
             <Share2 size={14} />
             {copiedShareLink ? "Copied Link!" : "Copy link to share"}
@@ -130,7 +130,7 @@ export default function ClaimBanner() {
             data-testid="claim-button"
             onClick={handleClaim}
             disabled={isClaiming}
-            className="w-full bg-white text-[#8C0B0B] border border-[#8C0B0B]/20 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-[#FFF0F0] transition-all active:scale-95 whitespace-nowrap text-center cursor-pointer"
+            className="focus-ring w-full bg-white text-brand-red border border-brand-red/20 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-brand-red-light transition-all active:scale-95 text-center cursor-pointer"
           >
             {isClaiming ? "Adding..." : "Add to My Dashboard"}
           </button>
@@ -150,11 +150,11 @@ export default function ClaimBanner() {
                 setCopiedAdminLink(true);
                 setTimeout(() => setCopiedAdminLink(false), 3000);
               }}
-              className="w-full bg-white text-neutral-600 border border-neutral-200 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-neutral-50 transition-all active:scale-95 whitespace-nowrap text-center cursor-pointer"
+              className="focus-ring w-full bg-white text-neutral-600 border border-neutral-200 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-neutral-50 transition-all active:scale-95 text-center cursor-pointer"
             >
               {copiedAdminLink ? "Copied Link!" : "Copy private organizer link"}
             </button>
-            <p className="text-[10px] text-[#8C0B0B] font-semibold leading-normal font-sans inline-flex items-start gap-1">
+            <p className="text-[10px] text-brand-red font-semibold leading-normal font-sans inline-flex items-start gap-1">
               <ShieldAlert size={12} className="flex-shrink-0 mt-0.5" />
               <span>Keep this private — anyone with it can manage or finalize this poll.</span>
             </p>

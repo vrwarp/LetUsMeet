@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Compass } from "lucide-react";
+import { buttonClasses } from "@/components/buttonStyles";
 
 export default function NotFoundPage() {
   return (
@@ -13,12 +14,12 @@ export default function NotFoundPage() {
           We couldn't find the page you were looking for. The link may be broken or the page may have moved.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link to="/" className="btn-primary-green inline-block">
+          <Link to="/" className={buttonClasses("primary", "lg")}>
             Go home
           </Link>
           <Link
             to="/create"
-            className="inline-flex items-center justify-center px-6 py-3 bg-white text-neutral-600 border border-neutral-200 rounded-2xl font-bold hover:bg-neutral-100 transition-colors"
+            className={buttonClasses("secondary", "lg")}
           >
             Create a poll
           </Link>

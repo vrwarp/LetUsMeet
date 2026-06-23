@@ -192,7 +192,7 @@ export default function Layout() {
                 to="/create"
                 data-testid="create-poll-btn"
                 aria-label="Create Poll"
-                className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
+                className="focus-ring flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
               >
                 <PlusCircle size={18} />
                 <span className="hidden sm:inline">Create Poll</span>
@@ -447,7 +447,7 @@ export default function Layout() {
                       onClick={handleRequestAuth}
                       disabled={isRecovering}
                       data-testid="request-auth-btn"
-                      className="w-full bg-brand-green text-white py-3 sm:py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/10 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-xs sm:text-sm"
+                      className="focus-ring w-full bg-brand-green text-white py-3 sm:py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/10 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-xs sm:text-sm"
                     >
                       {isRecovering ? <Loader2 className="animate-spin" size={16} /> : null}
                       Use another device
@@ -462,7 +462,7 @@ export default function Layout() {
 
                     <button 
                       onClick={signOutUser}
-                      className="w-full bg-white text-neutral-600 border border-neutral-250 py-2.5 rounded-full font-bold hover:bg-neutral-50 hover:text-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                      className="w-full bg-white text-neutral-600 border border-neutral-300 py-2.5 rounded-full font-bold hover:bg-neutral-50 hover:text-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
                     >
                       Sign Out & Try Again
                     </button>
@@ -548,7 +548,7 @@ export default function Layout() {
                   <button 
                     onClick={handleRecover}
                     disabled={isRecovering || !typoReport.isValid}
-                    className="flex-[2] bg-brand-green text-white py-3 rounded-full font-bold hover:bg-brand-green-dark shadow-lg shadow-brand-green/10 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                    className="focus-ring flex-[2] bg-brand-green text-white py-3 rounded-full font-bold hover:bg-brand-green-dark shadow-lg shadow-brand-green/10 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
                   >
                     {isRecovering && <Loader2 className="w-4 h-4 animate-spin" />}
                     Recover Account

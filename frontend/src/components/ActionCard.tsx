@@ -24,7 +24,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
 }) => {
   const isClickable = !!onCopy;
 
-  const baseStyles = "relative flex-1 min-w-[240px] flex items-center gap-4 transition-all group overflow-hidden h-[72px] md:h-[84px] py-3 px-5 rounded-[1.5rem] md:rounded-[2rem] border";
+  const baseStyles = "relative flex-1 min-w-0 sm:min-w-[240px] flex items-center gap-4 transition-all group overflow-hidden h-[72px] md:h-[84px] py-3 px-5 rounded-[1.5rem] md:rounded-[2rem] border";
   
   const themeStyles = theme === 'dark' 
     ? (isCopied 

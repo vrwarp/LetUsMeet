@@ -30,6 +30,7 @@ import { useAuth } from "../hooks/useAuth";
 import type { PollState, VoteValue, PollAction } from "../types";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
+import { buttonClasses } from "@/components/buttonStyles";
 
 export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
@@ -135,7 +136,7 @@ export default function ResultsPage() {
         <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
         <h2 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h2>
         <p className="text-neutral-600 text-lg mb-8">{error || "Access Denied."}</p>
-        <Link to="/" className="btn-primary-green inline-block">Return to Home</Link>
+        <Link to="/" className={buttonClasses("primary", "lg")}>Return to Home</Link>
       </div>
     );
   }
@@ -319,7 +320,7 @@ export default function ResultsPage() {
               </div>
             </th>
             {sortedSlots.map(slot => (
-              <th key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
+              <th key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
                 <div className="text-[11px] md:text-sm font-bold text-neutral-800 leading-tight">
                   {metadata.schedulingMode === "EXACT" 
                     ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -336,7 +337,7 @@ export default function ResultsPage() {
                   <button
                     onClick={() => handleFinalize(slot.id)}
                     disabled={!isReady || finalizing === slot.id}
-                    className="mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm disabled:opacity-50"
+                    className="focus-ring mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm disabled:opacity-50"
                   >
                     {finalizing === slot.id ? "..." : "Confirm"}
                   </button>
@@ -358,7 +359,7 @@ export default function ResultsPage() {
                 </div>
               </td>
               {sortedSlots.map(slot => (
-                <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/20' : ''}`}>
+                <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/20' : ''}`}>
                   <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
                     vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark" :
                     vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-50 text-amber-800" :
@@ -382,7 +383,7 @@ export default function ResultsPage() {
           <tr>
             <td className="p-4 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 uppercase text-xs">TOTAL</td>
             {sortedSlots.map(slot => (
-              <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
+              <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
                 <div data-testid={`total-${slot.id}`} className="flex items-center justify-center gap-1 font-bold text-base md:text-lg">
                   <span className="text-brand-green-dark">{voteCounts[slot.id].YES}</span>
                   {voteCounts[slot.id].IF_NEED_BE > 0 && <span className="text-amber-500 text-sm md:text-sm">({voteCounts[slot.id].IF_NEED_BE})</span>}
@@ -446,7 +447,7 @@ export default function ResultsPage() {
                         {metadata.title}
                       </h1>
                       {metadata.description && (
-                        <p className="text-base md:text-lg text-white/60 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
+                        <p className="text-base md:text-lg text-white/75 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
                           {metadata.description}
                         </p>
                       )}
@@ -473,7 +474,7 @@ export default function ResultsPage() {
             {/* Confirmed Date / Top Choice Box - Featured on Results Page */}
             {bestSlotId && (
               (!pollState.isFinalized && voteArray.length < 2) ? (
-                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 min-w-[320px] lg:ml-auto">
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full lg:ml-auto">
                   <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center text-neutral-400">
                     <CalendarCheck className="w-8 h-8" />
                   </div>
@@ -487,7 +488,7 @@ export default function ResultsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 min-w-[320px] transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
                   <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
                     <CalendarCheck className="w-8 h-8" />
                   </div>

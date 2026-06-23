@@ -15,6 +15,7 @@ import TimeSlotCard from "@/components/TimeSlotCard";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
 import ClaimBanner from "@/components/ClaimBanner";
+import Button from "@/components/Button";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
@@ -582,14 +583,15 @@ export default function VotePollPage() {
         )}
 
         <div className="flex flex-col md:flex-row gap-4">
-          <button
+          <Button
             type="submit"
+            size="lg"
             disabled={!isReady || isSubmitting || !participantName.trim()}
             data-testid="vote-submit-btn"
-            className="flex-1 bg-brand-green text-white !py-6 !text-2xl font-black rounded-3xl hover:bg-brand-green-dark shadow-xl transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 shadow-xl disabled:cursor-not-allowed"
           >
             {isSubmitting ? <Loader2 className="animate-spin" /> : "Send my response"}
-          </button>
+          </Button>
           
           {userVotes.some(v => v.responseId === editingResponseId) && (
             <button

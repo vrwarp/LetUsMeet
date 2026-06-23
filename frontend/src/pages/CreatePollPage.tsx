@@ -27,6 +27,7 @@ import { functions } from "../firebase";
 import { createBlindPoll } from "@/lib/pollService";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
+import Button from "@/components/Button";
 
 interface TimeSlotInput {
   id: string;
@@ -840,11 +841,12 @@ export default function CreatePollPage() {
         )}
 
         <div className="flex flex-col gap-2">
-          <button
+          <Button
             type="submit"
+            size="lg"
             data-testid="create-submit-btn"
             disabled={!isReady || isSubmitting || !title || !organizerName || slots.length === 0}
-            className="btn-primary-green w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            className="w-full font-black gap-3 shadow-xl shadow-brand-green/20 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
@@ -857,7 +859,7 @@ export default function CreatePollPage() {
                 <ArrowRight size={24} />
               </>
             )}
-          </button>
+          </Button>
           {showSubmitHint && (
             <p data-testid="submit-hint" className="text-center text-sm text-neutral-500 font-medium">
               Add a title and at least one time to continue.

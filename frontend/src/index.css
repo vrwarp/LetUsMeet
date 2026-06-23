@@ -13,7 +13,7 @@
   --color-brand-red: #8B0000;
   --color-brand-red-light: #FFEBEE;
 
-  --color-brand-cream: #FFFB6;
+  --color-brand-cream: #FFFBE6;
   --color-brand-charcoal: #121212;
   --color-brand-white: #FFFFFF;
   --color-brand-light-gray: #F5F5F5;
@@ -49,6 +49,20 @@
   }
 
   --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
+
+  @keyframes fade-in-down {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  --animate-fade-in-down: fade-in-down 0.5s ease-out forwards;
 
   @keyframes dash {
     to {
@@ -144,6 +158,10 @@
 }
 
 @layer utilities {
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40 focus-visible:ring-offset-1;
+  }
+
   .bg-brand-gradient {
     background: linear-gradient(135deg, #091206 0%, #121d0d 100%);
   }

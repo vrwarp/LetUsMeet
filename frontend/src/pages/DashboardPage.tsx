@@ -14,6 +14,7 @@ import {
 } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown, Edit3 } from "lucide-react";
+import { buttonClasses } from "@/components/buttonStyles";
 import type { PollMetadata, PendingDevice } from "../types";
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
@@ -358,7 +359,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
           <Lock className="w-12 h-12 text-neutral-300 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-neutral-800 mb-4">Sign in to see your polls</h2>
           <p className="text-neutral-600 mb-8">Sign in with Google to sync your polls across all your devices.</p>
-          <Link to="/" className="btn-primary-green inline-block">Back to Home</Link>
+          <Link to="/" className={buttonClasses("primary", "lg")}>Back to Home</Link>
         </div>
       </div>
     );
@@ -392,7 +393,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
           <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
             Polls you create or vote in will show up here automatically.
           </p>
-          <Link to="/create" className="btn-primary-green inline-block">
+          <Link to="/create" className={buttonClasses("primary", "lg")}>
             Create New Poll
           </Link>
         </div>
@@ -404,7 +405,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             <button
               onClick={() => setActiveTab("organizer")}
               data-testid="tab-organizer"
-              className={`pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 focus:outline-none whitespace-nowrap ${
+              className={`focus-ring pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 focus:outline-none whitespace-nowrap ${
                 activeTab === "organizer"
                   ? "text-brand-green border-brand-green"
                   : "text-neutral-400 border-transparent hover:text-neutral-600"
@@ -421,7 +422,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             <button
               onClick={() => setActiveTab("participant")}
               data-testid="tab-participant"
-              className={`pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 focus:outline-none whitespace-nowrap ${
+              className={`focus-ring pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 focus:outline-none whitespace-nowrap ${
                 activeTab === "participant"
                   ? "text-brand-green border-brand-green"
                   : "text-neutral-400 border-transparent hover:text-neutral-600"
@@ -522,7 +523,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         )}
                         <Link
                           to={`/poll/${entry.pollId}/results#key=${entry.symmetricKey}`}
-                          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-green text-white rounded-xl sm:rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-brand-green/20 transition-all hover:scale-[1.02] text-sm sm:text-base whitespace-nowrap"
+                          className="focus-ring px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-green text-white rounded-xl sm:rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-brand-green/20 transition-all hover:scale-[1.02] text-sm sm:text-base whitespace-nowrap"
                         >
                           <ExternalLink size={16} /> Results
                         </Link>
@@ -755,7 +756,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <h4 className="font-bold text-neutral-800 text-xs truncate">Biometric Passkey</h4>
-                    <p className={`text-[9px] font-semibold ${recoveryStatus.isSealed ? 'text-brand-green-dark' : 'text-red-600'}`}>
+                    <p className={`text-[10px] font-semibold ${recoveryStatus.isSealed ? 'text-brand-green-dark' : 'text-red-600'}`}>
                       {recoveryStatus.isSealed ? 'Linked & Synced' : 'Set up your passkey'}
                     </p>
                   </div>
@@ -766,7 +767,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleEnableRecovery(); }}
                       disabled={!isReady || enablingRecovery}
-                      className="w-full mt-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black rounded-lg transition-colors shadow-sm shadow-red-200 animate-pulse"
+                      className="w-full mt-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black rounded-lg transition-colors shadow-sm shadow-red-200 animate-pulse"
                     >
                       {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Enable Passkey'}
                     </button>
@@ -809,7 +810,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <h4 className="font-bold text-neutral-800 text-xs truncate">Recovery Phrase Backup</h4>
-                    <p className={`text-[9px] font-semibold ${hasPhrase ? 'text-brand-green-dark' : 'text-amber-600'}`}>
+                    <p className={`text-[10px] font-semibold ${hasPhrase ? 'text-brand-green-dark' : 'text-amber-600'}`}>
                       {hasPhrase ? 'Offline Phrase Secured' : 'Backup Required'}
                     </p>
                   </div>
@@ -820,7 +821,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleGeneratePhrase(); }}
                       disabled={!isReady || enablingRecovery}
-                      className="w-full mt-2.5 py-1.5 bg-neutral-900 hover:bg-black text-white text-[9px] font-black rounded-lg transition-colors shadow-sm"
+                      className="w-full mt-2.5 py-1.5 bg-neutral-900 hover:bg-black text-white text-[10px] font-black rounded-lg transition-colors shadow-sm"
                     >
                       {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Generate Backup'}
                     </button>
@@ -833,7 +834,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         }
                       }}
                       disabled={!isReady || enablingRecovery}
-                      className="w-full mt-2.5 py-1.5 bg-white border border-brand-green/20 text-brand-green-dark hover:bg-brand-green/5 text-[9px] font-bold rounded-lg transition-colors"
+                      className="w-full mt-2.5 py-1.5 bg-white border border-brand-green/20 text-brand-green-dark hover:bg-brand-green/5 text-[10px] font-bold rounded-lg transition-colors"
                     >
                       {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Regenerate Phrase'}
                     </button>
@@ -868,8 +869,8 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   }
                 `}>
                   <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
-                  <span className="text-[6px] md:text-[8px] font-black uppercase tracking-widest leading-none mt-0.5 md:mt-1">Your Keys</span>
-                  <span className="text-[5px] md:text-[7px] opacity-85 leading-none mt-0.5 font-semibold hidden md:inline">
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none mt-0.5 md:mt-1">Your Keys</span>
+                  <span className="text-[10px] opacity-85 leading-none mt-0.5 font-semibold hidden md:inline">
                     {recoveryStatus.isSealed ? 'Protected' : 'Action needed'}
                   </span>
                 </div>
@@ -893,7 +894,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       w-12 h-12 rounded-full border shadow-md active:scale-95 flex-shrink-0
                       ${isCurrent 
                         ? 'bg-brand-green border-brand-green text-white shadow-brand-green/20 max-md:hover:bg-brand-green-dark' 
-                        : 'bg-neutral-900 border-black text-white shadow-neutral-950/20 max-md:hover:bg-neutral-800'
+                        : 'bg-neutral-900 border-black text-white shadow-neutral-900/20 max-md:hover:bg-neutral-800'
                       }
                       /* Desktop override styles */
                       md:w-full md:max-w-[220px] md:h-auto md:rounded-2xl md:p-3 md:shadow-sm md:active:scale-100 md:border md:block
@@ -914,7 +915,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         <h4 className="font-bold text-neutral-800 text-xs truncate">
                           {device.decryptedDeviceName}{isCurrent ? ' (Current)' : ''}
                         </h4>
-                        <p className="text-[8px] text-neutral-400 font-semibold mt-0.5">
+                        <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">
                           {isCurrent ? 'Current Session' : 'Authorized device'}
                         </p>
                       </div>
@@ -947,7 +948,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
 
           {/* Mobile Caption Indicator */}
           <div className="md:hidden flex justify-center mt-6">
-            <p className="text-[9px] text-neutral-400 font-bold tracking-wide text-center">
+            <p className="text-[10px] text-neutral-400 font-bold tracking-wide text-center">
               Tap any node to manage credentials & devices
             </p>
           </div>
@@ -1105,7 +1106,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         >
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              isCurrent ? 'bg-brand-green text-white' : 'bg-neutral-250 text-neutral-500'
+                              isCurrent ? 'bg-brand-green text-white' : 'bg-neutral-200 text-neutral-500'
                             }`}>
                               <Monitor size={14} />
                             </div>
@@ -1113,7 +1114,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                               <h4 className="font-bold text-neutral-800 text-xs truncate">
                                 {device.decryptedDeviceName}{isCurrent ? ' (Current)' : ''}
                               </h4>
-                              <p className="text-[8px] text-neutral-400 font-semibold mt-0.5">
+                              <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">
                                 {isCurrent ? 'Current Session' : 'Authorized device'}
                               </p>
                             </div>
