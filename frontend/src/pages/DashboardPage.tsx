@@ -15,13 +15,14 @@ import {
 import type { DecryptedDevice } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useToast } from "@/components/toast/toastContext";
 import { useConfirm } from "@/components/confirm/confirmContext";
 import { copyToClipboard } from "@/lib/clipboard";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown, Edit3 } from "lucide-react";
 import { buttonClasses } from "@/components/buttonStyles";
 import PageLoader from "@/components/PageLoader";
+import Modal from "@/components/Modal";
+import EmptyState from "@/components/EmptyState";
 import type { PollMetadata, PendingDevice } from "../types";
 
 type AccountData = { devices: Record<string, DecryptedDevice> };
@@ -149,38 +150,8 @@ export default function DashboardPage() {
   const masterRef = useRef<HTMLDivElement>(null);
   const deviceRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  // Accessibility: dialog refs. useFocusTrap moves focus into the dialog on
-  // open and restores focus to the previously-focused element (the trigger)
-  // on close.
-  const activeModalRef = useRef<HTMLDivElement>(null);
-  const phraseModalRef = useRef<HTMLDivElement>(null);
-
-  useFocusTrap(activeModalRef, activeModal !== null);
-  useFocusTrap(phraseModalRef, showPhraseModal);
-
-  // Close the active node modal with Escape.
-  useEffect(() => {
-    if (!activeModal) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setActiveModal(null);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [activeModal]);
-
-  // Close the recovery-phrase modal with Escape.
-  useEffect(() => {
-    if (!showPhraseModal) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setShowPhraseModal(false);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [showPhraseModal]);
+  // The active-node modal and recovery-phrase modal use the shared <Modal>,
+  // which centralizes focus trap, Escape-to-close, and focus restore.
 
   const [paths, setPaths] = useState<{
     passkey: string;
@@ -457,18 +428,20 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       </div>
 
       {activeEntries.length === 0 ? (
-        <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50">
-          <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Calendar size={32} aria-hidden="true" />
-          </div>
-          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls yet</h2>
-          <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-            Polls you create or vote in will show up here automatically.
-          </p>
-          <Link to="/create" className={buttonClasses("primary", "lg")}>
-            Create New Poll
-          </Link>
-        </div>
+        <EmptyState
+          icon={
+            <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Calendar size={32} aria-hidden="true" />
+            </div>
+          }
+          title="No polls yet"
+          body="Polls you create or vote in will show up here automatically."
+          action={
+            <Link to="/create" className={buttonClasses("primary", "lg")}>
+              Create New Poll
+            </Link>
+          }
+        />
       ) : (
         <>
           {/* Beautiful and responsive tab navigation */}
@@ -525,28 +498,34 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
           aria-labelledby={activeTab === "organizer" ? "tab-organizer" : "tab-participant"}
         >
           {activeTab === "organizer" && activeEntries.filter(e => e.isOrganizer).length === 0 ? (
-            <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
-              <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Calendar size={32} aria-hidden="true" />
-              </div>
-              <h2 className="text-xl font-bold text-neutral-800 mb-2 font-black">No Organized Polls</h2>
-              <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-                You haven't created any polls yet. Make your first one below.
-              </p>
-              <Link to="/create" className="btn-primary-green inline-block">
-                Create New Poll
-              </Link>
-            </div>
+            <EmptyState
+              className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10"
+              icon={
+                <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Calendar size={32} aria-hidden="true" />
+                </div>
+              }
+              title="No Organized Polls"
+              titleClassName="text-xl font-bold text-neutral-800 mb-2 font-black"
+              body="You haven't created any polls yet. Make your first one below."
+              action={
+                <Link to="/create" className="btn-primary-green inline-block">
+                  Create New Poll
+                </Link>
+              }
+            />
           ) : activeTab === "participant" && activeEntries.filter(e => !e.isOrganizer).length === 0 ? (
-            <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
-              <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Users size={32} aria-hidden="true" />
-              </div>
-              <h2 className="text-xl font-bold text-neutral-800 mb-2 font-black">No Joined Polls</h2>
-              <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-                Polls you view, vote in, or participate in will automatically be stored securely and displayed here.
-              </p>
-            </div>
+            <EmptyState
+              className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10"
+              icon={
+                <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Users size={32} aria-hidden="true" />
+                </div>
+              }
+              title="No Joined Polls"
+              titleClassName="text-xl font-bold text-neutral-800 mb-2 font-black"
+              body="Polls you view, vote in, or participate in will automatically be stored securely and displayed here."
+            />
           ) : (
             <ul className="grid gap-6 list-none p-0 m-0">
               {activeEntries
@@ -1067,20 +1046,20 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       </div>
 
         {/* Tap-to-Open Modals */}
-        {activeModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 backdrop-blur-md bg-neutral-900/40 overflow-y-auto text-center">
-            <div
-              ref={activeModalRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={`${activeModal}-modal-title`}
-              className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-200/60 text-brand-charcoal animate-pop-in flex flex-col relative mx-4 sm:mx-0 text-left p-6 sm:p-10"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
-                backgroundImage: "linear-gradient(rgba(228, 233, 229, 0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(228, 233, 229, 0.7) 1px, transparent 1px)",
-                backgroundSize: "32px 32px"
-              }}
-            >
+        <Modal
+          open={activeModal !== null}
+          onClose={() => setActiveModal(null)}
+          labelledBy={activeModal ? `${activeModal}-modal-title` : undefined}
+          variant="bare"
+          closeOnBackdrop={false}
+          backdropClassName="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 backdrop-blur-md bg-neutral-900/40 overflow-y-auto text-center"
+          className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-200/60 text-brand-charcoal animate-pop-in flex flex-col relative mx-4 sm:mx-0 text-left p-6 sm:p-10"
+          panelStyle={{
+            backgroundColor: "rgba(255, 255, 255, 0.95)",
+            backgroundImage: "linear-gradient(rgba(228, 233, 229, 0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(228, 233, 229, 0.7) 1px, transparent 1px)",
+            backgroundSize: "32px 32px"
+          }}
+        >
               {/* Passkey Modal Content */}
               {activeModal === "passkey" && (
                 <div>
@@ -1266,20 +1245,18 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
+        </Modal>
 
       {/* Phrase Modal */}
-      {showPhraseModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-brand-charcoal/80 overflow-y-auto">
-          <div
-            ref={phraseModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="phrase-modal-title"
-            className="bg-white rounded-[3rem] p-8 sm:p-12 max-w-2xl w-full shadow-2xl relative animate-pop-in"
-          >
+      <Modal
+        open={showPhraseModal}
+        onClose={() => setShowPhraseModal(false)}
+        labelledBy="phrase-modal-title"
+        variant="bare"
+        closeOnBackdrop={false}
+        backdropClassName="fixed inset-0 z-[120] flex items-center justify-center p-6 backdrop-blur-xl bg-brand-charcoal/80 overflow-y-auto"
+        className="bg-white rounded-[3rem] p-8 sm:p-12 max-w-2xl w-full shadow-2xl relative animate-pop-in"
+      >
             <h2 id="phrase-modal-title" className="text-3xl font-black text-neutral-900 mb-4">Your Recovery Phrase</h2>
             <p className="text-neutral-600 mb-8 font-medium">
               Write these 24 words down in order and store them in a secure, physical location.
@@ -1316,9 +1293,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             <div role="status" aria-live="polite" className="sr-only">
               {copied ? "Recovery phrase copied to clipboard" : ""}
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

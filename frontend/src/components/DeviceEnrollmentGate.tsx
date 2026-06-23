@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useFocusTrap } from "@/hooks/useFocusTrap";
+import Modal from "@/components/Modal";
 import { useToast } from "@/components/toast/toastContext";
 import { useConfirm } from "@/components/confirm/confirmContext";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
@@ -16,13 +16,10 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
   const askConfirm = useConfirm();
   const [enrollmentState, setEnrollmentState] = useState<'idle' | 'prompting' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const gateRef = useRef<HTMLDivElement>(null);
 
   // If loading, not logged in, or anonymous, let the children or other auth wrappers handle it
   // Also bypass if there is a key mismatch/unrecognized device error so that the app layout modal covers the page instead
   const shouldShowGate = !loading && user && !user.isAnonymous && !isDeviceRegistered && !keyMismatchError;
-
-  useFocusTrap(gateRef, !!shouldShowGate);
 
   const handleEnroll = async () => {
     try {
@@ -43,9 +40,18 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
     <>
       {children}
 
-      {shouldShowGate && (
-        <div className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center animate-fade-in">
-          <div 
+      <Modal
+        open={!!shouldShowGate}
+        onClose={() => {}}
+        variant="bare"
+        size="fullscreen"
+        dismissable={false}
+        role={null}
+        ariaModal={false}
+        backdropClassName="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md animate-fade-in"
+        className="absolute inset-0 flex items-center justify-center p-4 sm:p-6 text-center"
+      >
+          <div
             className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
             style={{
               backgroundColor: "#ffffff",
@@ -121,8 +127,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               </div>
             </div>
           </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 }

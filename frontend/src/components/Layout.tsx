@@ -10,8 +10,8 @@ import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
 import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
 import PageLoader from "./PageLoader";
-import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { 
+import Modal from "./Modal";
+import {
   getLocalPublicKey, 
   requestDeviceAuthorization, 
   approveDeviceAuthorization,
@@ -154,9 +154,7 @@ export default function Layout() {
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  const mismatchOverlayRef = useRef<HTMLDivElement>(null);
   const showMismatchOverlay = !!keyMismatchError && !activeAdminToken && !isPublicPage;
-  useFocusTrap(mismatchOverlayRef, showMismatchOverlay);
 
   // Close the profile dropdown on Escape and return focus to its trigger.
   useEffect(() => {
@@ -417,16 +415,18 @@ export default function Layout() {
         )}
       </main>
 
-      {showMismatchOverlay && (
-        <div
-          ref={mismatchOverlayRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="mismatch-dialog-title"
-          data-testid="mismatch-error"
-          className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center"
-        >
-          {!showPhraseInput ? (
+      <Modal
+        open={showMismatchOverlay}
+        onClose={() => {}}
+        labelledBy="mismatch-dialog-title"
+        variant="bare"
+        size="fullscreen"
+        dismissable={false}
+        testId="mismatch-error"
+        backdropClassName="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md"
+        className="absolute inset-0 flex items-center justify-center p-4 sm:p-6 text-center"
+      >
+        {showMismatchOverlay && (!showPhraseInput ? (
             <div
               className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
               style={{
@@ -624,9 +624,8 @@ export default function Layout() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          ))}
+      </Modal>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-neutral-600 font-medium">
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">

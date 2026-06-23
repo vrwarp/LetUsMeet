@@ -39,9 +39,10 @@ import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
 import PageLoader from "@/components/PageLoader";
 import MatrixTable from "@/components/MatrixTable";
+import Modal from "@/components/Modal";
+import EmptyState from "@/components/EmptyState";
 import { buttonClasses } from "@/components/buttonStyles";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useToast } from "@/components/toast/toastContext";
 import { useConfirm } from "@/components/confirm/confirmContext";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -113,31 +114,11 @@ export default function ResultsPage() {
   const [unfinalizing, setUnfinalizing] = useState(false);
   const [showLocationCopied, setShowLocationCopied] = useState(false);
 
-  const maximizeRef = useRef<HTMLDivElement>(null);
-  const shareModalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(maximizeRef, isMaximized);
-  useFocusTrap(shareModalRef, showShareModal);
-
   useDocumentTitle(
     pollState?.metadata?.title
       ? `${pollState.metadata.title} — Results — LetUsMeet`
       : "Poll results — LetUsMeet"
   );
-
-  // Escape-to-close for the dismissable Results dialogs.
-  useEffect(() => {
-    if (!isMaximized && !showShareModal) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (isMaximized) setIsMaximized(false);
-      if (showShareModal) {
-        setShowShareModal(false);
-        setCopiedLinkType(null);
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [isMaximized, showShareModal]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
@@ -705,65 +686,73 @@ export default function ResultsPage() {
         </div>
         
         {voteArray.length === 0 ? (
-          <div data-testid="results-empty-state" className="text-center py-20 px-6 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
-            <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" aria-hidden="true" />
-            <p className="text-neutral-600 font-medium">No responses yet. Share the poll link and answers will appear here in real time.</p>
-          </div>
+          <EmptyState
+            testId="results-empty-state"
+            className="text-center py-20 px-6 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200"
+            icon={<Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" aria-hidden="true" />}
+            body="No responses yet. Share the poll link and answers will appear here in real time."
+            bodyClassName="text-neutral-600 font-medium"
+          />
         ) : (
           renderMatrixTable()
         )}
       </div>
 
-      {isMaximized && (
-        <div
-          ref={maximizeRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="maximize-dialog-title"
-          className="fixed inset-0 z-[100] bg-brand-charcoal/95 backdrop-blur-md p-3 md:p-8 flex flex-col"
-        >
-          <div className="flex justify-between items-center text-white mb-4 md:mb-8">
-            <h2 id="maximize-dialog-title" className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
-            <button
-              onClick={() => setIsMaximized(false)}
-              disabled={!isReady}
-              className="p-2 hover:bg-white/10 rounded-full flex-shrink-0 disabled:opacity-50"
-              aria-label="Close maximization"
-            >
-              <X size={32} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-auto p-1 md:p-4">
-             {renderMatrixTable(true)}
-          </div>
-        </div>
-      )}
-
-      {showShareModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div
-            ref={shareModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="share-dialog-title"
-            className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 md:p-10 border border-neutral-100 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200"
+      <Modal
+        open={isMaximized}
+        onClose={() => setIsMaximized(false)}
+        labelledBy="maximize-dialog-title"
+        variant="bare"
+        size="fullscreen"
+        closeOnBackdrop={false}
+        backdropClassName="fixed inset-0 z-[120] bg-brand-charcoal/95 backdrop-blur-md p-3 md:p-8 flex flex-col"
+        className="flex-1 min-h-0 flex flex-col"
+      >
+        <div className="flex justify-between items-center text-white mb-4 md:mb-8">
+          <h2 id="maximize-dialog-title" className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
+          <button
+            onClick={() => setIsMaximized(false)}
+            disabled={!isReady}
+            className="p-2 hover:bg-white/10 rounded-full flex-shrink-0 disabled:opacity-50"
+            aria-label="Close maximization"
           >
-            {/* Decorative Blur */}
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-green/5 rounded-full blur-2xl pointer-events-none" />
+            <X size={32} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-auto p-1 md:p-4">
+           {renderMatrixTable(true)}
+        </div>
+      </Modal>
 
-            {/* Close Button */}
-            <button
-              onClick={() => {
-                setShowShareModal(false);
-                setCopiedLinkType(null);
-              }}
-              className="absolute top-6 right-6 p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 rounded-full transition-colors"
-              aria-label="Close share dialog"
-            >
-              <X size={20} aria-hidden="true" />
-            </button>
+      <Modal
+        open={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setCopiedLinkType(null);
+        }}
+        labelledBy="share-dialog-title"
+        variant="bare"
+        size="lg"
+        closeOnBackdrop={false}
+        backdropClassName="fixed inset-0 z-[120] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
+        className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 md:p-10 border border-neutral-100 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200"
+      >
+        {/* Decorative Blur */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-green/5 rounded-full blur-2xl pointer-events-none" />
 
-            <div className="flex flex-col gap-6">
+        {/* Close Button */}
+        <button
+          onClick={() => {
+            setShowShareModal(false);
+            setCopiedLinkType(null);
+          }}
+          className="absolute top-6 right-6 p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 rounded-full transition-colors"
+          aria-label="Close share dialog"
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
+
+        <div className="flex flex-col gap-6">
               <div>
                 <h3 id="share-dialog-title" className="text-2xl font-black text-neutral-800 tracking-tight mb-2">Share this Poll</h3>
                 <p className="text-neutral-600 text-sm font-medium">Which link would you like to copy?</p>
@@ -853,9 +842,7 @@ export default function ResultsPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }
