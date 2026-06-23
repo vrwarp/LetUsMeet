@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
-import { 
-  extractKeyFromFragment, 
-  subscribeToLedger, 
+import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle, Edit3 } from "lucide-react";
+import {
+  extractKeyFromFragment,
+  subscribeToLedger,
   getShareableUrl,
-  getLedgerSession
+  getLedgerSession,
+  friendlyStatus
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,10 +27,10 @@ export default function VotePollPage() {
   }, []);
   
   const [pollState, setPollState] = useState<PollState | null>(null);
-  const [syncStatus, setSyncStatus] = useState("Initializing...");
+  const [syncStatus, setSyncStatus] = useState("Loading this poll…");
   const [session, setSession] = useState<LedgerSession | null>(null);
   const [connectionError, setConnectionError] = useState(false);
-  
+
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
   const [participantName, setParticipantName] = useState("");
   const [participantEmail, setParticipantEmail] = useState("");
@@ -129,6 +130,9 @@ export default function VotePollPage() {
     .map(([, vote]) => vote)
     .sort((a, b) => b.clientTimestamp - a.clientTimestamp)
     : [];
+
+  // Detect organizer: signer matches the poll's admin public key (same check Results uses).
+  const isAdmin = !!(session && pollState?.adminPublicKey && session.getSignerPublicKey() === pollState.adminPublicKey);
 
   // Auto-initialize form with first vote if not already editing something specific
   const hasInitializedRef = useRef(false);
@@ -265,7 +269,7 @@ export default function VotePollPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-600 font-medium">{syncStatus}</p>
+        <p className="text-neutral-600 font-medium">{friendlyStatus(syncStatus)}</p>
       </div>
     );
   }
@@ -423,9 +427,23 @@ export default function VotePollPage() {
                 <span>Results</span>
               </Link>
 
+              {/* Edit Poll Button (organizer only) */}
+              {isAdmin && (
+                <Link
+                  to={`/poll/${pollId}/edit${window.location.search}${window.location.hash}`}
+                  data-testid="edit-poll-link"
+                  title="Edit poll"
+                  className="group flex items-center justify-center gap-2 px-6 md:px-0 md:w-[84px] h-[72px] md:h-[84px] rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 shadow-xl"
+                >
+                  <Edit3 className="w-6 h-6 group-hover:scale-110 transition-transform flex-shrink-0" />
+                  <span className="text-sm font-bold md:hidden">Edit poll</span>
+                </Link>
+              )}
+
               {/* Share Button */}
-              <CompactActionCard 
+              <CompactActionCard
                 icon={<Share2 className="w-6 h-6" />}
+                ariaLabel="Copy link to share"
                 onAction={handleShare}
                 isSuccess={showCopied}
                 theme="light"

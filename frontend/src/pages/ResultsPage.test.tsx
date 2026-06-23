@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ResultsPage from './ResultsPage';
 import * as pollService from '@/lib/pollService';
+import type { PollState } from '@/types';
+import type { LedgerSession } from 'charproof';
 
 describe('ResultsPage', () => {
   beforeEach(() => {
@@ -126,20 +128,26 @@ describe('ResultsPage', () => {
     expect(await screen.findByText(/No responses yet/i)).toBeInTheDocument();
   });
 
-  it('shows Leading badge on best slot', async () => {
+  it('shows Leading badge on best slot once there are enough responses', async () => {
     const votes = new Map();
-    votes.set('pub1', { 
+    votes.set('pub1', {
       responseId: 'r1',
-      participantName: 'Alice', 
+      participantName: 'Alice',
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+    votes.set('pub2', {
+      responseId: 'r2',
+      participantName: 'Bob',
       selections: { t1: 'YES' },
       clientTimestamp: Date.now()
     });
 
     vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
-      cb({ 
+      cb({
         pollId: 'p1',
-        metadata: { 
-          title: 'Leading Poll', 
+        metadata: {
+          title: 'Leading Poll',
           schedulingMode: 'EXACT',
           timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
         },
@@ -148,9 +156,37 @@ describe('ResultsPage', () => {
       } as any, 'Synced');
       return () => {};
     });
-    
+
     renderPage();
     expect(await screen.findByText('LEADING TIME')).toBeInTheDocument();
+  });
+
+  it('shows a soft "Not enough responses yet" state with fewer than 2 responses', async () => {
+    const votes = new Map();
+    votes.set('pub1', {
+      responseId: 'r1',
+      participantName: 'Alice',
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Sparse Poll',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: false
+      } as unknown as PollState, 'Synced');
+      return () => {};
+    });
+
+    renderPage();
+    expect(await screen.findByText('Not enough responses yet')).toBeInTheDocument();
+    expect(screen.queryByText('LEADING TIME')).not.toBeInTheDocument();
   });
 
   it('safely constructs mailto link when emailing participants', async () => {
@@ -222,6 +258,48 @@ describe('ResultsPage', () => {
     createElementSpy.mockRestore();
     appendSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+
+  it('does NOT finalize when the confirm dialog is declined', async () => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Finalize Poll',
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        adminPublicKey: 'mock-pub-key',
+        votes: new Map([['pub1', { participantName: 'Alice', selections: { t1: 'YES' }, clientTimestamp: Date.now(), responseId: 'r1' }]]),
+        isFinalized: false
+      } as unknown as PollState, 'Synced');
+      return () => {};
+    });
+
+    const appendEvent = vi.fn().mockResolvedValue(undefined);
+    const mockSession = {
+      getSignerPublicKey: () => 'mock-pub-key',
+      appendEvent
+    };
+    vi.mocked(pollService.getLedgerSession).mockResolvedValue(mockSession as unknown as LedgerSession);
+
+    // Decline the confirm dialog
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    renderPage();
+
+    // The admin-only "Confirm" finalize button should be present
+    const confirmBtn = await screen.findByRole('button', { name: /^Confirm$/i });
+    expect(confirmBtn).toBeInTheDocument();
+
+    confirmBtn.click();
+
+    expect(confirmSpy).toHaveBeenCalled();
+    // Finalize must NOT have been dispatched
+    expect(appendEvent).not.toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
   });
 
   it('opens a dialog/modal when clicking share, allowing user to copy results or poll link', async () => {

@@ -8,6 +8,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import EditPollPage from "@/pages/EditPollPage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
 export const router = createBrowserRouter([
   {
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
       { path: "/dashboard", element: <DashboardPage /> },
       { path: "/privacy", element: <PrivacyPolicyPage /> },
       { path: "/terms", element: <TermsOfServicePage /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);

@@ -3,6 +3,7 @@ import React from "react";
 interface CompactActionCardProps {
   icon: React.ReactNode;
   label?: string;
+  ariaLabel?: string;
   onAction: () => void;
   isSuccess?: boolean;
   theme?: 'dark' | 'light';
@@ -10,11 +11,12 @@ interface CompactActionCardProps {
   "data-testid"?: string;
 }
 
-const CompactActionCard: React.FC<CompactActionCardProps> = ({ 
-  icon, 
+const CompactActionCard: React.FC<CompactActionCardProps> = ({
+  icon,
   label,
-  onAction, 
-  isSuccess, 
+  ariaLabel,
+  onAction,
+  isSuccess,
   theme = 'dark',
   className = "",
   "data-testid": dataTestId
@@ -34,9 +36,11 @@ const CompactActionCard: React.FC<CompactActionCardProps> = ({
     : "bg-white shadow-sm group-hover:shadow-md";
 
   return (
-    <button 
+    <button
       onClick={onAction}
       data-testid={dataTestId}
+      aria-label={ariaLabel || label}
+      title={ariaLabel || label}
       className={`${baseStyles} ${themeStyles} ${className}`}
     >
       {/* Original Content */}

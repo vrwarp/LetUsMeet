@@ -20,8 +20,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 
 
-import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, Loader2, User, Clock, X, Sparkles } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, ArrowRight, ArrowLeft, Loader2, User, Clock, X, Sparkles } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase";
 import { createBlindPoll } from "@/lib/pollService";
@@ -517,8 +517,20 @@ export default function CreatePollPage() {
   };
 
 
+  const cancelDestination = user && !user.isAnonymous ? "/dashboard" : "/";
+  const missingTitle = !title.trim();
+  const missingSlots = slots.length === 0;
+  const showSubmitHint = (missingTitle || missingSlots) && !isSubmitting;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-4 sm:py-8">
+      <Link
+        to={cancelDestination}
+        className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8"
+      >
+        <ArrowLeft size={16} /> Cancel
+      </Link>
+
       <div className="mb-10">
         <h1 className="text-3xl font-extrabold text-neutral-900 mb-2">Create a poll</h1>
         <p className="text-neutral-500">Add a few details and propose the times that could work.</p>
@@ -774,6 +786,12 @@ export default function CreatePollPage() {
               </div>
             </div>
 
+          {slots.length === 0 && (
+            <p data-testid="slots-empty-hint" className="mb-4 text-sm text-neutral-500 font-medium">
+              Add at least one time below, or describe your availability above and we'll fill it in.
+            </p>
+          )}
+
                    <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -821,24 +839,31 @@ export default function CreatePollPage() {
           </div>
         )}
 
-        <button
-          type="submit"
-          data-testid="create-submit-btn"
-          disabled={!isReady || isSubmitting || !title || !organizerName || slots.length === 0}
-          className="btn-primary-green w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="animate-spin" size={24} />
-              Creating...
-            </>
-          ) : (
-            <>
-              Create poll & get link
-              <ArrowRight size={24} />
-            </>
+        <div className="flex flex-col gap-2">
+          <button
+            type="submit"
+            data-testid="create-submit-btn"
+            disabled={!isReady || isSubmitting || !title || !organizerName || slots.length === 0}
+            className="btn-primary-green w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin" size={24} />
+                Creating...
+              </>
+            ) : (
+              <>
+                Create poll & get link
+                <ArrowRight size={24} />
+              </>
+            )}
+          </button>
+          {showSubmitHint && (
+            <p data-testid="submit-hint" className="text-center text-sm text-neutral-500 font-medium">
+              Add a title and at least one time to continue.
+            </p>
           )}
-        </button>
+        </div>
       </form>
     </div>
   );

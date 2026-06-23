@@ -13,7 +13,7 @@ import {
   rejectDeviceRequest
 } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
+import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown, Edit3 } from "lucide-react";
 import type { PollMetadata, PendingDevice } from "../types";
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
@@ -512,6 +512,14 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         >
                           View
                         </Link>
+                        {entry.isOrganizer && entry.symmetricKey && (
+                          <Link
+                            to={`/poll/${entry.pollId}/edit#key=${entry.symmetricKey}`}
+                            className="px-4 sm:px-6 py-2.5 sm:py-3 bg-neutral-50 text-neutral-600 rounded-xl sm:rounded-2xl font-bold hover:bg-neutral-100 transition-colors flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base whitespace-nowrap"
+                          >
+                            <Edit3 size={16} /> Edit
+                          </Link>
+                        )}
                         <Link
                           to={`/poll/${entry.pollId}/results#key=${entry.symmetricKey}`}
                           className="px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-green text-white rounded-xl sm:rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-brand-green/20 transition-all hover:scale-[1.02] text-sm sm:text-base whitespace-nowrap"
@@ -718,12 +726,10 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             {/* COLUMN 1: ACCESS & RECOVERY CHANNELS (LEFT) */}
             <div className="flex flex-col items-center md:items-end justify-center gap-6 sm:space-y-4 md:space-y-4 z-10 w-full">
               {/* Node A: Biometric Passkey */}
-              <div 
+              <div
                 ref={passkeyRef}
                 onClick={() => {
-                  if (window.innerWidth < 768) {
-                    setActiveModal("passkey");
-                  }
+                  setActiveModal("passkey");
                 }}
                 className={`transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
                   /* Mobile styles: circular button */
@@ -774,12 +780,10 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               </div>
 
               {/* Node B: Cold Recovery Phrase */}
-              <div 
+              <div
                 ref={backupRef}
                 onClick={() => {
-                  if (window.innerWidth < 768) {
-                    setActiveModal("backup");
-                  }
+                  setActiveModal("backup");
                 }}
                 className={`transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
                   /* Mobile styles: circular button */
@@ -882,9 +886,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     data-testid="device-item"
                     ref={el => { deviceRefs.current[device.deviceId] = el; }}
                     onClick={() => {
-                      if (window.innerWidth < 768) {
-                        setActiveModal("devices");
-                      }
+                      setActiveModal("devices");
                     }}
                     className={`transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
                       /* Mobile styles: circular button */

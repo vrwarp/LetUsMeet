@@ -22,10 +22,11 @@ import { GripVertical } from 'lucide-react';
 
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Plus, Trash2, Calendar as CalendarIcon, MapPin, Type, Save, Loader2, ArrowLeft, Clock, X, Lock } from "lucide-react";
-import { 
-  extractKeyFromFragment, 
-  subscribeToLedger, 
-  getLedgerSession
+import {
+  extractKeyFromFragment,
+  subscribeToLedger,
+  getLedgerSession,
+  friendlyStatus
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import type { PollState, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "@/types";
@@ -282,7 +283,7 @@ export default function EditPollPage() {
   }, []);
   
   const [pollState, setPollState] = useState<PollState | null>(null);
-  const [syncStatus, setSyncStatus] = useState("Initializing...");
+  const [syncStatus, setSyncStatus] = useState("Loading this poll…");
   const [session, setSession] = useState<LedgerSession | null>(null);
   const [activeInput, setActiveInput] = useState<HTMLElement | null>(null);
 
@@ -495,7 +496,7 @@ export default function EditPollPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">{syncStatus}</p>
+        <p className="text-neutral-500 font-medium">{friendlyStatus(syncStatus)}</p>
       </div>
     );
   }

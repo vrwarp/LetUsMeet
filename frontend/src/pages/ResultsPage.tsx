@@ -18,11 +18,12 @@ import {
   Send,
   AlertTriangle
 } from "lucide-react";
-import { 
-  extractKeyFromFragment, 
-  subscribeToLedger, 
+import {
+  extractKeyFromFragment,
+  subscribeToLedger,
   getShareableUrl,
-  getLedgerSession
+  getLedgerSession,
+  friendlyStatus
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import { useAuth } from "../hooks/useAuth";
@@ -35,7 +36,7 @@ export default function ResultsPage() {
   const { user, loading } = useAuth();
   
   const [pollState, setPollState] = useState<PollState | null>(null);
-  const [syncStatus, setSyncStatus] = useState("Initializing...");
+  const [syncStatus, setSyncStatus] = useState("Getting the latest responses…");
   const [session, setSession] = useState<LedgerSession | null>(null);
   const [connectionError, setConnectionError] = useState(false);
   
@@ -123,7 +124,7 @@ export default function ResultsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
         <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">{syncStatus}</p>
+        <p className="text-neutral-500 font-medium">{friendlyStatus(syncStatus)}</p>
       </div>
     );
   }
@@ -194,6 +195,7 @@ export default function ResultsPage() {
 
   const handleFinalize = async (slotId: string) => {
     if (!session || !pollId) return;
+    if (!window.confirm("Confirm this time and close voting for everyone? Participants will no longer be able to respond. You can reopen voting later.")) return;
     setFinalizing(slotId);
     try {
       const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
@@ -470,24 +472,40 @@ export default function ResultsPage() {
 
             {/* Confirmed Date / Top Choice Box - Featured on Results Page */}
             {bestSlotId && (
-              <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 min-w-[320px] transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
-                <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
-                  <CalendarCheck className="w-8 h-8" />
+              (!pollState.isFinalized && voteArray.length < 2) ? (
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 min-w-[320px] lg:ml-auto">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center text-neutral-400">
+                    <CalendarCheck className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1">
+                      Not enough responses yet
+                    </p>
+                    <p className="text-sm md:text-base font-medium text-neutral-500 leading-snug max-w-[220px]">
+                      Once a couple of people respond, the leading time will show here.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1">
-                    {pollState.isFinalized ? "CONFIRMED TIME" : "LEADING TIME"}
-                  </p>
-                  <p className="text-xl md:text-2xl font-black leading-tight">
-                    {(() => {
-                      const slot = metadata.timeSlots.find(s => s.id === (pollState.finalizedSlotId || bestSlotId))!;
-                      return metadata.schedulingMode === "EXACT"
-                        ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : `${new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, ${(slot as any).label}`;
-                    })()}
-                  </p>
+              ) : (
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 min-w-[320px] transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
+                  <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
+                    <CalendarCheck className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1">
+                      {pollState.isFinalized ? "CONFIRMED TIME" : "LEADING TIME"}
+                    </p>
+                    <p className="text-xl md:text-2xl font-black leading-tight">
+                      {(() => {
+                        const slot = metadata.timeSlots.find(s => s.id === (pollState.finalizedSlotId || bestSlotId))!;
+                        return metadata.schedulingMode === "EXACT"
+                          ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : `${new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, ${(slot as any).label}`;
+                      })()}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </div>
 

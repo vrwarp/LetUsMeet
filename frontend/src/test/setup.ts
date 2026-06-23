@@ -83,6 +83,21 @@ const pollServiceMock = {
     return () => {};
   }),
   extractKeyFromFragment: vi.fn(() => 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+  friendlyStatus: vi.fn((status: string) => {
+    switch (status) {
+      case 'Initializing...':
+      case 'Decrypting ledger...':
+        return 'Loading this poll…';
+      case 'No valid events found.':
+        return 'Getting the latest responses…';
+      case 'Synced':
+        return 'Up to date';
+      case 'Network connection lost.':
+        return "Trouble connecting — we'll keep trying…";
+      default:
+        return status;
+    }
+  }),
   getShareableUrl: vi.fn((url = '') => {
     try {
       const u = new URL(url || 'http://localhost');

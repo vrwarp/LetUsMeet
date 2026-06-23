@@ -24,6 +24,23 @@ export function setKeyInFragment(key: string) {
   window.location.hash = `key=${key}`;
 }
 
+// Map internal ledger sync/status strings to friendly, user-facing copy.
+export function friendlyStatus(status: string): string {
+  switch (status) {
+    case "Initializing...":
+    case "Decrypting ledger...":
+      return "Loading this poll…";
+    case "No valid events found.":
+      return "Getting the latest responses…";
+    case "Synced":
+      return "Up to date";
+    case "Network connection lost.":
+      return "Trouble connecting — we'll keep trying…";
+    default:
+      return status;
+  }
+}
+
 export function getShareableUrl(urlStr: string = window.location.href): string {
   try {
     // Attempt parsing as an absolute URL first
