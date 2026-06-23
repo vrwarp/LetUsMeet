@@ -17,7 +17,7 @@ test.describe('Error & Edge Cases', () => {
   test('displays privacy protection for non-existent poll or missing key', async ({ page }) => {
     await page.goto('/poll/invalid-poll-id-123');
     await expect(page.getByText(/Privacy Protected/i)).toBeVisible();
-    await expect(page.getByText(/requires a secret key/i)).toBeVisible();
+    await expect(page.getByText(/missing the part that unlocks/i)).toBeVisible();
   });
 
   test('displays privacy protection for non-existent poll results or missing key', async ({ page }) => {
@@ -70,6 +70,11 @@ test.describe('Error & Edge Cases', () => {
     const createBtn = page.getByTestId('create-submit-btn');
     await createBtn.click();
     await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
+
+    // Ensure the lazy-loaded vote page chunk has fully rendered before going
+    // offline — route code-splitting means a navigation can't fetch its chunk
+    // once the network is cut. (This test exercises offline *submit*, not load.)
+    await expect(page.getByTestId('participant-name-input')).toBeVisible({ timeout: 30000 });
 
     // 2. Turn network offline
     await page.context().setOffline(true);

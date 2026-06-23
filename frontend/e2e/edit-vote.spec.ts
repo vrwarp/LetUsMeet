@@ -71,8 +71,8 @@ test.describe('Vote Editing and Multiple Responses', () => {
 
     // 7. Test Retraction
     await page.getByRole('button', { name: /E2E Voter Second \(/i }).click();
-    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: /Retract Vote/i }).click();
+    await page.getByTestId('confirm-dialog-confirm').click();
 
     // Wait for results
     await page.waitForURL(/\/poll\/[^/]+\/results(\?.*)?#key=.+/);

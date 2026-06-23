@@ -115,11 +115,12 @@ export default function ConfirmProvider({ children }: { children: ReactNode }) {
                   </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-3">
-                  <Button variant="secondary" onClick={() => close(false)}>
+                  <Button variant="secondary" data-testid="confirm-dialog-cancel" onClick={() => close(false)}>
                     {pending.cancelLabel ?? "Cancel"}
                   </Button>
                   <Button
                     variant={variant === "danger" ? "danger" : "primary"}
+                    data-testid="confirm-dialog-confirm"
                     onClick={() => close(true)}
                   >
                     {pending.confirmLabel ?? "Confirm"}

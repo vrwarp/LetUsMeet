@@ -51,8 +51,8 @@ test.describe.skip('Claim Poll Flow', () => {
       // Verify we are on the poll page
       await expect(claimantPage.getByTestId('poll-title')).toBeVisible({ timeout: 15000 });
 
-      // Verify "Claim this Poll" banner appears
-      const banner = claimantPage.getByText(/Claim this Poll/i);
+      // Verify the organizer claim banner appears
+      const banner = claimantPage.getByText(/organizer of this poll/i);
       await expect(banner).toBeVisible({ timeout: 30000 });
       await expect(claimantPage.getByRole('button', { name: /Add to My Dashboard/i })).toBeVisible();
 

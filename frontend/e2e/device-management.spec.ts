@@ -4,7 +4,7 @@ import { setupWebAuthn } from './helpers/webauthn-helper';
 import { mockGoogleSignIn, clickSetupSecureAccess } from './helpers/auth-helper';
 
 async function waitForDashboardReady(page: Page) {
-  await expect(page.getByText('Decrypting your dashboard...')).not.toBeVisible({ timeout: 150000 });
+  await expect(page.getByText('Loading your polls...')).not.toBeVisible({ timeout: 150000 });
   await expect(page.getByTestId('dashboard-title')).toBeVisible({ timeout: 15000 });
 }
 
@@ -140,17 +140,17 @@ test.describe('Device Management & Recovery', () => {
       const modalRevokeBtn = sponsorPage.getByTestId('revoke-device-btn-modal');
       await expect(modalRevokeBtn).toBeVisible({ timeout: 10000 });
 
-      // The modal's revoke button calls confirm() internally — set up handler before clicking
-      sponsorPage.once('dialog', dialog => dialog.accept());
+      // The modal's revoke button opens a styled confirm dialog; confirm it.
       await modalRevokeBtn.tap();
+      await sponsorPage.getByTestId('confirm-dialog-confirm').click();
     } else {
       // Desktop: revoke button is directly visible on the device item card
       const deviceItem = sponsorPage.getByTestId('device-item').filter({ hasNotText: '(Current)' });
       await expect(deviceItem).toBeVisible({ timeout: 15000 });
 
-      // Set up dialog handler BEFORE clicking
-      sponsorPage.once('dialog', dialog => dialog.accept());
+      // Revoke opens a styled confirm dialog; confirm it.
       await deviceItem.getByTestId('revoke-device-btn').click();
+      await sponsorPage.getByTestId('confirm-dialog-confirm').click();
     }
 
     await expect(sponsorPage.getByTestId('rotation-success-toast')).toBeVisible({ timeout: 15000 });
