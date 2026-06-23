@@ -20,7 +20,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -38,7 +38,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -56,7 +56,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: true,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -74,7 +74,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -96,7 +96,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: enrollMock,
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -117,7 +117,7 @@ describe('DeviceEnrollmentGate', () => {
       isDeviceRegistered: false,
       keyMismatchError: 'UNRECOGNIZED_DEVICE: Device not authorized.',
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>

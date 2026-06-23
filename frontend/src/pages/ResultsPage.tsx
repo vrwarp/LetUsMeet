@@ -33,6 +33,8 @@ import type {
   PollAction,
   SchedulingMode,
   TimeSlot,
+  ExactTimeSlot,
+  FuzzyTimeSlot,
 } from "../types";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
@@ -261,9 +263,9 @@ export default function ResultsPage() {
 
   const sortedSlots = [...metadata.timeSlots].sort((a, b) => {
     if (metadata.schedulingMode === "EXACT") {
-      return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
+      return new Date((a as ExactTimeSlot).startTime).getTime() - new Date((b as ExactTimeSlot).startTime).getTime();
     }
-    return (a as any).date.localeCompare((b as any).date);
+    return (a as FuzzyTimeSlot).date.localeCompare((b as FuzzyTimeSlot).date);
   });
 
   const topSlotIds = (() => {
@@ -394,9 +396,9 @@ export default function ResultsPage() {
     if (pollState.isFinalized && pollState.finalizedSlotId) {
       const slot = metadata.timeSlots.find(s => s.id === pollState.finalizedSlotId);
       if (slot) {
-        const dateStr = metadata.schedulingMode === "EXACT" 
-          ? new Date((slot as any).startTime).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-          : `${new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${(slot as any).label})`;
+        const dateStr = metadata.schedulingMode === "EXACT"
+          ? new Date((slot as ExactTimeSlot).startTime).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+          : `${new Date((slot as FuzzyTimeSlot).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${(slot as FuzzyTimeSlot).label})`;
         
         bodyText += `CONFIRMED DATE:\n${dateStr}\n\n`;
       }
@@ -450,15 +452,15 @@ export default function ResultsPage() {
             {sortedSlots.map(slot => (
               <th scope="col" key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[64px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
                 <div className="text-[11px] md:text-sm font-bold text-neutral-800 leading-tight">
-                  {metadata.schedulingMode === "EXACT" 
-                    ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-                    : new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                  {metadata.schedulingMode === "EXACT"
+                    ? new Date((slot as ExactTimeSlot).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                    : new Date((slot as FuzzyTimeSlot).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
                   }
                 </div>
                 <div className="text-[10px] md:text-xs text-neutral-500 leading-tight">
                   {metadata.schedulingMode === "EXACT"
-                    ? new Date((slot as any).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-                    : (slot as any).label
+                    ? new Date((slot as ExactTimeSlot).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                    : (slot as FuzzyTimeSlot).label
                   }
                 </div>
                 {isAdmin && !pollState.isFinalized && (

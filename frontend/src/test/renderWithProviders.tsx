@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- test-only utility; Fast Refresh does not apply, so co-locating the wrapper component with renderWithProviders + the testing-library re-export is intentional. */
 import { render, type RenderOptions, type RenderResult } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import ToastProvider from "@/components/toast/ToastProvider";

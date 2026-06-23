@@ -34,7 +34,7 @@ describe('ResultsPage', () => {
         },
         votes: new Map(),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 
@@ -68,7 +68,7 @@ describe('ResultsPage', () => {
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     
@@ -103,7 +103,7 @@ describe('ResultsPage', () => {
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     
@@ -121,7 +121,7 @@ describe('ResultsPage', () => {
         metadata: { title: 'Empty Results', timeSlots: [{ id: 't1' }], schedulingMode: 'EXACT' },
         votes: new Map(),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     
@@ -154,7 +154,7 @@ describe('ResultsPage', () => {
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 
@@ -204,14 +204,14 @@ describe('ResultsPage', () => {
         adminPublicKey: 'mock-pub-key',
         votes: new Map([['pub1', { participantName: 'Alice', email: 'alice@example.com', selections: { t1: 'YES' }, clientTimestamp: Date.now(), responseId: 'r1' }]]),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 
     const mockSession = {
       getSignerPublicKey: () => 'mock-pub-key'
     };
-    (pollService as any).getLedgerSession = vi.fn().mockResolvedValue(mockSession);
+    vi.mocked(pollService.getLedgerSession).mockResolvedValue(mockSession as unknown as LedgerSession);
 
     // Ensure we render the page FIRST so react can create its DOM elements natively
     renderPage();
@@ -365,7 +365,7 @@ describe('ResultsPage', () => {
         },
         votes: new Map(),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 

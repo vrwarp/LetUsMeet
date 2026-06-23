@@ -2,12 +2,17 @@ import '@testing-library/jest-dom';
 import 'whatwg-fetch';
 import { webcrypto } from 'node:crypto';
 
+declare global {
+  // `var` is required here: it is the only declaration form that augments globalThis.
+  var IS_VITEST: boolean;
+}
+
 if (!globalThis.crypto) {
   Object.defineProperty(globalThis, 'crypto', {
     value: webcrypto,
   });
 }
-(globalThis as any).IS_VITEST = true;
+globalThis.IS_VITEST = true;
 
 import { beforeAll, afterEach, afterAll, vi } from 'vitest';
 import { server } from './mocks/server';
@@ -65,7 +70,7 @@ const mockSession = {
 
 const pollServiceMock = {
   createBlindPoll: vi.fn(() => Promise.resolve({ pollId: 'mock-poll-id-123', key: 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=', adminToken: 'mock-admin-token' })),
-  subscribeToLedger: vi.fn((_session: any, callback: any) => {
+  subscribeToLedger: vi.fn((_session: unknown, callback: (state: unknown, status: string) => void) => {
     callback({
       adminPublicKey: 'mock-admin-pubkey',
       metadata: {
@@ -114,7 +119,7 @@ const pollServiceMock = {
     signingPrivateKey: 'priv',
     signingPublicKey: 'pub'
   })),
-  subscribeToUserKeystore: vi.fn((_uid: string, callback: any) => {
+  subscribeToUserKeystore: vi.fn((_uid: string, callback: (entries: unknown) => void) => {
     callback([{ 
       ledgerId: 'mock-poll-id-123',
       amkId: 'amk_v1',

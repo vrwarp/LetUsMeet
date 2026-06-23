@@ -12,6 +12,7 @@ import {
   subscribeAuthorizedDevices,
   rejectDeviceRequest
 } from "charproof";
+import type { DecryptedDevice } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -21,6 +22,8 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown, Edit3 } from "lucide-react";
 import { buttonClasses } from "@/components/buttonStyles";
 import type { PollMetadata, PendingDevice } from "../types";
+
+type AccountData = { devices: Record<string, DecryptedDevice> };
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
   const [code, setCode] = useState<string>("......");
@@ -106,7 +109,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setIsReady(true);
   }, []);
-  const [accountData, setAccountData] = useState<any>(null);
+  const [accountData, setAccountData] = useState<AccountData | null>(null);
   const [showRotationSuccess, setShowRotationSuccess] = useState(false);
 
 
@@ -138,10 +141,10 @@ export default function DashboardPage() {
   const [activeModal, setActiveModal] = useState<"passkey" | "backup" | "devices" | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const passkeyRef = useRef<any>(null);
-  const backupRef = useRef<any>(null);
+  const passkeyRef = useRef<HTMLDivElement>(null);
+  const backupRef = useRef<HTMLDivElement>(null);
   const masterRef = useRef<HTMLDivElement>(null);
-  const deviceRefs = useRef<{ [key: string]: any }>({});
+  const deviceRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // Accessibility: dialog refs. useFocusTrap moves focus into the dialog on
   // open and restores focus to the previously-focused element (the trigger)
@@ -214,7 +217,7 @@ export default function DashboardPage() {
     
     const devicesPaths: { [key: string]: string } = {};
     const devices = accountData?.devices ? Object.values(accountData.devices) : [];
-    devices.forEach((device: any) => {
+    devices.forEach((device: DecryptedDevice) => {
       const el = deviceRefs.current[device.deviceId];
       if (el) {
         const rect = el.getBoundingClientRect();
@@ -284,11 +287,11 @@ export default function DashboardPage() {
 
     // Listen to account keys using clean facade
     const unsubAccount = subscribeAuthorizedDevices((devices) => {
-      const devicesRecord: Record<string, any> = {};
+      const devicesRecord: Record<string, DecryptedDevice> = {};
       for (const dev of devices) {
         devicesRecord[dev.deviceId] = dev;
       }
-      setAccountData({ devices: devicesRecord } as any);
+      setAccountData({ devices: devicesRecord });
       getRecoveryStatus().then(setRecoveryStatus).catch((e) => {
         console.error("Failed to load recovery status:", e);
       });
@@ -384,8 +387,9 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       await revokeDevice(deviceId);
       setShowRotationSuccess(true);
       setTimeout(() => setShowRotationSuccess(false), 5000);
-    } catch (e: any) {
-      console.error("Failed to revoke device:", e?.message || String(e), e?.stack);
+    } catch (e) {
+      const err = e instanceof Error ? e : undefined;
+      console.error("Failed to revoke device:", err?.message || String(e), err?.stack);
       toast({ variant: "error", message: "Failed to revoke device." });
     }
   };
@@ -724,7 +728,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   <div>
                     <h4 className="font-bold text-amber-900 text-sm">Authorize New Device?</h4>
                     <p className="text-amber-800 text-xs mt-0.5 font-semibold">
-                      "{(req as any).decryptedDeviceName || "Unknown Device"}" wants access. Confirm code: <span className="font-mono font-bold bg-amber-100 px-2 py-0.5 rounded ml-1"><PendingCodeDisplay publicKey={req.publicKey} /></span>
+                      "{(req as PendingDevice & { decryptedDeviceName?: string }).decryptedDeviceName || "Unknown Device"}" wants access. Confirm code: <span className="font-mono font-bold bg-amber-100 px-2 py-0.5 rounded ml-1"><PendingCodeDisplay publicKey={req.publicKey} /></span>
                     </p>
                   </div>
                 </div>
@@ -799,7 +803,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               {/* Master Key (center) to Active Devices (right) */}
               {(() => {
                 const devicesList = accountData?.devices ? Object.values(accountData.devices) : [];
-                return devicesList.map((device: any, index: number) => {
+                return devicesList.map((device: DecryptedDevice, index: number) => {
                   const p = paths.devices[device.deviceId];
                   if (!p) return null;
                   return (
@@ -982,7 +986,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
 
             {/* COLUMN 3: AUTHORIZED ENDPOINTS / ACTIVE SESSIONS (RIGHT) */}
             <div data-testid="device-list" className="space-y-4 md:space-y-4 flex flex-col items-center md:items-start justify-center z-10 w-full">
-              {accountData?.devices && Object.values(accountData.devices).map((device: any) => {
+              {accountData?.devices && Object.values(accountData.devices).map((device: DecryptedDevice) => {
                 const isCurrent = device.deviceId === getDeviceId();
                 return (
                   <div
@@ -1216,7 +1220,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     </button>
                   </div>
                   <div className="max-h-[240px] overflow-y-auto px-1.5 py-2 space-y-2 mb-4">
-                    {accountData?.devices && Object.values(accountData.devices).map((device: any) => {
+                    {accountData?.devices && Object.values(accountData.devices).map((device: DecryptedDevice) => {
                       const isCurrent = device.deviceId === getDeviceId();
                       return (
                         <div 

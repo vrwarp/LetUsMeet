@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './DashboardPage';
 import * as pollService from '@/lib/pollService';
 import * as deviceService from 'charproof';
+import type { DecryptedKeystoreEntry, LedgerSession } from 'charproof';
 import { useAuth } from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth');
@@ -31,25 +32,25 @@ vi.mock('charproof', () => ({
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (useAuth as any).mockReturnValue({
+    vi.mocked(useAuth).mockReturnValue({
       user: { uid: 'user123', isAnonymous: false },
       loading: false,
       pendingRequests: [],
-    });
+    } as unknown as ReturnType<typeof useAuth>);
 
-    vi.mocked(deviceService.subscribeAuthorizedDevices).mockImplementation((cb: any) => {
+    vi.mocked(deviceService.subscribeAuthorizedDevices).mockImplementation((cb) => {
       cb([]);
       return () => { };
     });
 
-    vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((cb: any) => {
+    vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((cb) => {
       cb([{
         ledgerId: 'p1',
         amkId: 'amk_v1',
         encryptedData: 'ciphertext',
         iv: 'iv',
         updatedAt: Date.now()
-      } as any]);
+      } as unknown as DecryptedKeystoreEntry]);
       return () => { };
     });
 
@@ -71,7 +72,7 @@ describe('DashboardPage', () => {
       }),
       exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
       getSignerPublicKey: vi.fn().mockReturnValue('pub'),
-    } as any);
+    } as unknown as LedgerSession);
 
     vi.mocked(deviceService.getRecoveryStatus).mockResolvedValue({
       isSealed: true,
@@ -94,7 +95,7 @@ describe('DashboardPage', () => {
   });
 
   it('shows empty state when no polls found', async () => {
-    vi.mocked(pollService.subscribeToUserKeystore).mockImplementationOnce((cb: any) => {
+    vi.mocked(pollService.subscribeToUserKeystore).mockImplementationOnce((cb) => {
       cb([]);
       return () => { };
     });
@@ -109,7 +110,7 @@ describe('DashboardPage', () => {
   });
 
   it('categorizes polls and allows switching between Organized and Joined tabs', async () => {
-    vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((cb: any) => {
+    vi.mocked(pollService.subscribeToUserKeystore).mockImplementation((cb) => {
       cb([
         {
           ledgerId: 'p1',
@@ -125,7 +126,7 @@ describe('DashboardPage', () => {
           iv: 'iv',
           updatedAt: Date.now()
         }
-      ] as any);
+      ] as unknown as DecryptedKeystoreEntry[]);
       return () => { };
     });
 
@@ -149,7 +150,7 @@ describe('DashboardPage', () => {
         }),
         exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
         getSignerPublicKey: vi.fn().mockReturnValue('pub'),
-      } as any;
+      } as unknown as LedgerSession;
     });
 
     render(

@@ -31,6 +31,10 @@ import Button from "@/components/Button";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useToast } from "@/components/toast/toastContext";
 import { dragAnnouncements } from "@/lib/dndAnnouncements";
+import type { ExactTimeSlot, FuzzyTimeSlot } from "../types";
+
+type AiExactSlot = { date: string; start_time: string; end_time: string };
+type AiFuzzySlot = { date: string; label: string; time?: string };
 
 interface TimeSlotInput {
   id: string;
@@ -358,7 +362,7 @@ export default function CreatePollPage() {
       el.blur();
       setActiveInput(null);
     } else {
-      (el as any).showPicker?.();
+      (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
       setActiveInput(el);
     }
   };
@@ -441,7 +445,7 @@ export default function CreatePollPage() {
         if (schedulingMode === "EXACT") {
           const extractTimeSlots = httpsCallable(functions, "extractTimeSlots");
           const result = await extractTimeSlots({ query: aiQuery });
-          const data = result.data as { reasoning: string; time_slots: any[] };
+          const data = result.data as { reasoning: string; time_slots: AiExactSlot[] };
 
           if (data?.time_slots?.length > 0) {
             setPendingGeneratedSlots(data.time_slots.map((s) => ({
@@ -454,7 +458,7 @@ export default function CreatePollPage() {
         } else {
           const extractFuzzySlots = httpsCallable(functions, "extractFuzzySlots");
           const result = await extractFuzzySlots({ query: aiQuery });
-          const data = result.data as { reasoning: string; fuzzy_slots: any[] };
+          const data = result.data as { reasoning: string; fuzzy_slots: AiFuzzySlot[] };
 
           if (data?.fuzzy_slots?.length > 0) {
             setPendingGeneratedSlots(data.fuzzy_slots.map((s) => ({
@@ -466,15 +470,16 @@ export default function CreatePollPage() {
           }
         }
         break;
-      } catch (error: any) {
+      } catch (error) {
         console.error("AI Generation Error:", error);
         const retryableCodes = ['internal', 'unavailable', 'deadline-exceeded'];
-        if (retryableCodes.includes(error.code) && attempts < maxRetries) {
+        const code = (error as { code?: string }).code;
+        if (retryableCodes.includes(code as string) && attempts < maxRetries) {
           attempts++;
           await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
           continue;
         }
-        setAiError(error.message || "Failed to generate time slots. Please check your input and try again.");
+        setAiError((error instanceof Error ? error.message : "") || "Failed to generate time slots. Please check your input and try again.");
         break;
       }
     }
@@ -518,13 +523,13 @@ export default function CreatePollPage() {
             id: slot.id || generateId(),
             startTime: new Date(`${slot.date}T${slot.startTime || "09:00"}`).toISOString(),
             endTime: new Date(`${slot.date}T${slot.endTime || "10:00"}`).toISOString(),
-          })) as any[]
+          })) as ExactTimeSlot[]
           : slots.map(slot => ({
             id: slot.id || generateId(),
             date: slot.date,
             label: slot.label || "General",
             time: slot.time || undefined,
-          })) as any[],
+          })) as FuzzyTimeSlot[],
       };
 
       const { pollId, key, adminToken } = await createBlindPoll(metadata);

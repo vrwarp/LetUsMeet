@@ -306,7 +306,7 @@ export default function EditPollPage() {
       el.blur();
       setActiveInput(null);
     } else {
-      (el as any).showPicker?.();
+      (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
       setActiveInput(el);
     }
   };
@@ -501,13 +501,13 @@ export default function EditPollPage() {
             id: slot.id || generateId(),
             startTime: new Date(`${slot.date}T${slot.startTime || "09:00"}`).toISOString(),
             endTime: new Date(`${slot.date}T${slot.endTime || "10:00"}`).toISOString(),
-          })) as any[]
+          })) as ExactTimeSlot[]
           : slots.map(slot => ({
             id: slot.id || generateId(),
             date: slot.date,
             label: slot.label || "General",
             time: slot.time || undefined,
-          })) as any[],
+          })) as FuzzyTimeSlot[],
       };
 
       const action: PollAction = { type: "POLL_UPDATED", payload: updatedMetadata };

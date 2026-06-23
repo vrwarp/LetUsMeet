@@ -1,4 +1,8 @@
-import { Page, BrowserContext, TestInfo } from '@playwright/test';
+import { Page, BrowserContext, TestInfo, CDPSession } from '@playwright/test';
+
+// Playwright's `Page` has no slot for the CDP session we stash on it to keep the
+// virtual WebAuthn authenticator alive; declare the client-added field here.
+type PageWithCdp = Page & { _cdpSession?: CDPSession };
 
 /**
  * Helper to enable virtual WebAuthn authenticator for a context.
@@ -33,7 +37,7 @@ export async function enableVirtualAuthenticator(context: BrowserContext) {
 
   const setupPage = async (page: Page) => {
     try {
-      if ((page as any)._cdpSession) {
+      if ((page as PageWithCdp)._cdpSession) {
         console.log(`[WebAuthn] Virtual authenticator already enabled for page: ${page.url()}`);
         return;
       }
@@ -52,14 +56,15 @@ export async function enableVirtualAuthenticator(context: BrowserContext) {
         },
       });
       // Store the session on the page object to prevent it from being potentially garbage collected
-      (page as any)._cdpSession = cdp;
+      (page as PageWithCdp)._cdpSession = cdp;
 
       // Ensure ALL future loads of this page are signaled as ready
       await page.addInitScript(`if (window.__resolveWebAuthn) window.__resolveWebAuthn();`);
 
       // Signal for the current load immediately in case it's already past init
       await page.evaluate(() => {
-        if ((window as any).__resolveWebAuthn) (window as any).__resolveWebAuthn();
+        const w = window as unknown as { __resolveWebAuthn?: () => void };
+        if (w.__resolveWebAuthn) w.__resolveWebAuthn();
       }).catch(() => { });
 
       console.log(`[WebAuthn] Virtual authenticator enabled and signaled for page: ${page.url()}`);
@@ -108,7 +113,7 @@ export async function clearWebAuthn(context: BrowserContext) {
       await cdp.send('WebAuthn.enable').catch(() => { });
       await cdp.send('WebAuthn.clearAuthenticators').catch(() => { });
       // Store the session on the page object to prevent it from being potentially garbage collected
-      (page as any)._cdpSession = cdp;
+      (page as PageWithCdp)._cdpSession = cdp;
       console.log(`[WebAuthn] Cleared virtual authenticators for page: ${page.url()}`);
     } catch {
       // Ignore

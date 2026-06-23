@@ -10,7 +10,7 @@ import {
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
-import type { PollState, VoteValue, VoteData, PollAction } from "../types";
+import type { PollState, VoteValue, VoteData, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "../types";
 import TimeSlotCard from "@/components/TimeSlotCard";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
@@ -142,7 +142,7 @@ export default function VotePollPage() {
         );
 
         return unsubscribe;
-      } catch (err: any) {
+      } catch (err) {
         console.error("Initialization failed", err);
         if (mounted) {
           setInitError("We couldn't securely open this poll. Refresh the page to try again.");
@@ -275,9 +275,9 @@ export default function VotePollPage() {
       localStorage.removeItem(`draft_${pollId}`);
       toast({ variant: "success", message: "Response saved — you can edit anytime." });
       navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Vote submission failed:", err);
-      setError(err.message || "We couldn't save your response. Check your connection and try again.");
+      setError((err instanceof Error ? err.message : "") || "We couldn't save your response. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -343,9 +343,9 @@ export default function VotePollPage() {
   const { metadata } = pollState;
   const sortedSlots = [...metadata.timeSlots].sort((a, b) => {
     if (metadata.schedulingMode === "EXACT") {
-      return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
+      return new Date((a as ExactTimeSlot).startTime).getTime() - new Date((b as ExactTimeSlot).startTime).getTime();
     }
-    return (a as any).date.localeCompare((b as any).date);
+    return (a as FuzzyTimeSlot).date.localeCompare((b as FuzzyTimeSlot).date);
   });
 
   if (pollState.isFinalized) {

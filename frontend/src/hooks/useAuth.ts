@@ -173,11 +173,11 @@ export function useAuth() {
       await getActiveAmk();
       setIsDeviceRegistered(true);
       setKeyMismatchError(null);
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof DOMException && e.name === 'NotAllowedError') {
         // Keep keyMismatchError null for canceled enrollment prompts
       } else {
-        setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
+        setKeyMismatchError((e instanceof Error ? e.message : "") || "UNRECOGNIZED_DEVICE");
       }
       throw e;
     }

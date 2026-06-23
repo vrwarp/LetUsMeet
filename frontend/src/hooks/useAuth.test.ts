@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useAuth } from './useAuth';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
@@ -63,12 +63,12 @@ describe('useAuth hook', () => {
   });
 
   it('signs in anonymously if no user is present', async () => {
-    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
+    (onAuthStateChanged as unknown as Mock).mockImplementation((_auth: unknown, callback: (user: unknown) => void) => {
       callback(null);
       return vi.fn();
     });
 
-    (signInAnonymously as any).mockResolvedValue({ user: { uid: 'anon-123' } });
+    (signInAnonymously as unknown as Mock).mockResolvedValue({ user: { uid: 'anon-123' } });
 
     renderHook(() => useAuth());
 
@@ -79,7 +79,7 @@ describe('useAuth hook', () => {
 
   it('returns user if already signed in', async () => {
     const mockUser = { uid: 'user-123', isAnonymous: true };
-    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
+    (onAuthStateChanged as unknown as Mock).mockImplementation((_auth: unknown, callback: (user: unknown) => void) => {
       callback(mockUser);
       return vi.fn();
     });
@@ -95,7 +95,7 @@ describe('useAuth hook', () => {
   });
 
   it('sets loading to false after auth is initialized', async () => {
-    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
+    (onAuthStateChanged as unknown as Mock).mockImplementation((_auth: unknown, callback: (user: unknown) => void) => {
       setTimeout(() => callback({ uid: 'user-123', isAnonymous: true }), 10);
       return vi.fn();
     });
@@ -110,13 +110,13 @@ describe('useAuth hook', () => {
   });
 
   it('handles anonymous auth errors gracefully', async () => {
-    (onAuthStateChanged as any).mockImplementation((_auth: any, callback: any) => {
+    (onAuthStateChanged as unknown as Mock).mockImplementation((_auth: unknown, callback: (user: unknown) => void) => {
       callback(null);
       return vi.fn();
     });
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    (signInAnonymously as any).mockRejectedValue(new Error('Auth failed'));
+    (signInAnonymously as unknown as Mock).mockRejectedValue(new Error('Auth failed'));
 
     const { result } = renderHook(() => useAuth());
 
@@ -130,7 +130,7 @@ describe('useAuth hook', () => {
 
   it('unsubscribes on unmount', () => {
     const unsubscribeMock = vi.fn();
-    (onAuthStateChanged as any).mockImplementation(() => unsubscribeMock);
+    (onAuthStateChanged as unknown as Mock).mockImplementation(() => unsubscribeMock);
 
     const { unmount } = renderHook(() => useAuth());
     unmount();

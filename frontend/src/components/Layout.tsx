@@ -324,8 +324,8 @@ export default function Layout() {
                           setAuthError(null);
                           try {
                             await signInWithGoogle();
-                          } catch (e: any) {
-                            setAuthError(e.message);
+                          } catch (e) {
+                            setAuthError(e instanceof Error ? e.message : String(e));
                           }
                         }}
                         data-testid="google-signin-btn"
@@ -368,7 +368,7 @@ export default function Layout() {
                 <div className="flex-1 text-center sm:text-left">
                   <h3 className="text-base font-bold text-brand-green-dark">New Device Authorization</h3>
                   <p className="text-brand-green-dark/70 text-xs sm:text-sm">
-                    "{(req as any).decryptedDeviceName || "Unknown Device"}" wants to access your polls.
+                    "{(req as PendingDevice & { decryptedDeviceName?: string }).decryptedDeviceName || "Unknown Device"}" wants to access your polls.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
