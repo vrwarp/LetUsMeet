@@ -1,3 +1,5 @@
+> _Historical investigation record of a past dependency migration. Kept for context; not a current task list._
+
 # charproof 1.0.5 → 1.0.8 migration
 
 This note records what changed in the `charproof` zero-knowledge library between

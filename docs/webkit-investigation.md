@@ -1,3 +1,5 @@
+> _Historical investigation record. Kept for context; the fix it describes is already merged (see `frontend/src/firebase.ts`). Not a current task list._
+
 # WebKit E2E Slowness Investigation
 
 **Status: RESOLVED 2026-06-01.** Root cause: on WebKit + the Firestore emulator, setting
