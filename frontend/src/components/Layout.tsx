@@ -11,6 +11,7 @@ import ScrollToTop from "./ScrollToTop";
 import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
 import PageLoader from "./PageLoader";
 import Modal from "./Modal";
+import { extractAdminTokenFromFragment, stripAdminTokenFromFragment } from "@/lib/pollService";
 import {
   getLocalPublicKey, 
   requestDeviceAuthorization, 
@@ -83,20 +84,23 @@ export default function Layout() {
   }, [navigation.state]);
 
   useEffect(() => {
-    const token = searchParams.get("adminToken");
+    // Prefer the fragment (current scheme); fall back to the query string so
+    // older organizer links (?adminToken=...) keep working.
+    const token = extractAdminTokenFromFragment(location.hash) || searchParams.get("adminToken");
     if (token) {
-      // Async capture: lift the admin token out of the URL into state, then strip it from the URL.
+      // Async capture: lift the ownership token out of the URL into state, then
+      // strip it from BOTH the fragment and the query so it isn't shared or logged.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAdminToken(token);
 
       const cleanParams = new URLSearchParams(searchParams);
       cleanParams.delete("adminToken");
       const searchString = cleanParams.toString();
-      
+
       navigate({
         pathname: location.pathname,
         search: searchString ? `?${searchString}` : "",
-        hash: location.hash
+        hash: stripAdminTokenFromFragment(location.hash)
       }, { replace: true });
     }
   }, [searchParams, location.pathname, location.hash, navigate]);

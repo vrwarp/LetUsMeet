@@ -538,7 +538,9 @@ export default function CreatePollPage() {
 
       const { pollId, key, adminToken } = await createBlindPoll(metadata);
       toast({ variant: "success", message: "Poll created — share the link to collect responses." });
-      navigate(`/poll/${pollId}?adminToken=${adminToken}#key=${key}`);
+      // Keep the ownership token in the fragment (not the query string) so it is
+      // never sent to the server or leaked via logs/Referer. The key rides here too.
+      navigate(`/poll/${pollId}#key=${key}&adminToken=${adminToken}`);
 
     } catch (err: unknown) {
       console.error("Failed to create poll", err);

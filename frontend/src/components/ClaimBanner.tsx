@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   extractKeyFromFragment,
   getLedgerSession,
-  getShareableUrl
+  getShareableUrl,
+  appendAdminTokenToFragment
 } from "@/lib/pollService";
 import { loadFromKeystore } from "charproof";
 import { useToast } from "@/components/toast/toastContext";
@@ -155,7 +156,7 @@ export default function ClaimBanner() {
             <button
               data-testid="admin-link-button"
               onClick={async () => {
-                const adminLink = `${window.location.origin}${window.location.pathname}?adminToken=${activeAdminToken}${window.location.hash}`;
+                const adminLink = `${window.location.origin}${window.location.pathname}${appendAdminTokenToFragment(window.location.hash, activeAdminToken)}`;
                 const ok = await copyToClipboard(adminLink);
                 if (ok) {
                   setCopiedAdminLink(true);

@@ -88,6 +88,12 @@ const pollServiceMock = {
     return () => {};
   }),
   extractKeyFromFragment: vi.fn(() => 'YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
+  extractAdminTokenFromFragment: vi.fn(() => null),
+  appendAdminTokenToFragment: vi.fn(
+    (hash = '', token = '') =>
+      `${hash && hash !== '#' ? hash : '#'}${hash && hash !== '#' ? '&' : ''}adminToken=${token}`
+  ),
+  stripAdminTokenFromFragment: vi.fn((hash = '') => hash),
   friendlyStatus: vi.fn((status: string) => {
     switch (status) {
       case 'Initializing...':
