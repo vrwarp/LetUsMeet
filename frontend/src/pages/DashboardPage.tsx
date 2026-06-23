@@ -107,6 +107,8 @@ export default function DashboardPage() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
   const [accountData, setAccountData] = useState<AccountData | null>(null);
@@ -279,6 +281,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (loading || !user || user.isAnonymous) {
+      // Async subscription guard: nothing to fetch for signed-out/anon users; clear loading.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFetching(false);
       return;
     }

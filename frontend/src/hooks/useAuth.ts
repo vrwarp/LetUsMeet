@@ -108,6 +108,8 @@ export function useAuth() {
 
   useEffect(() => {
     if (!user || user.isAnonymous) {
+      // Async subscription guard: no device requests for signed-out/anon users; reset list.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingRequests([]);
       return;
     }

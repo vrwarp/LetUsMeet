@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -292,9 +292,11 @@ export default function EditPollPage() {
   useDocumentTitle("Edit poll — LetUsMeet");
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
-  
+
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Loading this poll…");
   const [session, setSession] = useState<LedgerSession | null>(null);
@@ -344,7 +346,11 @@ export default function EditPollPage() {
     }
   };
 
-  const [isAdmin, setIsAdmin] = useState(false);
+  // Derived in render (same check VotePollPage/ResultsPage use): no effect/state needed.
+  const isAdmin = !!(session && pollState?.adminPublicKey && session.getSignerPublicKey() === pollState.adminPublicKey);
+
+  // Seed the form from the synced poll state exactly once (closure-independent guard).
+  const didSeedRef = useRef(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -362,6 +368,8 @@ export default function EditPollPage() {
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
+      // Async init: load/error state is set from this init path; cannot derive in render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError("This link is missing its key, so this poll can't be unlocked. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;
@@ -377,13 +385,13 @@ export default function EditPollPage() {
           if (!mounted) return;
           if (state) {
             setPollState(state);
-            // Only update form if not already edited by user
-            // Simplified: always update on first load
-            if (isLoading) {
+            // Seed the form once from the first synced state. Guarded by a ref so the
+            // "seed once" decision is closure-independent (does not read isLoading).
+            if (!didSeedRef.current) {
                setTitle(state.metadata?.title || "");
                setDescription(state.metadata?.description || "");
                setLocation(state.metadata?.location || "");
-               
+
                const initialSlots: TimeSlotInput[] = (state.metadata?.timeSlots || []).map(slot => {
                  if (state.metadata?.schedulingMode === "EXACT") {
                    const exact = slot as ExactTimeSlot;
@@ -406,6 +414,7 @@ export default function EditPollPage() {
                  }
                });
                setSlots(initialSlots);
+               didSeedRef.current = true;
             }
             setIsLoading(false);
           } else if (status === "No valid events found.") {
@@ -413,11 +422,6 @@ export default function EditPollPage() {
           }
           setSyncStatus(status);
         });
-
-        // Verify Admin
-        if (pollState?.adminPublicKey) {
-           setIsAdmin(s.getSignerPublicKey() === pollState.adminPublicKey);
-        }
 
         return unsubscribe;
       } catch {
@@ -433,14 +437,11 @@ export default function EditPollPage() {
       mounted = false;
       unsubPromise.then(unsub => unsub?.());
     };
-  }, [pollId, pollState?.adminPublicKey]);
-
-  // Re-check admin when pollState is updated
-  useEffect(() => {
-    if (session && pollState?.adminPublicKey) {
-      setIsAdmin(session.getSignerPublicKey() === pollState.adminPublicKey);
-    }
-  }, [pollState?.adminPublicKey, session]);
+    // Subscribe once per pollId. adminPublicKey is intentionally NOT a dep: it
+    // flips undefined -> value on first sync, and re-subscribing on that would
+    // tear down and recreate the ledger subscription. isAdmin is derived in
+    // render from session + pollState, so no re-subscription is needed here.
+  }, [pollId]);
 
   const addSlot = () => {
     const lastSlot = slots[slots.length - 1];

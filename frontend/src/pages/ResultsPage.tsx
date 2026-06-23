@@ -102,10 +102,13 @@ export default function ResultsPage() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
   const [finalizing, setFinalizing] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  // Derived in render (same check VotePollPage uses): no effect/state needed.
+  const isAdmin = !!(session && pollState?.adminPublicKey && session.getSignerPublicKey() === pollState.adminPublicKey);
   const [unfinalizing, setUnfinalizing] = useState(false);
   const [showLocationCopied, setShowLocationCopied] = useState(false);
 
@@ -135,19 +138,12 @@ export default function ResultsPage() {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isMaximized, showShareModal]);
 
-  useEffect(() => {
-    if (session && pollState?.adminPublicKey) {
-      setIsAdmin(session.getSignerPublicKey() === pollState.adminPublicKey);
-    } else {
-      setIsAdmin(false);
-    }
-  }, [session, pollState?.adminPublicKey]);
-
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
     if (contentRef.current) {
+      // Layout measurement: reads DOM size after render.
       setContentHeight(contentRef.current.scrollHeight);
     }
   }, [pollState, isDescriptionExpanded]);
@@ -160,6 +156,8 @@ export default function ResultsPage() {
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
+      // Async init: load/error state is set from this init path; cannot derive in render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError("This link is missing its key, so these results can't be unlocked. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;

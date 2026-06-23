@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle, Edit3 } from "lucide-react";
 import {
@@ -30,9 +30,11 @@ export default function VotePollPage() {
   const askConfirm = useConfirm();
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
-  
+
   const [pollState, setPollState] = useState<PollState | null>(null);
   const [syncStatus, setSyncStatus] = useState("Loading this poll…");
   const [session, setSession] = useState<LedgerSession | null>(null);
@@ -55,6 +57,7 @@ export default function VotePollPage() {
 
   useEffect(() => {
     if (contentRef.current) {
+      // Layout measurement: reads DOM size after render.
       setContentHeight(contentRef.current.scrollHeight);
     }
   }, [pollState?.metadata]);
@@ -106,6 +109,8 @@ export default function VotePollPage() {
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
+      // Async init: load/error state is set from this init path; cannot derive in render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInitError("This link is missing the part that unlocks the poll. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;
@@ -158,12 +163,17 @@ export default function VotePollPage() {
     };
   }, [pollId, user?.uid, loading, retryKey]);
 
-  // 2. Derive User Votes
-  const userVotes = (pollState && session) ? Array.from(pollState.votes.entries())
-    .filter(([key]) => key.startsWith(session.getSignerPublicKey() + ":"))
-    .map(([, vote]) => vote)
-    .sort((a, b) => b.clientTimestamp - a.clientTimestamp)
-    : [];
+  // 2. Derive User Votes (memoized so it's a stable, honest dependency for the
+  // auto-init effect below; recomputes only when the votes map or session changes).
+  const userVotes = useMemo(
+    () => (pollState && session)
+      ? Array.from(pollState.votes.entries())
+        .filter(([key]) => key.startsWith(session.getSignerPublicKey() + ":"))
+        .map(([, vote]) => vote)
+        .sort((a, b) => b.clientTimestamp - a.clientTimestamp)
+      : [],
+    [pollState, session]
+  );
 
   // Detect organizer: signer matches the poll's admin public key (same check Results uses).
   const isAdmin = !!(session && pollState?.adminPublicKey && session.getSignerPublicKey() === pollState.adminPublicKey);
@@ -181,6 +191,9 @@ export default function VotePollPage() {
     if (savedDraftStr) {
       try {
         const draft = JSON.parse(savedDraftStr);
+        // One-shot init (guarded by hasInitializedRef): seed the form from the saved
+        // draft / latest vote. Set from async-resolved data; cannot derive in render.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelections(draft.selections || {});
         setParticipantName(draft.participantName || "");
         setParticipantEmail(draft.participantEmail || "");
@@ -203,7 +216,7 @@ export default function VotePollPage() {
     }
 
     hasInitializedRef.current = true;
-  }, [userVotes.length, pollState?.metadata, user?.displayName, user?.email, pollId, loading, participantName]);
+  }, [userVotes, pollState?.metadata, user?.displayName, user?.email, pollId, loading, participantName]);
 
   useEffect(() => {
     if (hasInitializedRef.current && pollId) {

@@ -84,8 +84,10 @@ export default function Layout() {
   useEffect(() => {
     const token = searchParams.get("adminToken");
     if (token) {
+      // Async capture: lift the admin token out of the URL into state, then strip it from the URL.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAdminToken(token);
-      
+
       const cleanParams = new URLSearchParams(searchParams);
       cleanParams.delete("adminToken");
       const searchString = cleanParams.toString();
@@ -170,6 +172,8 @@ export default function Layout() {
 
   // Close menu on navigation
   useEffect(() => {
+    // Close the profile dropdown whenever the route changes (navigation side effect).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMenuOpen(false);
   }, [location.pathname]);
 

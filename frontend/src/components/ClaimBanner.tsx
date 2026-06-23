@@ -34,6 +34,8 @@ export default function ClaimBanner() {
 
   useEffect(() => {
     if (!pollId || !user || user.isAnonymous) {
+      // Async keystore lookup guard: state is set from the async callback below; cannot derive in render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasKeystoreEntry(false);
       return;
     }
@@ -49,6 +51,7 @@ export default function ClaimBanner() {
     });
 
     return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- user identity tracked via uid; full user object identity is unstable across renders.
   }, [pollId, user?.uid]);
 
   if (!activeAdminToken || !pollId || isClaimed || hasKeystoreEntry === null || hasKeystoreEntry === true) {

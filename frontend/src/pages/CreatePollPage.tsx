@@ -311,6 +311,8 @@ export default function CreatePollPage() {
   useDocumentTitle("Create a poll — LetUsMeet");
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
 
@@ -348,6 +350,8 @@ export default function CreatePollPage() {
 
   useEffect(() => {
     if (!hasPrefilled && user && !user.isAnonymous) {
+      // Async prefill from the resolved auth user; one-shot guarded by hasPrefilled.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (user.displayName) setOrganizerName(user.displayName);
       if (user.displayName) {
         setHasPrefilled(true);
