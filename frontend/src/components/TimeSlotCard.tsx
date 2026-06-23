@@ -170,7 +170,6 @@ function TimeSlotCard({ slot, value, onChange, disabled }: Props) {
     <div
       onClick={handleCardClick}
       data-testid="slot-card"
-      aria-hidden={disabled ? undefined : undefined}
       className={`relative flex flex-col items-center p-6 rounded-2xl border-2 transition-all select-none min-h-[140px] justify-between shadow-md ${!disabled ? 'cursor-pointer active:scale-95' : ''} ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       <div className="flex flex-col items-center justify-center gap-1">

@@ -1,9 +1,16 @@
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { screen } from '@testing-library/react';
-import { renderWithProviders as render } from '@/test/renderWithProviders';
+import { renderWithProviders } from '@/test/renderWithProviders';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import DeviceEnrollmentGate from './DeviceEnrollmentGate';
 import { useAuth } from '@/hooks/useAuth';
+
+// The gate renders a react-router <Link> when shown, so a Router context is
+// required for the rendered tree.
+const render = (ui: ReactElement) =>
+  renderWithProviders(<MemoryRouter>{ui}</MemoryRouter>);
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(),

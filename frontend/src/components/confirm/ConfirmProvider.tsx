@@ -76,7 +76,7 @@ export default function ConfirmProvider({ children }: { children: ReactNode }) {
         portalTarget &&
         createPortal(
           <div
-            className="fixed inset-0 z-[150] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-[250] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) close(false);
             }}

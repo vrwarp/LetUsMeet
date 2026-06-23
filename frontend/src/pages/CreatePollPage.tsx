@@ -741,6 +741,7 @@ export default function CreatePollPage() {
                   <textarea
                     id="ai-query"
                     placeholder="Type your availability here..."
+                    maxLength={2000}
                     className="flex-1 px-3 py-[8px] text-sm leading-5 rounded-lg border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all bg-white resize-none h-[68px] min-h-[38px] [field-sizing:content] [@supports(field-sizing:content)]:h-auto"
                     value={aiQuery}
                     onChange={(e) => setAiQuery(e.target.value)}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import Modal from "@/components/Modal";
@@ -79,6 +80,13 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-3 sm:mt-4 leading-relaxed max-w-sm">
                 Your polls are encrypted so only you and your group can read them — not even we can. Set up a passkey with this device's Touch ID, Face ID, or screen lock to keep them safe.
               </p>
+
+              <Link
+                to="/privacy"
+                className="text-xs text-neutral-400 hover:text-neutral-600 font-medium underline decoration-dotted transition-colors mt-3"
+              >
+                Learn how your data stays private
+              </Link>
 
               {errorMessage && (
                 <div role="alert" className="w-full bg-red-50 text-brand-red text-xs sm:text-sm font-semibold py-3 px-4 rounded-xl mt-4 border border-red-100">
