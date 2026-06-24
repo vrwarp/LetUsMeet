@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
-import heroBase64 from "@/assets/hero-transparent.webp?inline";
+import heroImg from "@/assets/hero-transparent.webp";
 
 export default function HomePage() {
   return (
@@ -11,8 +11,10 @@ export default function HomePage() {
         <div className="bg-white flex flex-col items-center justify-center py-12 px-6 sm:p-20 relative">
           <Link to="/create" className="max-w-md w-full flex flex-col items-center gap-4 group/hero hover:scale-[1.02] transition-transform duration-500">
             <img
-              src={heroBase64}
+              src={heroImg}
               alt="LetUsMeet Mascot"
+              width={1325}
+              height={1378}
               className="w-full max-w-[280px] sm:max-w-[400px] h-auto drop-shadow-2xl animate-bounce-subtle"
             />
           </Link>
@@ -22,22 +24,25 @@ export default function HomePage() {
         <div className="bg-[#2D5A43] flex flex-col items-center justify-center py-16 px-8 sm:p-20 text-center md:text-left md:items-start">
           <div className="max-w-md w-full space-y-8 sm:space-y-10">
             <h1 className="text-5xl sm:text-8xl font-display font-bold text-white leading-tight tracking-tight px-2 sm:px-0">
-              Let everyone meet.
+              Find a time that works for everyone.
             </h1>
+            <p className="text-base sm:text-lg text-neutral-100 leading-relaxed px-2 sm:px-0">
+              Create a poll, share one link, and let everyone vote their availability. Private by design — your details are encrypted, so only your group can read them.
+            </p>
             <div className="flex flex-col items-center md:items-start gap-4">
               <Link
                 to="/create"
                 data-testid="create-poll-btn"
-                className="inline-flex items-center justify-center bg-[#5B8C3A] hover:bg-[#4A722F] text-white font-display font-bold text-xl sm:text-2xl px-10 py-5 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95 w-full sm:w-auto"
+                className="inline-flex items-center justify-center bg-brand-green hover:bg-brand-green-dark text-white font-display font-bold text-xl sm:text-2xl px-10 py-5 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95 w-full sm:w-auto focus-ring"
               >
-                Start a Poll
+                Create a poll — it's free
               </Link>
               <Link
                 to="/privacy"
                 className="inline-flex items-center gap-1.5 text-xs text-neutral-100 hover:text-white font-medium transition-colors mt-2"
               >
                 <ShieldCheck size={14} className="text-[#A2D381] flex-shrink-0" />
-                <span>Zero-knowledge. Learn more.</span>
+                <span>Private by design — even we can't read your polls. Learn how.</span>
               </Link>
             </div>
           </div>

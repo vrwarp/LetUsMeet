@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePollState } from './pollReducer';
-import type { PollMetadata, VoteData } from '../types';
+import type { PollMetadata, VoteData, PollAction } from '../types';
 import type { DecryptedLedgerEvent } from 'charproof';
 
 describe('Poll Reducer', () => {
@@ -15,7 +15,7 @@ describe('Poll Reducer', () => {
     timeSlots: [{ id: 't1', startTime: '...', endTime: '...' }]
   };
 
-  function createEvent(pubKey: string, action: any): DecryptedLedgerEvent {
+  function createEvent(pubKey: string, action: PollAction): DecryptedLedgerEvent {
     return { signerPublicKey: pubKey, action };
   }
 
@@ -61,7 +61,7 @@ describe('Poll Reducer', () => {
 
   it('should allow voters to retract their votes', () => {
     const genesis = createEvent(adminPub, { type: 'POLL_CREATED', payload: mockMetadata });
-    const vote = createEvent(voterPub, { type: 'VOTE_UPSERT', payload: { responseId: "r1", participantName: "Bob" } as any });
+    const vote = createEvent(voterPub, { type: 'VOTE_UPSERT', payload: { responseId: "r1", participantName: "Bob" } as unknown as VoteData });
     const retract = createEvent(voterPub, { type: 'VOTE_RETRACTED', payload: { responseId: "r1" } });
     
     const state = calculatePollState([genesis, vote, retract]);
@@ -71,7 +71,7 @@ describe('Poll Reducer', () => {
   it('should reject votes after finalization', () => {
     const genesis = createEvent(adminPub, { type: 'POLL_CREATED', payload: mockMetadata });
     const finalize = createEvent(adminPub, { type: 'POLL_FINALIZED', payload: { finalizedSlotId: 't1' } });
-    const lateVote = createEvent(voterPub, { type: 'VOTE_UPSERT', payload: { responseId: "r1", participantName: "Bob" } as any });
+    const lateVote = createEvent(voterPub, { type: 'VOTE_UPSERT', payload: { responseId: "r1", participantName: "Bob" } as unknown as VoteData });
     
     const state = calculatePollState([genesis, finalize, lateVote]);
     expect(state.isFinalized).toBe(true);

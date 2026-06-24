@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
   Loader2, 
@@ -15,29 +15,85 @@ import {
   Lock,
   MapPin,
   Share2,
-  Send,
   AlertTriangle
 } from "lucide-react";
-import { 
-  extractKeyFromFragment, 
-  subscribeToLedger, 
+import {
+  extractKeyFromFragment,
+  subscribeToLedger,
   getShareableUrl,
-  getLedgerSession
+  getLedgerSession,
+  friendlyStatus
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import { useAuth } from "../hooks/useAuth";
-import type { PollState, VoteValue, PollAction } from "../types";
+import type {
+  PollState,
+  VoteValue,
+  PollAction,
+  SchedulingMode,
+  TimeSlot,
+  ExactTimeSlot,
+  FuzzyTimeSlot,
+} from "../types";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
+import PageLoader from "@/components/PageLoader";
+import MatrixTable from "@/components/MatrixTable";
+import Modal from "@/components/Modal";
+import EmptyState from "@/components/EmptyState";
+import { buttonClasses } from "@/components/buttonStyles";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
+import { copyToClipboard } from "@/lib/clipboard";
+
+/**
+ * Safely formats the header "Confirmed/Leading time" label for a slot. Returns
+ * null when the slot is missing (e.g. the finalized slot was edited out of the
+ * poll after finalize) or its date is missing/invalid, so callers can render a
+ * graceful fallback instead of crashing on a non-null assertion / Invalid Date.
+ */
+function formatSlotLabel(
+  slot: TimeSlot | undefined,
+  schedulingMode: SchedulingMode
+): string | null {
+  if (!slot) return null;
+
+  if (schedulingMode === "EXACT") {
+    if (!("startTime" in slot) || !slot.startTime) return null;
+    const date = new Date(slot.startTime);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  if (!("date" in slot) || !slot.date) return null;
+  const date = new Date(slot.date + "T00:00:00");
+  if (Number.isNaN(date.getTime())) return null;
+  const dateLabel = date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  return slot.label ? `${dateLabel}, ${slot.label}` : dateLabel;
+}
 
 export default function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { user, loading } = useAuth();
-  
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
+
   const [pollState, setPollState] = useState<PollState | null>(null);
-  const [syncStatus, setSyncStatus] = useState("Initializing...");
+  const [syncStatus, setSyncStatus] = useState("Getting the latest responses…");
   const [session, setSession] = useState<LedgerSession | null>(null);
   const [connectionError, setConnectionError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,26 +104,28 @@ export default function ResultsPage() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
   const [finalizing, setFinalizing] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  // Derived in render (same check VotePollPage uses): no effect/state needed.
+  const isAdmin = !!(session && pollState?.adminPublicKey && session.getSignerPublicKey() === pollState.adminPublicKey);
   const [unfinalizing, setUnfinalizing] = useState(false);
   const [showLocationCopied, setShowLocationCopied] = useState(false);
 
-  useEffect(() => {
-    if (session && pollState?.adminPublicKey) {
-      setIsAdmin(session.getSignerPublicKey() === pollState.adminPublicKey);
-    } else {
-      setIsAdmin(false);
-    }
-  }, [session, pollState?.adminPublicKey]);
+  useDocumentTitle(
+    pollState?.metadata?.title
+      ? `${pollState.metadata.title} — Results — LetUsMeet`
+      : "Poll results — LetUsMeet"
+  );
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
     if (contentRef.current) {
+      // Layout measurement: reads DOM size after render.
       setContentHeight(contentRef.current.scrollHeight);
     }
   }, [pollState, isDescriptionExpanded]);
@@ -76,22 +134,29 @@ export default function ResultsPage() {
   useEffect(() => {
     if (loading) return;
     if (!pollId) return;
+    let mounted = true;
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
-      setError("This poll requires a secret key to view results.");
+      // Async init: load/error state is set from this init path; cannot derive in render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError("This link is missing its key, so these results can't be unlocked. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;
     }
 
+    setError(null);
+    setIsLoading(true);
+
     const init = async () => {
       try {
         const s = await getLedgerSession(pollId, { shareableKey: b64Key });
-        setSession(s);
+        if (mounted) setSession(s);
 
         const unsubscribe = subscribeToLedger(
           s,
           (state, status) => {
+            if (!mounted) return;
             if (state) {
               setPollState(state);
               setIsLoading(false);
@@ -103,66 +168,69 @@ export default function ResultsPage() {
             setSyncStatus(status);
           },
           (err) => {
+            if (!mounted) return;
             console.error("Ledger subscription failed:", err);
             setConnectionError(true);
           }
         );
 
         return unsubscribe;
-      } catch (err: any) {
-        setError("Failed to initialize session.");
-        setIsLoading(false);
+      } catch {
+        if (mounted) {
+          setError("We couldn't reach the server to open these results — retry.");
+          setIsLoading(false);
+        }
       }
     };
 
     const unsubPromise = init();
-    return () => { unsubPromise.then(unsub => unsub?.()); };
-  }, [pollId, user?.uid, loading]);
+    return () => {
+      mounted = false;
+      unsubPromise.then(unsub => unsub?.());
+    };
+  }, [pollId, user?.uid, loading, retryKey]);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">{syncStatus}</p>
-      </div>
-    );
-  }
+  // --- Derived results data (memoized) ---------------------------------------
+  // Computed unconditionally (with null guards) so the hooks run on every render,
+  // then consumed in the success branch below. Memoizing keeps the maximize
+  // dialog and share/description toggles from recomputing the whole matrix.
+  const votesMap = pollState?.votes ?? null;
+  const schedulingMode = pollState?.metadata?.schedulingMode;
+  const timeSlots = pollState?.metadata?.timeSlots;
 
-  if (error || !pollState || !pollState.metadata) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h2>
-        <p className="text-neutral-600 text-lg mb-8">{error || "Access Denied."}</p>
-        <Link to="/" className="btn-primary-green inline-block">Return to Home</Link>
-      </div>
-    );
-  }
+  const voteArray = useMemo(
+    () =>
+      votesMap
+        ? Array.from(votesMap.entries()).map(([pubKey, data]) => ({ pubKey, ...data }))
+        : [],
+    [votesMap]
+  );
 
-  const { metadata, votes } = pollState;
+  const voteCounts = useMemo(
+    () =>
+      (timeSlots ?? []).reduce((acc, slot) => {
+        acc[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0, BLANK: 0 };
+        voteArray.forEach(v => {
+          const val = v.selections[slot.id] || "BLANK";
+          acc[slot.id][val]++;
+        });
+        return acc;
+      }, {} as Record<string, Record<VoteValue, number>>),
+    [timeSlots, voteArray]
+  );
 
-  const voteArray = Array.from(votes.entries()).map(([pubKey, data]) => ({
-    pubKey,
-    ...data
-  }));
+  const sortedSlots = useMemo(
+    () =>
+      [...(timeSlots ?? [])].sort((a, b) => {
+        if (schedulingMode === "EXACT") {
+          return new Date((a as ExactTimeSlot).startTime).getTime() - new Date((b as ExactTimeSlot).startTime).getTime();
+        }
+        return (a as FuzzyTimeSlot).date.localeCompare((b as FuzzyTimeSlot).date);
+      }),
+    [timeSlots, schedulingMode]
+  );
 
-  const voteCounts = metadata.timeSlots.reduce((acc, slot) => {
-    acc[slot.id] = { YES: 0, NO: 0, IF_NEED_BE: 0, BLANK: 0 };
-    voteArray.forEach(v => {
-      const val = v.selections[slot.id] || "BLANK";
-      acc[slot.id][val]++;
-    });
-    return acc;
-  }, {} as Record<string, Record<VoteValue, number>>);
-
-  let sortedSlots = [...metadata.timeSlots].sort((a, b) => {
-    if (metadata.schedulingMode === "EXACT") {
-      return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
-    }
-    return (a as any).date.localeCompare((b as any).date);
-  });
-
-  const topSlotIds = (() => {
+  const topSlotIds = useMemo(() => {
     if (voteArray.length === 0) return [];
     let maxScore = -1;
     let ids: string[] = [];
@@ -171,69 +239,62 @@ export default function ResultsPage() {
       if (score > maxScore) {
         maxScore = score;
         ids = [id];
-      } else if (score === maxScore && score >= 0) {
+      } else if (score === maxScore) {
         ids.push(id);
       }
     });
     return ids;
-  })();
+  }, [voteCounts, voteArray.length]);
 
   const bestSlotId = topSlotIds[0] || null;
 
+  // Per-slot formatted header date/time labels for the matrix, precomputed so
+  // MatrixTable receives plain strings and doesn't reparse Dates on every render.
+  const slotHeaderLabels = useMemo(() => {
+    const map = new Map<string, { date: string; time: string }>();
+    sortedSlots.forEach(slot => {
+      if (schedulingMode === "EXACT") {
+        const start = new Date((slot as ExactTimeSlot).startTime);
+        map.set(slot.id, {
+          date: start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+        });
+      } else {
+        const fuzzy = slot as FuzzyTimeSlot;
+        map.set(slot.id, {
+          date: new Date(fuzzy.date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: fuzzy.label,
+        });
+      }
+    });
+    return map;
+  }, [sortedSlots, schedulingMode]);
 
-
-
-
-  const handleCopyLocation = () => {
-    if (metadata.location) {
-      navigator.clipboard.writeText(metadata.location);
-      setShowLocationCopied(true);
-      setTimeout(() => setShowLocationCopied(false), 2000);
-    }
-  };
-
-  const handleFinalize = async (slotId: string) => {
+  // Stable matrix callbacks (useCallback) so the memoized <MatrixTable> doesn't
+  // re-render when the maximize dialog or share/description toggles flip state.
+  const handleFinalize = useCallback(async (slotId: string) => {
     if (!session || !pollId) return;
+    if (!(await askConfirm({
+      title: "Confirm this time and close voting for everyone?",
+      body: "Participants will no longer be able to respond. You can reopen voting later.",
+      confirmLabel: "Confirm time",
+      variant: "warning",
+    }))) return;
     setFinalizing(slotId);
     try {
       const action: PollAction = { type: "POLL_FINALIZED", payload: { finalizedSlotId: slotId } };
       await session.appendEvent(action);
-    } catch (err) {
-      alert("Failed to finalize.");
+      toast({ variant: "success", message: "Time confirmed. Voting is now closed." });
+    } catch {
+      toast({ variant: "error", message: "We couldn't confirm that time. Try again." });
     } finally {
       setFinalizing(null);
     }
-  };
+  }, [session, pollId, askConfirm, toast]);
 
-  const handleUnfinalize = async () => {
-    if (!session || !pollId) return;
-    if (!confirm("Are you sure you want to unselect the confirmed date?")) return;
-    
-    setUnfinalizing(true);
-    try {
-      const action: PollAction = { type: "POLL_UNFINALIZED", payload: null };
-      await session.appendEvent(action);
-    } catch (err) {
-      alert("Failed to unselect date.");
-    } finally {
-      setUnfinalizing(false);
-    }
-  };
-
-  const getResultsLink = () => {
-    return getShareableUrl();
-  };
-
-  const getPollLink = () => {
-    return getShareableUrl().replace("/results", "");
-  };
-
-  const handleShare = () => {
-    setShowShareModal(true);
-  };
-
-  const handleComposeEmail = () => {
-    if (!metadata || voteArray.length === 0) return;
+  const handleComposeEmail = useCallback(() => {
+    const meta = pollState?.metadata;
+    if (!meta || voteArray.length === 0) return;
 
     const participantsWithEmail = voteArray
       .filter(v => !!v.email)
@@ -244,7 +305,7 @@ export default function ResultsPage() {
       .map(v => v.participantName);
 
     if (participantsWithEmail.length === 0) {
-      alert("No participants have provided their email address.");
+      toast({ variant: "info", message: "None of your participants added an email, so there's no one to send to yet." });
       return;
     }
 
@@ -252,29 +313,29 @@ export default function ResultsPage() {
       .map(p => `"${p.name}" <${p.email}>`)
       .join(", ");
 
-    const subject = `Meeting Update: ${metadata.title}`;
-    
+    const subject = `Meeting Update: ${meta.title}`;
+
     let bodyText = `Hi everyone,\n\n`;
-    
+
     if (participantsWithoutEmail.length > 0) {
       bodyText += `[Note: The following participants' emails were unavailable and not included in this thread: ${participantsWithoutEmail.join(", ")}]\n\n`;
     }
 
-    bodyText += `I'm writing to share an update regarding our meeting "${metadata.title}".\n\n`;
-    
-    if (pollState.isFinalized && pollState.finalizedSlotId) {
-      const slot = metadata.timeSlots.find(s => s.id === pollState.finalizedSlotId);
+    bodyText += `I'm writing to share an update regarding our meeting "${meta.title}".\n\n`;
+
+    if (pollState?.isFinalized && pollState?.finalizedSlotId) {
+      const slot = meta.timeSlots.find(s => s.id === pollState.finalizedSlotId);
       if (slot) {
-        const dateStr = metadata.schedulingMode === "EXACT" 
-          ? new Date((slot as any).startTime).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-          : `${new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${(slot as any).label})`;
-        
+        const dateStr = meta.schedulingMode === "EXACT"
+          ? new Date((slot as ExactTimeSlot).startTime).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+          : `${new Date((slot as FuzzyTimeSlot).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${(slot as FuzzyTimeSlot).label})`;
+
         bodyText += `CONFIRMED DATE:\n${dateStr}\n\n`;
       }
     }
 
-    if (metadata.location) {
-      bodyText += `LOCATION:\n${metadata.location}\n\n`;
+    if (meta.location) {
+      bodyText += `LOCATION:\n${meta.location}\n\n`;
     }
 
     bodyText += `You can view the full results and the availability grid here: ${getShareableUrl()}\n\nBest regards,\n${user?.displayName || 'The Organizer'}`;
@@ -294,113 +355,126 @@ export default function ResultsPage() {
     } else {
       console.error("Invalid mailto protocol generated");
     }
+  }, [pollState, voteArray, toast, user]);
+
+  if (isLoading) {
+    return (
+      <PageLoader
+        testId="loader"
+        heading="Loading results"
+        message={friendlyStatus(syncStatus)}
+      />
+    );
+  }
+
+  if (error || !pollState || !pollState.metadata) {
+    const isMissingKey = error?.startsWith("This link is missing its key");
+    const canRetry = !!error && !isMissingKey;
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
+        <h1 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h1>
+        <p className="text-neutral-600 text-lg mb-8">{error || "Access Denied."}</p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {canRetry && (
+            <button
+              type="button"
+              onClick={() => setRetryKey((k) => k + 1)}
+              className={buttonClasses("primary", "lg")}
+            >
+              <RotateCcw className="w-5 h-5" aria-hidden="true" />
+              Retry
+            </button>
+          )}
+          <Link to="/" className={canRetry ? buttonClasses("secondary", "lg") : buttonClasses("primary", "lg")}>Return to Home</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // `metadata` is guaranteed non-null here by the guard above. The derived data
+  // (voteArray/voteCounts/sortedSlots/topSlotIds/bestSlotId/slotHeaderLabels) is
+  // memoized at the top of the component.
+  const { metadata } = pollState;
+
+
+  const handleCopyLocation = async () => {
+    if (metadata.location) {
+      const ok = await copyToClipboard(metadata.location);
+      if (ok) {
+        setShowLocationCopied(true);
+        setTimeout(() => setShowLocationCopied(false), 2000);
+      } else {
+        toast({ variant: "error", message: "We couldn't copy the location. Try copying it manually." });
+      }
+    }
+  };
+
+  const handleUnfinalize = async () => {
+    if (!session || !pollId) return;
+    if (!(await askConfirm({
+      title: "Reopen voting?",
+      body: "This unselects the confirmed time and lets participants respond again.",
+      confirmLabel: "Reopen voting",
+      variant: "warning",
+    }))) return;
+
+    setUnfinalizing(true);
+    try {
+      const action: PollAction = { type: "POLL_UNFINALIZED", payload: null };
+      await session.appendEvent(action);
+      toast({ variant: "success", message: "Voting reopened." });
+    } catch {
+      toast({ variant: "error", message: "We couldn't change the confirmed time. Try again." });
+    } finally {
+      setUnfinalizing(false);
+    }
+  };
+
+  const getResultsLink = () => {
+    return getShareableUrl();
+  };
+
+  const getPollLink = () => {
+    return getShareableUrl().replace("/results", "");
+  };
+
+  const handleShare = async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ url: getResultsLink() });
+        return;
+      } catch {
+        // User dismissed the share sheet or it failed — fall through to the modal.
+      }
+    }
+    setShowShareModal(true);
   };
 
   const renderMatrixTable = (isCompact = false) => (
-    <div className={`overflow-x-auto rounded-2xl border border-neutral-100 bg-white ${isCompact ? 'border-none shadow-none' : ''}`}>
-      <table data-testid="results-matrix" className="w-full border-collapse md:min-w-[600px]">
-        <thead>
-          <tr className="bg-neutral-50 border-b border-neutral-100">
-            <th className="p-4 text-left font-semibold text-neutral-700 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]">
-              <div className="flex items-center justify-between gap-2 overflow-hidden">
-                <span className="truncate md:overflow-visible md:whitespace-normal">Participants</span>
-                {isAdmin && (
-                  <button 
-                    onClick={handleComposeEmail}
-                    disabled={!isReady}
-                    className="p-1 hover:bg-neutral-200 rounded-lg transition-colors text-brand-green flex-shrink-0 disabled:opacity-50"
-                    title="Email all participants"
-                  >
-                    <Send className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </th>
-            {sortedSlots.map(slot => (
-              <th key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
-                <div className="text-[11px] md:text-sm font-bold text-neutral-800 leading-tight">
-                  {metadata.schedulingMode === "EXACT" 
-                    ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-                    : new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-                  }
-                </div>
-                <div className="text-[10px] md:text-xs text-neutral-500 leading-tight">
-                  {metadata.schedulingMode === "EXACT"
-                    ? new Date((slot as any).startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-                    : (slot as any).label
-                  }
-                </div>
-                {isAdmin && !pollState.isFinalized && (
-                  <button
-                    onClick={() => handleFinalize(slot.id)}
-                    disabled={!isReady || finalizing === slot.id}
-                    className="mt-2 text-[10px] md:text-xs font-black bg-brand-green text-white px-3 py-1 rounded-full uppercase hover:bg-brand-green-dark transition-all hover:scale-105 active:scale-95 shadow-sm disabled:opacity-50"
-                  >
-                    {finalizing === slot.id ? "..." : "Select"}
-                  </button>
-                )}
-              </th>
-            ))}
-            <th className="w-full bg-neutral-50 border-b border-neutral-100"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {voteArray.map((vote, idx) => (
-            <tr key={idx} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
-              <td className={`${isCompact ? 'p-2' : 'p-4'} sticky left-0 bg-white z-10 border-r border-neutral-100 w-[180px] min-w-[160px] md:w-[240px] md:min-w-[220px]`}>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-neutral-800 truncate">{vote.participantName}</span>
-                  {vote.email && (
-                    <span className="text-[10px] text-neutral-500 font-medium truncate">{vote.email}</span>
-                  )}
-                </div>
-              </td>
-              {sortedSlots.map(slot => (
-                <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/20' : ''}`}>
-                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
-                    vote.selections[slot.id] === "YES" ? "bg-brand-green-light text-brand-green-dark" :
-                    vote.selections[slot.id] === "IF_NEED_BE" ? "bg-amber-50 text-amber-800" :
-                    vote.selections[slot.id] === "BLANK" ? "bg-neutral-50 text-neutral-300" :
-                    "bg-red-50 text-red-600"
-                  }`}>
-                    {
-                      vote.selections[slot.id] === "YES" ? "✓" : 
-                      vote.selections[slot.id] === "IF_NEED_BE" ? "⚠" : 
-                      vote.selections[slot.id] === "BLANK" ? "" : 
-                      "×"
-                    }
-                  </div>
-                </td>
-              ))}
-              <td className="w-full"></td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot className="bg-neutral-50 font-black">
-          <tr>
-            <td className="p-4 sticky left-0 bg-neutral-50 z-10 border-r border-neutral-100 uppercase text-xs">TOTAL</td>
-            {sortedSlots.map(slot => (
-              <td key={slot.id} className={`${isCompact ? 'p-1' : 'p-2'} md:p-4 text-center min-w-[80px] max-w-[100px] md:min-w-[120px] md:max-w-[180px] ${pollState.finalizedSlotId === slot.id ? 'bg-brand-green-light/50' : ''}`}>
-                <div data-testid={`total-${slot.id}`} className="flex items-center justify-center gap-1 font-bold text-base md:text-lg">
-                  <span className="text-brand-green-dark">{voteCounts[slot.id].YES}</span>
-                  {voteCounts[slot.id].IF_NEED_BE > 0 && <span className="text-amber-500 text-sm md:text-sm">({voteCounts[slot.id].IF_NEED_BE})</span>}
-                </div>
-              </td>
-            ))}
-            <td className="w-full bg-neutral-50"></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <MatrixTable
+      sortedSlots={sortedSlots}
+      voteArray={voteArray}
+      voteCounts={voteCounts}
+      slotHeaderLabels={slotHeaderLabels}
+      finalizedSlotId={pollState.finalizedSlotId ?? null}
+      isFinalized={!!pollState.isFinalized}
+      isCompact={isCompact}
+      isAdmin={isAdmin}
+      isReady={isReady}
+      finalizing={finalizing}
+      onFinalize={handleFinalize}
+      onComposeEmail={handleComposeEmail}
+    />
   );
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
       {connectionError && (
-        <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div role="status" aria-live="polite" data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
-            <span>Connection sluggish or offline. Trying to reconnect automatically...</span>
+            <AlertTriangle className="text-amber-500 animate-pulse" size={20} aria-hidden="true" />
+            <span>Trouble connecting. We'll keep trying to reconnect...</span>
           </div>
           <button
             type="button"
@@ -415,7 +489,7 @@ export default function ResultsPage() {
         </div>
       )}
       <Link to={`/poll/${pollId}${window.location.search}${window.location.hash}`} className="inline-flex items-center gap-2 text-brand-green-dark font-bold mb-8">
-        <ArrowLeft size={16} /> Back to Poll
+        <ArrowLeft size={16} aria-hidden="true" /> Back to Poll
       </Link>
 
       <div className={`${pollState.isFinalized ? 'bg-[#0a1108]' : 'bg-brand-gradient'} rounded-[3rem] shadow-2xl relative overflow-hidden transition-colors duration-700 mb-12`}>
@@ -444,7 +518,7 @@ export default function ResultsPage() {
                         {metadata.title}
                       </h1>
                       {metadata.description && (
-                        <p className="text-base md:text-lg text-white/60 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
+                        <p className="text-base md:text-lg text-white/80 font-medium max-w-3xl leading-relaxed break-words whitespace-pre-wrap">
                           {metadata.description}
                         </p>
                       )}
@@ -456,10 +530,10 @@ export default function ResultsPage() {
                       }`}>
                         <button
                           onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                          className="group/btn flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white/70 transition-all active:scale-95 shadow-lg"
+                          className="group/btn flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white/80 transition-all active:scale-95 shadow-lg"
                         >
                           {isDescriptionExpanded ? "Show Less" : "Show More"}
-                          <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isDescriptionExpanded ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isDescriptionExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
                         </button>
                       </div>
                     )}
@@ -470,24 +544,50 @@ export default function ResultsPage() {
 
             {/* Confirmed Date / Top Choice Box - Featured on Results Page */}
             {bestSlotId && (
-              <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 min-w-[320px] transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
-                <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
-                  <CalendarCheck className="w-8 h-8" />
+              (!pollState.isFinalized && voteArray.length < 2) ? (
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full lg:ml-auto">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center text-neutral-500" aria-hidden="true">
+                    <CalendarCheck className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600 mb-1">
+                      Not enough responses yet
+                    </p>
+                    <p className="text-sm md:text-base font-medium text-neutral-600 leading-snug max-w-[220px]">
+                      Once a couple of people respond, the leading time will show here.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1">
-                    {pollState.isFinalized ? "CONFIRMED DATE" : "TOP CHOICE"}
-                  </p>
-                  <p className="text-xl md:text-2xl font-black leading-tight">
+              ) : (
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
+                  <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20" aria-hidden="true">
+                    <CalendarCheck className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600 mb-1">
+                      {pollState.isFinalized ? "CONFIRMED TIME" : "LEADING TIME"}
+                    </p>
                     {(() => {
-                      const slot = metadata.timeSlots.find(s => s.id === (pollState.finalizedSlotId || bestSlotId))!;
-                      return metadata.schedulingMode === "EXACT"
-                        ? new Date((slot as any).startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : `${new Date((slot as any).date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, ${(slot as any).label}`;
+                      const slot = metadata.timeSlots.find(
+                        s => s.id === (pollState.finalizedSlotId || bestSlotId)
+                      );
+                      const formatted = formatSlotLabel(slot, metadata.schedulingMode);
+                      if (!formatted) {
+                        return (
+                          <p className="text-sm md:text-base font-medium text-neutral-600 leading-snug max-w-[260px]">
+                            The confirmed time is no longer available — reopen voting or pick a new time.
+                          </p>
+                        );
+                      }
+                      return (
+                        <p className="text-xl md:text-2xl font-black leading-tight">
+                          {formatted}
+                        </p>
+                      );
                     })()}
-                  </p>
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </div>
 
@@ -527,14 +627,16 @@ export default function ResultsPage() {
                   <button
                     onClick={handleUnfinalize}
                     disabled={!isReady || unfinalizing}
+                    aria-busy={unfinalizing}
+                    aria-label="Unselect confirmed date"
                     className="w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl disabled:opacity-50"
                     title="Unselect Date"
                   >
                     {unfinalizing ? (
-                      <Loader2 size={24} className="animate-spin" />
+                      <Loader2 size={24} className="animate-spin" aria-hidden="true" />
                     ) : (
                       <>
-                        <RotateCcw size={24} className="group-hover:rotate-[-45deg] transition-transform duration-500 flex-shrink-0" />
+                        <RotateCcw size={24} className="group-hover:rotate-[-45deg] transition-transform duration-500 flex-shrink-0" aria-hidden="true" />
                         <span className="text-sm font-bold md:hidden">Change Date</span>
                       </>
                     )}
@@ -542,10 +644,11 @@ export default function ResultsPage() {
                 ) : (
                   <Link
                     to={`/poll/${pollId}/edit${window.location.search}${window.location.hash}`}
+                    aria-label="Edit poll"
                     className={`w-full md:w-[84px] h-[72px] md:h-[84px] flex items-center justify-center gap-2 px-4 rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 group shadow-xl ${!isReady ? 'pointer-events-none opacity-50' : ''}`}
                     title="Edit Poll"
                   >
-                    <Edit3 size={24} className="group-hover:scale-110 transition-transform duration-500 flex-shrink-0" />
+                    <Edit3 size={24} className="group-hover:scale-110 transition-transform duration-500 flex-shrink-0" aria-hidden="true" />
                     <span className="text-sm font-bold md:hidden">Edit Poll</span>
                   </Link>
                 )}
@@ -570,76 +673,100 @@ export default function ResultsPage() {
       <div className="bg-white rounded-[2rem] p-8 border border-neutral-100 shadow-xl">
         <div className="flex items-center justify-between mb-8">
            <h2 className="text-2xl font-bold text-neutral-800 flex items-center gap-3">
-             <Info className="text-brand-green" /> Availability Grid
+             <Info className="text-brand-green" aria-hidden="true" /> Availability Grid
            </h2>
-           <button 
-             onClick={() => setIsMaximized(true)} 
+           <button
+             onClick={() => setIsMaximized(true)}
              disabled={!isReady}
              className="p-2 hover:bg-neutral-100 rounded-lg disabled:opacity-50"
              aria-label="Maximize availability grid"
            >
-             <Maximize2 size={20} />
+             <Maximize2 size={20} aria-hidden="true" />
            </button>
         </div>
         
         {voteArray.length === 0 ? (
-          <div data-testid="results-empty-state" className="text-center py-20 px-6 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200">
-            <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-            <p className="text-neutral-500 font-medium">No responses yet. Share the link to start tallying!</p>
-          </div>
+          <EmptyState
+            testId="results-empty-state"
+            className="text-center py-20 px-6 bg-neutral-50 rounded-3xl border border-dashed border-neutral-200"
+            icon={<Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" aria-hidden="true" />}
+            body="No responses yet. Share the poll link and answers will appear here in real time."
+            bodyClassName="text-neutral-600 font-medium"
+          />
         ) : (
           renderMatrixTable()
         )}
       </div>
 
-      {isMaximized && (
-        <div className="fixed inset-0 z-[100] bg-brand-charcoal/95 backdrop-blur-md p-3 md:p-8 flex flex-col">
-          <div className="flex justify-between items-center text-white mb-4 md:mb-8">
-            <h2 className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
-            <button 
-              onClick={() => setIsMaximized(false)} 
-              disabled={!isReady}
-              className="p-2 hover:bg-white/10 rounded-full flex-shrink-0 disabled:opacity-50"
-              aria-label="Close maximization"
-            >
-              <X size={32} />
-            </button>
-          </div>
-          <div className="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-auto p-1 md:p-4">
-             {renderMatrixTable(true)}
-          </div>
+      <Modal
+        open={isMaximized}
+        onClose={() => setIsMaximized(false)}
+        labelledBy="maximize-dialog-title"
+        variant="bare"
+        size="fullscreen"
+        closeOnBackdrop={false}
+        backdropClassName="fixed inset-0 z-[120] bg-brand-charcoal/95 backdrop-blur-md p-3 md:p-8 flex flex-col"
+        className="flex-1 min-h-0 flex flex-col"
+      >
+        <div className="flex justify-between items-center text-white mb-4 md:mb-8">
+          <h2 id="maximize-dialog-title" className="text-xl md:text-2xl font-bold truncate pr-4">{metadata.title} - Grid</h2>
+          <button
+            onClick={() => setIsMaximized(false)}
+            disabled={!isReady}
+            className="p-2 hover:bg-white/10 rounded-full flex-shrink-0 disabled:opacity-50"
+            aria-label="Close maximization"
+          >
+            <X size={32} aria-hidden="true" />
+          </button>
         </div>
-      )}
+        <div className="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-auto p-1 md:p-4">
+           {renderMatrixTable(true)}
+        </div>
+      </Modal>
 
-      {showShareModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 md:p-10 border border-neutral-100 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Decorative Blur */}
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-green/5 rounded-full blur-2xl pointer-events-none" />
-            
-            {/* Close Button */}
-            <button 
-              onClick={() => {
-                setShowShareModal(false);
-                setCopiedLinkType(null);
-              }}
-              className="absolute top-6 right-6 p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 rounded-full transition-colors"
-              aria-label="Close share dialog"
-            >
-              <X size={20} />
-            </button>
+      <Modal
+        open={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setCopiedLinkType(null);
+        }}
+        labelledBy="share-dialog-title"
+        variant="bare"
+        size="lg"
+        closeOnBackdrop={false}
+        backdropClassName="fixed inset-0 z-[120] flex items-center justify-center bg-brand-charcoal/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
+        className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 md:p-10 border border-neutral-100 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200"
+      >
+        {/* Decorative Blur */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-green/5 rounded-full blur-2xl pointer-events-none" />
 
-            <div className="flex flex-col gap-6">
+        {/* Close Button */}
+        <button
+          onClick={() => {
+            setShowShareModal(false);
+            setCopiedLinkType(null);
+          }}
+          className="absolute top-6 right-6 p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50 rounded-full transition-colors"
+          aria-label="Close share dialog"
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
+
+        <div className="flex flex-col gap-6">
               <div>
-                <h3 className="text-2xl font-black text-neutral-800 tracking-tight mb-2">Share this Poll</h3>
-                <p className="text-neutral-500 text-sm font-medium">Which link would you like to copy?</p>
+                <h3 id="share-dialog-title" className="text-2xl font-black text-neutral-800 tracking-tight mb-2">Share this Poll</h3>
+                <p className="text-neutral-600 text-sm font-medium">Which link would you like to copy?</p>
               </div>
 
               <div className="flex flex-col gap-4">
                 {/* Option 1: Poll Link */}
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(getPollLink());
+                  onClick={async () => {
+                    const ok = await copyToClipboard(getPollLink());
+                    if (!ok) {
+                      toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+                      return;
+                    }
                     setCopiedLinkType('poll');
                     setTimeout(() => {
                       setShowShareModal(false);
@@ -675,8 +802,12 @@ export default function ResultsPage() {
 
                 {/* Option 2: Results Link */}
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(getResultsLink());
+                  onClick={async () => {
+                    const ok = await copyToClipboard(getResultsLink());
+                    if (!ok) {
+                      toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+                      return;
+                    }
                     setCopiedLinkType('results');
                     setTimeout(() => {
                       setShowShareModal(false);
@@ -711,9 +842,7 @@ export default function ResultsPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

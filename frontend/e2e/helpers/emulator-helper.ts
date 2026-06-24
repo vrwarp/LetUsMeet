@@ -1,5 +1,3 @@
-import { test } from '@playwright/test';
-
 /**
  * Clears the Firestore emulator data for the current project.
  */

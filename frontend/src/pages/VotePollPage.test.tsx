@@ -1,24 +1,27 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { renderWithProviders } from '@/test/renderWithProviders';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import VotePollPage from './VotePollPage';
 import * as pollService from '@/lib/pollService';
+import type { LedgerSession } from 'charproof';
+import type { PollState } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth');
 
 describe('VotePollPage', () => {
-  let mockSession: any;
+  let mockSession: LedgerSession;
 
   beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
-    (useAuth as any).mockReturnValue({
+    vi.mocked(useAuth).mockReturnValue({
       user: { uid: 'user123', displayName: 'Test User', email: 'test@example.com', isAnonymous: false },
       loading: false,
       signInWithGoogle: vi.fn(),
       signOutUser: vi.fn()
-    });
+    } as unknown as ReturnType<typeof useAuth>);
 
     mockSession = {
       appendEvent: vi.fn(() => Promise.resolve()),
@@ -38,9 +41,9 @@ describe('VotePollPage', () => {
       }),
       exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
       getSignerPublicKey: vi.fn().mockReturnValue('pub123'),
-    };
+    } as unknown as LedgerSession;
 
-    vi.spyOn(pollService, 'getLedgerSession').mockResolvedValue(mockSession as any);
+    vi.spyOn(pollService, 'getLedgerSession').mockResolvedValue(mockSession);
 
     vi.mocked(pollService.subscribeToLedger).mockImplementation((_session, cb) => {
       cb({
@@ -53,13 +56,13 @@ describe('VotePollPage', () => {
         },
         votes: new Map(),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
   });
 
   const renderPage = (pollId = 'mock-poll-id-123') => {
-    return render(
+    return renderWithProviders(
       <MemoryRouter initialEntries={[`/poll/${pollId}#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=`]}>
         <Routes>
           <Route path="/poll/:pollId" element={<VotePollPage />} />
@@ -82,7 +85,7 @@ describe('VotePollPage', () => {
     const slotCard = screen.getByTestId('slot-card');
     fireEvent.click(slotCard);
 
-    const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
+    const submitBtn = screen.getByRole('button', { name: /Send my response/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -104,7 +107,7 @@ describe('VotePollPage', () => {
         isFinalized: true,
         metadata: { title: 'Final Poll', timeSlots: [], schedulingMode: 'EXACT' },
         votes: new Map()
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     renderPage();
@@ -125,7 +128,7 @@ describe('VotePollPage', () => {
           ] 
         },
         votes: new Map()
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     renderPage();
@@ -141,9 +144,9 @@ describe('VotePollPage', () => {
       fireEvent.change(nameInput, { target: { value: 'Test User' } });
     });
 
-    mockSession.appendEvent.mockRejectedValueOnce(new Error('Vote Failed'));
+    vi.mocked(mockSession.appendEvent).mockRejectedValueOnce(new Error('Vote Failed'));
     
-    const submitBtn = screen.getByRole('button', { name: /Submit Vote/i });
+    const submitBtn = screen.getByRole('button', { name: /Send my response/i });
     
     await act(async () => {
       fireEvent.click(submitBtn);
@@ -178,7 +181,7 @@ describe('VotePollPage', () => {
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 
@@ -208,7 +211,7 @@ describe('VotePollPage', () => {
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 

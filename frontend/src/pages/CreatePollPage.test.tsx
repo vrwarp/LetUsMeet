@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test/renderWithProviders';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -23,7 +24,7 @@ describe('CreatePollPage', () => {
       </MemoryRouter>
     );
     
-    expect(await screen.findByText(/Meeting Title/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Poll Title/i)).toBeInTheDocument();
   });
 
   it('submits the form successfully', async () => {

@@ -12,9 +12,20 @@ import {
   subscribeAuthorizedDevices,
   rejectDeviceRequest
 } from "charproof";
+import type { DecryptedDevice } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
+import { copyToClipboard } from "@/lib/clipboard";
+import { Loader2, Calendar, MapPin, ExternalLink, Activity, Lock, ShieldCheck, Clipboard, CheckCircle2, Monitor, XCircle, User, Users, Fingerprint, Key, Archive, ArchiveRestore, ChevronDown, Edit3 } from "lucide-react";
+import { buttonClasses } from "@/components/buttonStyles";
+import PageLoader from "@/components/PageLoader";
+import Modal from "@/components/Modal";
+import EmptyState from "@/components/EmptyState";
 import type { PollMetadata, PendingDevice } from "../types";
+
+type AccountData = { devices: Record<string, DecryptedDevice> };
 
 function PendingCodeDisplay({ publicKey }: { publicKey: string }) {
   const [code, setCode] = useState<string>("......");
@@ -33,7 +44,10 @@ interface DecryptedDashboardEntry {
 }
 
 export default function DashboardPage() {
+  useDocumentTitle('Dashboard · LetUsMeet');
   const { user, loading, pendingRequests } = useAuth();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
   const [entries, setEntries] = useState<DecryptedDashboardEntry[]>([]);
   
   const activeEntries = entries.filter(e => !e.isArchived);
@@ -47,17 +61,23 @@ export default function DashboardPage() {
     const entry = activeEntries.find(e => e.pollId === pollId);
     const isOrganizer = entry?.isOrganizer;
     const warningMsg = isOrganizer
-      ? `Archive poll "${title}"?\n\nThis will hide the poll from your main dashboard. Because you are the Organizer, you will not be able to manage, edit, or close this poll unless you restore it from the Archive section first.`
-      : `Archive poll "${title}"?\n\nThis will hide the poll from your main dashboard view. You can restore it and adjust your responses at any time from the Archive section at the bottom.`;
+      ? "This hides the poll from your main dashboard. Because you're the Organizer, you won't be able to manage, edit, or close it unless you restore it from the Archive section first."
+      : "This hides the poll from your main dashboard. You can restore it and adjust your responses anytime from the Archive section at the bottom.";
 
-    if (!window.confirm(warningMsg)) return;
+    if (!(await askConfirm({
+      title: `Archive poll "${title}"?`,
+      body: warningMsg,
+      confirmLabel: "Archive",
+      variant: "warning",
+    }))) return;
 
     try {
       setActionInProgress(pollId);
       await archiveKeystoreEntry(pollId);
+      toast({ variant: "success", message: "Poll archived." });
     } catch (e) {
       console.error("Failed to archive poll:", e);
-      alert("Failed to archive poll.");
+      toast({ variant: "error", message: "Failed to archive poll." });
     } finally {
       setActionInProgress(null);
     }
@@ -67,9 +87,10 @@ export default function DashboardPage() {
     try {
       setActionInProgress(pollId);
       await unarchiveKeystoreEntry(pollId);
+      toast({ variant: "success", message: "Poll restored." });
     } catch (e) {
       console.error("Failed to restore poll:", e);
-      alert("Failed to restore poll.");
+      toast({ variant: "error", message: "Failed to restore poll." });
     } finally {
       setActionInProgress(null);
     }
@@ -88,9 +109,11 @@ export default function DashboardPage() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
-  const [accountData, setAccountData] = useState<any>(null);
+  const [accountData, setAccountData] = useState<AccountData | null>(null);
   const [showRotationSuccess, setShowRotationSuccess] = useState(false);
 
 
@@ -100,7 +123,7 @@ export default function DashboardPage() {
       await approveDeviceAuthorization(req);
     } catch (e) {
       console.error("Failed to approve device:", e);
-      alert("Failed to authorize device.");
+      toast({ variant: "error", message: "Failed to authorize device." });
     } finally {
       setApprovingId(null);
     }
@@ -122,10 +145,13 @@ export default function DashboardPage() {
   const [activeModal, setActiveModal] = useState<"passkey" | "backup" | "devices" | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const passkeyRef = useRef<any>(null);
-  const backupRef = useRef<any>(null);
+  const passkeyRef = useRef<HTMLDivElement>(null);
+  const backupRef = useRef<HTMLDivElement>(null);
   const masterRef = useRef<HTMLDivElement>(null);
-  const deviceRefs = useRef<{ [key: string]: any }>({});
+  const deviceRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  // The active-node modal and recovery-phrase modal use the shared <Modal>,
+  // which centralizes focus trap, Escape-to-close, and focus restore.
 
   const [paths, setPaths] = useState<{
     passkey: string;
@@ -165,7 +191,7 @@ export default function DashboardPage() {
     
     const devicesPaths: { [key: string]: string } = {};
     const devices = accountData?.devices ? Object.values(accountData.devices) : [];
-    devices.forEach((device: any) => {
+    devices.forEach((device: DecryptedDevice) => {
       const el = deviceRefs.current[device.deviceId];
       if (el) {
         const rect = el.getBoundingClientRect();
@@ -227,6 +253,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (loading || !user || user.isAnonymous) {
+      // Async subscription guard: nothing to fetch for signed-out/anon users; clear loading.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFetching(false);
       return;
     }
@@ -235,33 +263,26 @@ export default function DashboardPage() {
 
     // Listen to account keys using clean facade
     const unsubAccount = subscribeAuthorizedDevices((devices) => {
-      const devicesRecord: Record<string, any> = {};
+      const devicesRecord: Record<string, DecryptedDevice> = {};
       for (const dev of devices) {
         devicesRecord[dev.deviceId] = dev;
       }
-      setAccountData({ devices: devicesRecord } as any);
-      getRecoveryStatus().then(setRecoveryStatus);
+      setAccountData({ devices: devicesRecord });
+      getRecoveryStatus().then(setRecoveryStatus).catch((e) => {
+        console.error("Failed to load recovery status:", e);
+      });
     });
 
 const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
-      console.log(`⏱️ [Perf] subscribeToUserKeystore triggered with ${keystoreEntries.length} entries`);
-      const startDashboard = performance.now();
       const decryptedResults = await Promise.all(
         keystoreEntries.map(async (entry) => {
-          const startEntry = performance.now();
           try {
             if (!entry.ledgerId) return null;
-            const startSession = performance.now();
             const session = await getLedgerSession(entry.ledgerId);
-            console.log(`⏱️ [Perf] getLedgerSession(${entry.ledgerId}) took ${(performance.now() - startSession).toFixed(2)}ms`);
-            
-            const startGenesis = performance.now();
             const genesis = await session.getGenesisEvent();
-            console.log(`⏱️ [Perf] getGenesisEvent(${entry.ledgerId}) took ${(performance.now() - startGenesis).toFixed(2)}ms`);
-            
+
             if (genesis?.action?.type === "POLL_CREATED") {
               const isOrganizer = session.getSignerPublicKey() === genesis.signerPublicKey;
-              console.log(`⏱️ [Perf] Decrypted entry ${entry.ledgerId} successfully in ${(performance.now() - startEntry).toFixed(2)}ms`);
               return {
                 pollId: entry.ledgerId,
                 symmetricKey: session.exportSessionKey(),
@@ -270,8 +291,8 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                 isArchived: entry.isArchived
               } as DecryptedDashboardEntry;
             }
-          } catch (e) {
-            console.warn(`⏱️ [Perf] Failed to decrypt entry ${entry.ledgerId} in ${(performance.now() - startEntry).toFixed(2)}ms`, e);
+          } catch {
+            // Entry failed to decrypt (e.g. a poll this device can't read) — skip it.
           }
           return null;
         })
@@ -281,7 +302,6 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
         (entry): entry is DecryptedDashboardEntry => entry !== null
       );
 
-      console.log(`⏱️ [Perf] Total Dashboard Decryption of ${decryptedEntries.length} entries took ${(performance.now() - startDashboard).toFixed(2)}ms`);
       setEntries(decryptedEntries);
       setFetching(false);
     });
@@ -300,7 +320,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       setRecoveryStatus(status);
     } catch (e) {
       console.error("Failed to enable recovery:", e);
-      alert("Failed to enable recovery. Make sure your browser supports passkeys and you have one set up.");
+      toast({ variant: "error", message: "Failed to enable recovery. Make sure your browser supports passkeys and you have one set up." });
     } finally {
       setEnablingRecovery(false);
     }
@@ -316,38 +336,62 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       setRecoveryStatus(status);
     } catch (e) {
       console.error("Failed to setup phrase recovery:", e);
-      alert("Failed to setup phrase recovery.");
+      toast({ variant: "error", message: "Failed to setup phrase recovery." });
     } finally {
       setEnablingRecovery(false);
     }
   };
 
   const handleRevoke = async (deviceId: string) => {
-    if (!confirm("Are you sure you want to revoke this device? It will lose access to all your polls immediately.")) return;
+    if (!(await askConfirm({
+      title: "Revoke this device?",
+      body: "It will lose access to all your polls immediately.",
+      confirmLabel: "Revoke device",
+      variant: "danger",
+    }))) return;
     try {
       await revokeDevice(deviceId);
       setShowRotationSuccess(true);
       setTimeout(() => setShowRotationSuccess(false), 5000);
-    } catch (e: any) {
-      console.error("Failed to revoke device:", e?.message || String(e), e?.stack);
-      alert("Failed to revoke device.");
+    } catch (e) {
+      const err = e instanceof Error ? e : undefined;
+      console.error("Failed to revoke device:", err?.message || String(e), err?.stack);
+      toast({ variant: "error", message: "Failed to revoke device." });
     }
   };
 
-  const copyToClipboard = () => {
+  const handleCopyMnemonic = async () => {
     if (generatedMnemonic) {
-      navigator.clipboard.writeText(generatedMnemonic);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      const ok = await copyToClipboard(generatedMnemonic);
+      if (ok) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        toast({ variant: "error", message: "We couldn't copy your phrase. Please copy it manually." });
+      }
+    }
+  };
+
+  // Activate a role="button" node via Enter/Space, mirroring native button keys.
+  const handleNodeActivation = (
+    e: React.KeyboardEvent<HTMLDivElement>,
+    action: () => void
+  ) => {
+    // Only react when the node itself is focused, not a nested control.
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      action();
     }
   };
 
   if (loading || fetching) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-500 font-medium">Decrypting your dashboard...</p>
-      </div>
+      <PageLoader
+        statusOnWrapper
+        message="Loading your polls..."
+        messageClassName="text-neutral-500"
+      />
     );
   }
 
@@ -355,10 +399,10 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
     return (
       <div className="max-w-md mx-auto py-20 text-center">
         <div className="bg-neutral-50 rounded-[3rem] p-10 border border-neutral-100">
-          <Lock className="w-12 h-12 text-neutral-300 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-neutral-800 mb-4">Organizer Access Only</h2>
-          <p className="text-neutral-600 mb-8">Sign in with Google to sync your polls across devices and access your dashboard.</p>
-          <Link to="/" className="btn-primary-green inline-block">Back to Home</Link>
+          <Lock className="w-12 h-12 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
+          <h1 className="text-2xl font-bold text-neutral-800 mb-4">Sign in to see your polls</h1>
+          <p className="text-neutral-600 mb-8">Sign in with Google to sync your polls across all your devices.</p>
+          <Link to="/" className={buttonClasses("primary", "lg")}>Back to Home</Link>
         </div>
       </div>
     );
@@ -379,38 +423,44 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-6 px-3 sm:px-4">
         <div>
           <h1 data-testid="dashboard-title" className="text-4xl font-black text-neutral-900 tracking-tight">Your Polls</h1>
-          <p className="text-neutral-500 font-medium">Manage and view your meeting schedules</p>
+          <p className="text-neutral-500 font-medium">View and manage your polls</p>
         </div>
       </div>
 
       {activeEntries.length === 0 ? (
-        <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50">
-          <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Calendar size={32} />
-          </div>
-          <h2 className="text-xl font-bold text-neutral-800 mb-2">No polls</h2>
-          <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-            Created polls will appear here automatically when you're signed in.
-          </p>
-          <Link to="/create" className="btn-primary-green inline-block">
-            Create New Poll
-          </Link>
-        </div>
+        <EmptyState
+          icon={
+            <div className="w-16 h-16 bg-brand-green-light/30 text-brand-green rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Calendar size={32} aria-hidden="true" />
+            </div>
+          }
+          title="No polls yet"
+          body="Polls you create or vote in will show up here automatically."
+          action={
+            <Link to="/create" className={buttonClasses("primary", "lg")}>
+              Create New Poll
+            </Link>
+          }
+        />
       ) : (
         <>
           {/* Beautiful and responsive tab navigation */}
           <div className="border-b border-neutral-100 mb-6">
-            <div className="grid grid-cols-2 sm:flex gap-4 sm:gap-6 px-3 sm:px-4 -mb-px">
+            <div role="tablist" aria-label="Poll categories" className="grid grid-cols-2 sm:flex gap-4 sm:gap-6 px-3 sm:px-4 -mb-px">
             <button
+              role="tab"
+              id="tab-organizer"
+              aria-selected={activeTab === "organizer"}
+              aria-controls="tabpanel-organizer"
               onClick={() => setActiveTab("organizer")}
               data-testid="tab-organizer"
-              className={`pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 focus:outline-none whitespace-nowrap ${
+              className={`focus-ring pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 whitespace-nowrap ${
                 activeTab === "organizer"
                   ? "text-brand-green border-brand-green"
-                  : "text-neutral-400 border-transparent hover:text-neutral-600"
+                  : "text-neutral-600 border-transparent hover:text-neutral-600"
               }`}
             >
-              <User size={18} />
+              <User size={18} aria-hidden="true" />
               <span>Organized by Me</span>
               <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
                 activeTab === "organizer" ? "bg-brand-green/10 text-brand-green" : "bg-neutral-100 text-neutral-500"
@@ -419,15 +469,19 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               </span>
             </button>
             <button
+              role="tab"
+              id="tab-participant"
+              aria-selected={activeTab === "participant"}
+              aria-controls="tabpanel-participant"
               onClick={() => setActiveTab("participant")}
               data-testid="tab-participant"
-              className={`pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 focus:outline-none whitespace-nowrap ${
+              className={`focus-ring pb-3 sm:pb-4 font-black text-sm sm:text-lg transition-all border-b-2 relative flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 whitespace-nowrap ${
                 activeTab === "participant"
                   ? "text-brand-green border-brand-green"
-                  : "text-neutral-400 border-transparent hover:text-neutral-600"
+                  : "text-neutral-600 border-transparent hover:text-neutral-600"
               }`}
             >
-              <Users size={18} />
+              <Users size={18} aria-hidden="true" />
               <span>Joined & Voted</span>
               <span className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
                 activeTab === "participant" ? "bg-brand-green/10 text-brand-green" : "bg-neutral-100 text-neutral-500"
@@ -438,60 +492,71 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
           </div>
         </div>
 
+        <div
+          role="tabpanel"
+          id={activeTab === "organizer" ? "tabpanel-organizer" : "tabpanel-participant"}
+          aria-labelledby={activeTab === "organizer" ? "tab-organizer" : "tab-participant"}
+        >
           {activeTab === "organizer" && activeEntries.filter(e => e.isOrganizer).length === 0 ? (
-            <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
-              <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Calendar size={32} />
-              </div>
-              <h2 className="text-xl font-bold text-neutral-800 mb-2 font-black">No Organized Polls</h2>
-              <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-                You haven't organized any polls yet. Tap below to create your first meeting poll!
-              </p>
-              <Link to="/create" className="btn-primary-green inline-block">
-                Create New Poll
-              </Link>
-            </div>
+            <EmptyState
+              className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10"
+              icon={
+                <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Calendar size={32} aria-hidden="true" />
+                </div>
+              }
+              title="No Organized Polls"
+              titleClassName="text-xl font-bold text-neutral-800 mb-2 font-black"
+              body="You haven't created any polls yet. Make your first one below."
+              action={
+                <Link to="/create" className="btn-primary-green inline-block">
+                  Create New Poll
+                </Link>
+              }
+            />
           ) : activeTab === "participant" && activeEntries.filter(e => !e.isOrganizer).length === 0 ? (
-            <div className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10">
-              <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Users size={32} />
-              </div>
-              <h2 className="text-xl font-bold text-neutral-800 mb-2 font-black">No Joined Polls</h2>
-              <p className="text-neutral-500 max-w-md mx-auto mb-8 font-medium">
-                Polls you view, vote in, or participate in will automatically be stored securely and displayed here.
-              </p>
-            </div>
+            <EmptyState
+              className="bg-white p-12 rounded-[3rem] border border-neutral-100 text-center shadow-xl shadow-neutral-100/50 mb-10"
+              icon={
+                <div className="w-16 h-16 bg-neutral-50 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Users size={32} aria-hidden="true" />
+                </div>
+              }
+              title="No Joined Polls"
+              titleClassName="text-xl font-bold text-neutral-800 mb-2 font-black"
+              body="Polls you view, vote in, or participate in will automatically be stored securely and displayed here."
+            />
           ) : (
-            <div className="grid gap-6">
+            <ul className="grid gap-6 list-none p-0 m-0">
               {activeEntries
                 .filter(e => (activeTab === "organizer" ? e.isOrganizer : !e.isOrganizer))
                 .map((entry) => (
-                  <div key={entry.pollId} className="bg-white p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow group">
+                  <li key={entry.pollId} className="bg-white p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow group">
                     <div className="flex flex-col md:flex-row justify-between gap-6">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3 flex-wrap">
                           <h2 className="text-xl sm:text-2xl font-black text-neutral-800 group-hover:text-brand-green transition-colors">{entry.metadata.title}</h2>
                           {entry.isOrganizer ? (
                             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-brand-green/10 text-brand-green-dark border border-brand-green/20">
-                              <User size={12} />
+                              <User size={12} aria-hidden="true" />
                               Organizer
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                              <Users size={12} />
+                              <Users size={12} aria-hidden="true" />
                               Participant
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-5 text-sm font-bold text-neutral-400">
+                        <div className="flex flex-wrap gap-5 text-sm font-bold text-neutral-600">
                           {entry.metadata.location && (
                             <div className="flex items-center gap-2">
-                              <MapPin size={16} className="text-neutral-300" />
+                              <MapPin size={16} className="text-neutral-300" aria-hidden="true" />
                               <span>{entry.metadata.location}</span>
                             </div>
                           )}
                           <div className="flex items-center gap-2">
-                            <Activity size={16} className="text-neutral-300" />
+                            <Activity size={16} className="text-neutral-300" aria-hidden="true" />
                             <span>{entry.metadata.schedulingMode === "EXACT" ? "Exact Times" : "Flexible Windows"}</span>
                           </div>
                         </div>
@@ -503,8 +568,9 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                           disabled={actionInProgress === entry.pollId}
                           className="p-2.5 sm:p-3 text-neutral-400 hover:text-red-500 rounded-xl sm:rounded-2xl border border-neutral-100 hover:border-red-100 hover:bg-red-50 transition-colors disabled:opacity-50"
                           title="Archive Poll"
+                          aria-label={`Archive poll ${entry.metadata.title}`}
                         >
-                          <Archive size={18} />
+                          <Archive size={18} aria-hidden="true" />
                         </button>
                         <Link
                           to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
@@ -512,18 +578,27 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         >
                           View
                         </Link>
+                        {entry.isOrganizer && entry.symmetricKey && (
+                          <Link
+                            to={`/poll/${entry.pollId}/edit#key=${entry.symmetricKey}`}
+                            className="px-4 sm:px-6 py-2.5 sm:py-3 bg-neutral-50 text-neutral-600 rounded-xl sm:rounded-2xl font-bold hover:bg-neutral-100 transition-colors flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base whitespace-nowrap"
+                          >
+                            <Edit3 size={16} aria-hidden="true" /> Edit
+                          </Link>
+                        )}
                         <Link
                           to={`/poll/${entry.pollId}/results#key=${entry.symmetricKey}`}
-                          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-green text-white rounded-xl sm:rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-brand-green/20 transition-all hover:scale-[1.02] text-sm sm:text-base whitespace-nowrap"
+                          className="focus-ring px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-green text-white rounded-xl sm:rounded-2xl font-bold hover:bg-brand-green-dark flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-brand-green/20 transition-all hover:scale-[1.02] text-sm sm:text-base whitespace-nowrap"
                         >
-                          <ExternalLink size={16} /> Results
+                          <ExternalLink size={16} aria-hidden="true" /> Results
                         </Link>
                       </div>
                     </div>
-                  </div>
+                  </li>
                 ))}
-            </div>
+            </ul>
           )}
+        </div>
         </>
       )}
 
@@ -532,24 +607,26 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
         <div className="mt-8 bg-neutral-50/50 border border-neutral-100 rounded-[2.5rem] p-6 sm:p-8 mb-10">
           <button
             onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
-            className="flex items-center justify-between w-full text-left focus:outline-none group/btn cursor-pointer"
+            aria-expanded={isArchivedExpanded}
+            aria-controls="archived-polls-region"
+            className="focus-ring flex items-center justify-between w-full text-left group/btn cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <Archive className="text-neutral-400 group-hover/btn:text-brand-green transition-colors" size={24} />
+              <Archive className="text-neutral-400 group-hover/btn:text-brand-green transition-colors" size={24} aria-hidden="true" />
               <div>
                 <h3 className="text-xl font-black text-neutral-800 group-hover/btn:text-brand-green transition-colors">Archived Polls</h3>
-                <p className="text-sm font-medium text-neutral-400">These polls are hidden from your active lists. You can restore them to your active dashboard at any time.</p>
+                <p className="text-sm font-medium text-neutral-600">These polls are hidden from your active lists. You can restore them to your active dashboard at any time.</p>
               </div>
             </div>
             <div className={`p-2 bg-white rounded-xl border border-neutral-100 text-neutral-400 group-hover/btn:text-brand-green group-hover/btn:border-brand-green/20 transition-all duration-200 ${isArchivedExpanded ? 'rotate-180 text-brand-green' : ''}`}>
-              <ChevronDown size={20} />
+              <ChevronDown size={20} aria-hidden="true" />
             </div>
           </button>
 
           {isArchivedExpanded && (
-            <div className="grid gap-4 mt-6 animate-fade-in-down">
+            <ul id="archived-polls-region" className="grid gap-4 mt-6 animate-fade-in-down list-none p-0 m-0">
               {archivedEntries.map((entry) => (
-                <div key={entry.pollId} className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[1.5rem] border border-neutral-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <li key={entry.pollId} className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[1.5rem] border border-neutral-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h4 className="text-lg font-bold text-neutral-700">{entry.metadata.title}</h4>
@@ -563,7 +640,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs font-bold text-neutral-400">
+                    <p className="text-xs font-bold text-neutral-600">
                       Location: {entry.metadata.location || "None"} • Mode: {entry.metadata.schedulingMode === "EXACT" ? "Exact Times" : "Flexible"}
                     </p>
                   </div>
@@ -573,8 +650,9 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       disabled={actionInProgress === entry.pollId}
                       className="p-2 text-neutral-400 hover:text-brand-green rounded-xl border border-neutral-100 hover:border-brand-green/20 hover:bg-brand-green/5 transition-colors disabled:opacity-50"
                       title="Restore to Active Dashboard"
+                      aria-label={`Restore poll ${entry.metadata.title} to active dashboard`}
                     >
-                      <ArchiveRestore size={16} />
+                      <ArchiveRestore size={16} aria-hidden="true" />
                     </button>
                     <Link
                       to={`/poll/${entry.pollId}#key=${entry.symmetricKey}`}
@@ -589,9 +667,9 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       Results
                     </Link>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
       )}
@@ -604,11 +682,11 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 px-3 sm:px-4">
           <div>
             <h2 className="text-3xl font-black text-neutral-900 tracking-tight">Security & Devices</h2>
-            <p className="text-neutral-500 font-medium">Manage your cryptographic keys, recovery backups, and authorized devices</p>
+            <p className="text-neutral-500 font-medium">Manage your passkey, recovery phrase, and the devices that can open your polls.</p>
           </div>
           {showRotationSuccess && (
-            <div data-testid="rotation-success-toast" className="bg-brand-green text-white px-4 py-2 rounded-xl text-sm font-bold animate-fade-in-up self-start sm:self-auto">
-              AMK Rotated & Devices Migrated!
+            <div role="status" aria-live="polite" data-testid="rotation-success-toast" className="bg-brand-green text-white px-4 py-2 rounded-xl text-sm font-bold animate-fade-in-up self-start sm:self-auto">
+              Device removed. Your other devices are still secure.
             </div>
           )}
         </div>
@@ -620,12 +698,12 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               <div key={req.deviceId} data-testid="pending-auth-request" className="bg-amber-50 border border-amber-200 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Monitor size={20} />
+                    <Monitor size={20} aria-hidden="true" />
                   </div>
                   <div>
                     <h4 className="font-bold text-amber-900 text-sm">Authorize New Device?</h4>
                     <p className="text-amber-800 text-xs mt-0.5 font-semibold">
-                      "{(req as any).decryptedDeviceName || "Unknown Device"}" wants access. Confirm code: <span className="font-mono font-bold bg-amber-100 px-2 py-0.5 rounded ml-1"><PendingCodeDisplay publicKey={req.publicKey} /></span>
+                      "{(req as PendingDevice & { decryptedDeviceName?: string }).decryptedDeviceName || "Unknown Device"}" wants access. Confirm code: <span className="font-mono font-bold bg-amber-100 px-2 py-0.5 rounded ml-1"><PendingCodeDisplay publicKey={req.publicKey} /></span>
                     </p>
                   </div>
                 </div>
@@ -644,7 +722,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     data-testid="approve-auth-btn"
                     className="flex-1 sm:flex-none px-5 py-2.5 bg-brand-green text-white rounded-xl text-xs font-black hover:bg-brand-green-dark transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {approvingId === req.deviceId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                    {approvingId === req.deviceId ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : null}
                     Approve
                   </button>
                 </div>
@@ -700,7 +778,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
               {/* Master Key (center) to Active Devices (right) */}
               {(() => {
                 const devicesList = accountData?.devices ? Object.values(accountData.devices) : [];
-                return devicesList.map((device: any, index: number) => {
+                return devicesList.map((device: DecryptedDevice, index: number) => {
                   const p = paths.devices[device.deviceId];
                   if (!p) return null;
                   return (
@@ -718,14 +796,16 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
             {/* COLUMN 1: ACCESS & RECOVERY CHANNELS (LEFT) */}
             <div className="flex flex-col items-center md:items-end justify-center gap-6 sm:space-y-4 md:space-y-4 z-10 w-full">
               {/* Node A: Biometric Passkey */}
-              <div 
+              <div
                 ref={passkeyRef}
+                role="button"
+                tabIndex={0}
+                aria-label="Manage biometric passkey"
                 onClick={() => {
-                  if (window.innerWidth < 768) {
-                    setActiveModal("passkey");
-                  }
+                  setActiveModal("passkey");
                 }}
-                className={`transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
+                onKeyDown={(e) => handleNodeActivation(e, () => setActiveModal("passkey"))}
+                className={`focus-ring transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
                   /* Mobile styles: circular button */
                   w-12 h-12 rounded-full border shadow-md active:scale-95 flex-shrink-0
                   ${recoveryStatus.isSealed 
@@ -745,12 +825,12 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     recoveryStatus.isSealed ? 'bg-brand-green text-white' : 'bg-red-500 text-white'
                   }`}>
-                    <ShieldCheck size={16} />
+                    <ShieldCheck size={16} aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <h4 className="font-bold text-neutral-800 text-xs truncate">Biometric Passkey</h4>
-                    <p className={`text-[9px] font-semibold ${recoveryStatus.isSealed ? 'text-brand-green-dark' : 'text-red-600'}`}>
-                      {recoveryStatus.isSealed ? 'Linked & Synced' : 'Passkey Missing'}
+                    <p className={`text-[10px] font-semibold ${recoveryStatus.isSealed ? 'text-brand-green-dark' : 'text-red-600'}`}>
+                      {recoveryStatus.isSealed ? 'Linked & Synced' : 'Set up your passkey'}
                     </p>
                   </div>
                 </div>
@@ -760,28 +840,30 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleEnableRecovery(); }}
                       disabled={!isReady || enablingRecovery}
-                      className="w-full mt-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black rounded-lg transition-colors shadow-sm shadow-red-200 animate-pulse"
+                      className="w-full mt-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black rounded-lg transition-colors shadow-sm shadow-red-200 animate-pulse"
                     >
-                      {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Enable Passkey'}
+                      {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" aria-hidden="true" /> : 'Enable Passkey'}
                     </button>
                   )}
                 </div>
 
                 {/* Mobile circular layout: Fingerprint Icon */}
                 <div className="md:hidden flex items-center justify-center">
-                  <Fingerprint size={20} />
+                  <Fingerprint size={20} aria-hidden="true" />
                 </div>
               </div>
 
               {/* Node B: Cold Recovery Phrase */}
-              <div 
+              <div
                 ref={backupRef}
+                role="button"
+                tabIndex={0}
+                aria-label="Manage recovery phrase backup"
                 onClick={() => {
-                  if (window.innerWidth < 768) {
-                    setActiveModal("backup");
-                  }
+                  setActiveModal("backup");
                 }}
-                className={`transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
+                onKeyDown={(e) => handleNodeActivation(e, () => setActiveModal("backup"))}
+                className={`focus-ring transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
                   /* Mobile styles: circular button */
                   w-12 h-12 rounded-full border shadow-md active:scale-95 flex-shrink-0
                   ${hasPhrase 
@@ -801,11 +883,11 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     hasPhrase ? 'bg-brand-green text-white' : 'bg-amber-500 text-white'
                   }`}>
-                    <Clipboard size={16} />
+                    <Clipboard size={16} aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <h4 className="font-bold text-neutral-800 text-xs truncate">Cold Storage Backup</h4>
-                    <p className={`text-[9px] font-semibold ${hasPhrase ? 'text-brand-green-dark' : 'text-amber-600'}`}>
+                    <h4 className="font-bold text-neutral-800 text-xs truncate">Recovery Phrase Backup</h4>
+                    <p className={`text-[10px] font-semibold ${hasPhrase ? 'text-brand-green-dark' : 'text-amber-600'}`}>
                       {hasPhrase ? 'Offline Phrase Secured' : 'Backup Required'}
                     </p>
                   </div>
@@ -816,29 +898,34 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleGeneratePhrase(); }}
                       disabled={!isReady || enablingRecovery}
-                      className="w-full mt-2.5 py-1.5 bg-neutral-900 hover:bg-black text-white text-[9px] font-black rounded-lg transition-colors shadow-sm"
+                      className="w-full mt-2.5 py-1.5 bg-neutral-900 hover:bg-black text-white text-[10px] font-black rounded-lg transition-colors shadow-sm"
                     >
-                      {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Generate Backup'}
+                      {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" aria-hidden="true" /> : 'Generate Backup'}
                     </button>
                   ) : (
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (confirm("Would you like to regenerate your recovery phrase? This will create a NEW 24-word phrase and invalidate the old one. Make sure you write down the new phrase.")) {
+                        if (await askConfirm({
+                          title: "Regenerate your recovery phrase?",
+                          body: "This creates a NEW 24-word phrase and invalidates the old one. Make sure you write down the new phrase.",
+                          confirmLabel: "Regenerate",
+                          variant: "warning",
+                        })) {
                           handleGeneratePhrase();
                         }
                       }}
                       disabled={!isReady || enablingRecovery}
-                      className="w-full mt-2.5 py-1.5 bg-white border border-brand-green/20 text-brand-green-dark hover:bg-brand-green/5 text-[9px] font-bold rounded-lg transition-colors"
+                      className="w-full mt-2.5 py-1.5 bg-white border border-brand-green/20 text-brand-green-dark hover:bg-brand-green/5 text-[10px] font-bold rounded-lg transition-colors"
                     >
-                      {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Regenerate Phrase'}
+                      {enablingRecovery ? <Loader2 className="w-3 h-3 animate-spin mx-auto" aria-hidden="true" /> : 'Regenerate Phrase'}
                     </button>
                   )}
                 </div>
 
                 {/* Mobile circular layout: Key Icon */}
                 <div className="md:hidden flex items-center justify-center">
-                  <Key size={20} />
+                  <Key size={20} aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -863,10 +950,10 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     : 'bg-red-500 text-white border-red-600 shadow-red-500/20'
                   }
                 `}>
-                  <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
-                  <span className="text-[6px] md:text-[8px] font-black uppercase tracking-widest leading-none mt-0.5 md:mt-1">Key</span>
-                  <span className="text-[5px] md:text-[7px] opacity-85 leading-none mt-0.5 font-semibold hidden md:inline">
-                    {recoveryStatus.isSealed ? 'Secured' : 'At Risk'}
+                  <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none mt-0.5 md:mt-1">Your Keys</span>
+                  <span className="text-[10px] opacity-85 leading-none mt-0.5 font-semibold hidden md:inline">
+                    {recoveryStatus.isSealed ? 'Protected' : 'Action needed'}
                   </span>
                 </div>
               </div>
@@ -874,50 +961,60 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
 
             {/* COLUMN 3: AUTHORIZED ENDPOINTS / ACTIVE SESSIONS (RIGHT) */}
             <div data-testid="device-list" className="space-y-4 md:space-y-4 flex flex-col items-center md:items-start justify-center z-10 w-full">
-              {accountData?.devices && Object.values(accountData.devices).map((device: any) => {
+              {accountData?.devices && Object.values(accountData.devices).map((device: DecryptedDevice) => {
                 const isCurrent = device.deviceId === getDeviceId();
                 return (
-                  <div 
+                  <div
                     key={device.deviceId}
                     data-testid="device-item"
                     ref={el => { deviceRefs.current[device.deviceId] = el; }}
-                    onClick={() => {
-                      if (window.innerWidth < 768) {
-                        setActiveModal("devices");
-                      }
-                    }}
-                    className={`transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default cursor-pointer flex flex-col justify-center items-center relative
+                    className={`transition-[background-color,border-color,text-color,transform,box-shadow] duration-200 md:cursor-default flex flex-col justify-center items-center relative
                       /* Mobile styles: circular button */
                       w-12 h-12 rounded-full border shadow-md active:scale-95 flex-shrink-0
-                      ${isCurrent 
-                        ? 'bg-brand-green border-brand-green text-white shadow-brand-green/20 max-md:hover:bg-brand-green-dark' 
-                        : 'bg-neutral-900 border-black text-white shadow-neutral-950/20 max-md:hover:bg-neutral-800'
+                      ${isCurrent
+                        ? 'bg-brand-green border-brand-green text-white shadow-brand-green/20 max-md:hover:bg-brand-green-dark'
+                        : 'bg-neutral-900 border-black text-white shadow-neutral-900/20 max-md:hover:bg-neutral-800'
                       }
                       /* Desktop override styles */
                       md:w-full md:max-w-[220px] md:h-auto md:rounded-2xl md:p-3 md:shadow-sm md:active:scale-100 md:border md:block
-                      ${isCurrent 
-                        ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800 md:hover:bg-brand-green/[0.08] md:hover:border-brand-green/30' 
+                      ${isCurrent
+                        ? 'md:bg-brand-green/5 md:border-brand-green/20 md:text-neutral-800 md:hover:bg-brand-green/[0.08] md:hover:border-brand-green/30'
                         : 'md:bg-white md:border-neutral-100 md:text-neutral-800 md:hover:bg-neutral-50/80 md:hover:border-neutral-200 md:hover:border-brand-red/20'
                       }
                     `}
                   >
-                    {/* Desktop Content */}
-                    <div className="hidden md:flex items-center gap-2.5 w-full text-left">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        isCurrent ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-400'
-                      }`}>
-                        <Monitor size={16} />
+                    {/* Text/icon region wrapped in a real button so it is keyboard
+                        operable; the Revoke button is kept OUTSIDE this button to
+                        avoid nesting interactive controls. */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveModal("devices")}
+                      aria-label={`Manage device ${device.decryptedDeviceName}${isCurrent ? ' (current session)' : ''}`}
+                      className="focus-ring cursor-pointer md:cursor-default flex flex-col justify-center items-center w-full h-full md:block bg-transparent border-0 p-0 text-inherit"
+                    >
+                      {/* Desktop Content */}
+                      <div className="hidden md:flex items-center gap-2.5 w-full text-left">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          isCurrent ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-400'
+                        }`}>
+                          <Monitor size={16} aria-hidden="true" />
+                        </div>
+                        <div className="flex-1 min-w-0 pr-6 text-left">
+                          <h4 className="font-bold text-neutral-800 text-xs truncate">
+                            {device.decryptedDeviceName}{isCurrent ? ' (Current)' : ''}
+                          </h4>
+                          <p className="text-[10px] text-neutral-600 font-semibold mt-0.5">
+                            {isCurrent ? 'Current Session' : 'Authorized device'}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0 pr-6 text-left">
-                        <h4 className="font-bold text-neutral-800 text-xs truncate">
-                          {device.decryptedDeviceName}{isCurrent ? ' (Current)' : ''}
-                        </h4>
-                        <p className="text-[8px] text-neutral-400 font-semibold mt-0.5">
-                          {isCurrent ? 'Current Session' : 'Authorized Endpoint'}
-                        </p>
+
+                      {/* Mobile Content: Monitor Icon */}
+                      <div className="md:hidden flex items-center justify-center relative">
+                        <Monitor size={20} aria-hidden="true" />
                       </div>
-                    </div>
-                    {/* Desktop Revoke Button */}
+                    </button>
+                    {/* Desktop Revoke Button (sibling of the manage button) */}
                     {!isCurrent && (
                       <button
                         onClick={(e) => {
@@ -928,15 +1025,11 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         data-testid="revoke-device-btn"
                         className="hidden md:flex absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-brand-red hover:bg-red-50 rounded-lg transition-all"
                         title="Revoke Access"
+                        aria-label={`Revoke access for device ${device.decryptedDeviceName}`}
                       >
-                        <XCircle size={15} />
+                        <XCircle size={15} aria-hidden="true" />
                       </button>
                     )}
-
-                    {/* Mobile Content: Monitor Icon */}
-                    <div className="md:hidden flex items-center justify-center relative">
-                      <Monitor size={20} />
-                    </div>
                   </div>
                 );
               })}
@@ -945,7 +1038,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
 
           {/* Mobile Caption Indicator */}
           <div className="md:hidden flex justify-center mt-6">
-            <p className="text-[9px] text-neutral-400 font-bold tracking-wide text-center">
+            <p className="text-[10px] text-neutral-600 font-bold tracking-wide text-center">
               Tap any node to manage credentials & devices
             </p>
           </div>
@@ -953,16 +1046,20 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
       </div>
 
         {/* Tap-to-Open Modals */}
-        {activeModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 backdrop-blur-md bg-neutral-900/40 overflow-y-auto text-center">
-            <div 
-              className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-200/60 text-brand-charcoal animate-pop-in flex flex-col relative mx-4 sm:mx-0 text-left p-6 sm:p-10"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
-                backgroundImage: "linear-gradient(rgba(228, 233, 229, 0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(228, 233, 229, 0.7) 1px, transparent 1px)",
-                backgroundSize: "32px 32px"
-              }}
-            >
+        <Modal
+          open={activeModal !== null}
+          onClose={() => setActiveModal(null)}
+          labelledBy={activeModal ? `${activeModal}-modal-title` : undefined}
+          variant="bare"
+          closeOnBackdrop={false}
+          backdropClassName="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 backdrop-blur-md bg-neutral-900/40 overflow-y-auto text-center"
+          className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-200/60 text-brand-charcoal animate-pop-in flex flex-col relative mx-4 sm:mx-0 text-left p-6 sm:p-10"
+          panelStyle={{
+            backgroundColor: "rgba(255, 255, 255, 0.95)",
+            backgroundImage: "linear-gradient(rgba(228, 233, 229, 0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(228, 233, 229, 0.7) 1px, transparent 1px)",
+            backgroundSize: "32px 32px"
+          }}
+        >
               {/* Passkey Modal Content */}
               {activeModal === "passkey" && (
                 <div>
@@ -971,21 +1068,22 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         recoveryStatus.isSealed ? 'bg-brand-green text-white' : 'bg-red-500 text-white animate-pulse'
                       }`}>
-                        <Fingerprint size={20} />
+                        <Fingerprint size={20} aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-base font-black text-neutral-900 truncate">Biometric Passkey</h3>
+                        <h3 id="passkey-modal-title" className="text-base font-black text-neutral-900 truncate">Biometric Passkey</h3>
                         <p className={`text-[10px] font-bold ${recoveryStatus.isSealed ? 'text-brand-green-dark' : 'text-red-600'}`}>
-                          {recoveryStatus.isSealed ? 'Linked & Synced' : 'Passkey Missing'}
+                          {recoveryStatus.isSealed ? 'Linked & Synced' : 'Set up your passkey'}
                         </p>
                       </div>
                     </div>
                     {/* Inline Close Button */}
                     <button
                       onClick={() => setActiveModal(null)}
-                      className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-full transition-all flex-shrink-0"
+                      aria-label="Close dialog"
+                      className="focus-ring p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-full transition-all flex-shrink-0"
                     >
-                      <XCircle size={20} />
+                      <XCircle size={20} aria-hidden="true" />
                     </button>
                   </div>
                   <p className="text-neutral-500 text-xs mb-6 leading-relaxed font-medium">
@@ -1000,7 +1098,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       disabled={!isReady || enablingRecovery}
                       className="w-full py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-xl transition-colors shadow-sm animate-pulse flex items-center justify-center gap-2"
                     >
-                      {enablingRecovery ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enable Passkey'}
+                      {enablingRecovery ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : 'Enable Passkey'}
                     </button>
                   ) : (
                     <div className="py-3 px-4 bg-brand-green/10 border border-brand-green/30 rounded-xl text-center backdrop-blur-sm">
@@ -1010,7 +1108,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                 </div>
               )}
 
-              {/* Cold Storage Backup Modal Content */}
+              {/* Recovery Phrase Backup Modal Content */}
               {activeModal === "backup" && (
                 <div>
                   <div className="flex items-start justify-between gap-4 mb-4">
@@ -1018,10 +1116,10 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         hasPhrase ? 'bg-brand-green text-white' : 'bg-amber-500 text-white'
                       }`}>
-                        <Key size={20} />
+                        <Key size={20} aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-base font-black text-neutral-900 truncate">Cold Storage Backup</h3>
+                        <h3 id="backup-modal-title" className="text-base font-black text-neutral-900 truncate">Recovery Phrase Backup</h3>
                         <p className={`text-[10px] font-bold ${hasPhrase ? 'text-brand-green-dark' : 'text-amber-600'}`}>
                           {hasPhrase ? 'Offline Phrase Secured' : 'Backup Required'}
                         </p>
@@ -1030,9 +1128,10 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     {/* Inline Close Button */}
                     <button
                       onClick={() => setActiveModal(null)}
-                      className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-full transition-all flex-shrink-0"
+                      aria-label="Close dialog"
+                      className="focus-ring p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-full transition-all flex-shrink-0"
                     >
-                      <XCircle size={20} />
+                      <XCircle size={20} aria-hidden="true" />
                     </button>
                   </div>
                   <p className="text-neutral-500 text-xs mb-6 leading-relaxed font-medium">
@@ -1047,12 +1146,17 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       disabled={!isReady || enablingRecovery}
                       className="w-full py-3 bg-neutral-900 hover:bg-black text-white text-xs font-black rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
                     >
-                      {enablingRecovery ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate Backup'}
+                      {enablingRecovery ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : 'Generate Backup'}
                     </button>
                   ) : (
                     <button
-                      onClick={() => {
-                        if (confirm("Would you like to regenerate your recovery phrase? This will create a NEW 24-word phrase and invalidate the old one. Make sure you write down the new phrase.")) {
+                      onClick={async () => {
+                        if (await askConfirm({
+                          title: "Regenerate your recovery phrase?",
+                          body: "This creates a NEW 24-word phrase and invalidates the old one. Make sure you write down the new phrase.",
+                          confirmLabel: "Regenerate",
+                          variant: "warning",
+                        })) {
                           setActiveModal(null);
                           handleGeneratePhrase();
                         }
@@ -1060,7 +1164,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                       disabled={!isReady || enablingRecovery}
                       className="w-full py-3 bg-white border border-brand-green/20 text-brand-green-dark hover:bg-brand-green/5 text-xs font-black rounded-xl transition-colors flex items-center justify-center gap-2"
                     >
-                      {enablingRecovery ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Regenerate Phrase'}
+                      {enablingRecovery ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : 'Regenerate Phrase'}
                     </button>
                   )}
                 </div>
@@ -1072,11 +1176,11 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center flex-shrink-0">
-                        <Monitor size={20} />
+                        <Monitor size={20} aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-base font-black text-neutral-900 truncate">Authorized Devices</h3>
-                        <p className="text-[10px] font-bold text-neutral-400">
+                        <h3 id="devices-modal-title" className="text-base font-black text-neutral-900 truncate">Authorized Devices</h3>
+                        <p className="text-[10px] font-bold text-neutral-600">
                           {Object.keys(accountData?.devices || {}).length} sessions active
                         </p>
                       </div>
@@ -1084,13 +1188,14 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                     {/* Inline Close Button */}
                     <button
                       onClick={() => setActiveModal(null)}
-                      className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-full transition-all flex-shrink-0"
+                      aria-label="Close dialog"
+                      className="focus-ring p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-full transition-all flex-shrink-0"
                     >
-                      <XCircle size={20} />
+                      <XCircle size={20} aria-hidden="true" />
                     </button>
                   </div>
                   <div className="max-h-[240px] overflow-y-auto px-1.5 py-2 space-y-2 mb-4">
-                    {accountData?.devices && Object.values(accountData.devices).map((device: any) => {
+                    {accountData?.devices && Object.values(accountData.devices).map((device: DecryptedDevice) => {
                       const isCurrent = device.deviceId === getDeviceId();
                       return (
                         <div 
@@ -1103,16 +1208,16 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                         >
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              isCurrent ? 'bg-brand-green text-white' : 'bg-neutral-250 text-neutral-500'
+                              isCurrent ? 'bg-brand-green text-white' : 'bg-neutral-200 text-neutral-500'
                             }`}>
-                              <Monitor size={14} />
+                              <Monitor size={14} aria-hidden="true" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-bold text-neutral-800 text-xs truncate">
                                 {device.decryptedDeviceName}{isCurrent ? ' (Current)' : ''}
                               </h4>
-                              <p className="text-[8px] text-neutral-400 font-semibold mt-0.5">
-                                {isCurrent ? 'Current Session' : 'Authorized Endpoint'}
+                              <p className="text-[10px] text-neutral-600 font-semibold mt-0.5">
+                                {isCurrent ? 'Current Session' : 'Authorized device'}
                               </p>
                             </div>
                           </div>
@@ -1127,10 +1232,11 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                               }}
                               disabled={!isReady}
                               data-testid="revoke-device-btn-modal"
-                              className="p-1.5 text-neutral-400 hover:text-brand-red hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
+                              className="focus-ring p-1.5 text-neutral-400 hover:text-brand-red hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
                               title="Revoke Access"
+                              aria-label={`Revoke access for device ${device.decryptedDeviceName}`}
                             >
-                              <XCircle size={16} />
+                              <XCircle size={16} aria-hidden="true" />
                             </button>
                           )}
                         </div>
@@ -1139,49 +1245,55 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
+        </Modal>
 
       {/* Phrase Modal */}
-      {showPhraseModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-brand-charcoal/80 overflow-y-auto">
-          <div className="bg-white rounded-[3rem] p-8 sm:p-12 max-w-2xl w-full shadow-2xl relative animate-pop-in">
-            <h2 className="text-3xl font-black text-neutral-900 mb-4">Your Recovery Phrase</h2>
+      <Modal
+        open={showPhraseModal}
+        onClose={() => setShowPhraseModal(false)}
+        labelledBy="phrase-modal-title"
+        variant="bare"
+        closeOnBackdrop={false}
+        backdropClassName="fixed inset-0 z-[120] flex items-center justify-center p-6 backdrop-blur-xl bg-brand-charcoal/80 overflow-y-auto"
+        className="bg-white rounded-[3rem] p-8 sm:p-12 max-w-2xl w-full shadow-2xl relative animate-pop-in"
+      >
+            <h2 id="phrase-modal-title" className="text-3xl font-black text-neutral-900 mb-4">Your Recovery Phrase</h2>
             <p className="text-neutral-600 mb-8 font-medium">
               Write these 24 words down in order and store them in a secure, physical location.
               <span className="text-brand-red font-bold"> Do not share this with anyone or save it online.</span>
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-10">
+            <ol className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-10 list-none p-0 m-0">
               {generatedMnemonic?.split(' ').map((word, i) => (
-                <div key={i} className="bg-neutral-50 p-3 rounded-xl border border-neutral-100 flex items-center gap-3">
-                  <span className="text-neutral-400 text-xs font-black w-4">{i + 1}</span>
+                <li key={i} className="bg-neutral-50 p-3 rounded-xl border border-neutral-100 flex items-center gap-3">
+                  <span className="text-neutral-600 text-xs font-black w-4">{i + 1}</span>
                   <span className="font-bold text-neutral-800 tracking-tight">{word}</span>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
 
             <div className="flex flex-col sm:flex-row gap-4">
               <button
-                onClick={copyToClipboard}
+                onClick={handleCopyMnemonic}
                 disabled={!isReady}
-                className="flex-1 px-8 py-4 bg-neutral-100 text-neutral-600 rounded-2xl font-black hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="focus-ring flex-1 px-8 py-4 bg-neutral-100 text-neutral-600 rounded-2xl font-black hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {copied ? <CheckCircle2 size={20} className="text-brand-green" /> : <Clipboard size={20} />}
+                {copied ? <CheckCircle2 size={20} className="text-brand-green" aria-hidden="true" /> : <Clipboard size={20} aria-hidden="true" />}
                 {copied ? "Copied!" : "Copy to Clipboard"}
               </button>
               <button
                 onClick={() => setShowPhraseModal(false)}
                 disabled={!isReady}
-                className="flex-1 px-8 py-4 bg-brand-green text-white rounded-2xl font-black hover:bg-brand-green-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="focus-ring flex-1 px-8 py-4 bg-brand-green text-white rounded-2xl font-black hover:bg-brand-green-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 I've Saved It
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            {/* Copy-success live region (announced to assistive tech). */}
+            <div role="status" aria-live="polite" className="sr-only">
+              {copied ? "Recovery phrase copied to clipboard" : ""}
+            </div>
+      </Modal>
     </div>
   );
 }

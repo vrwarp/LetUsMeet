@@ -51,11 +51,18 @@ function resolveProvider(cfg: AppConfig, name: string): AIProvider {
  * Natural language time-slot extraction using Cerebras (primary) / Google Gemma (fallback).
  */
 export const extractTimeSlots = onCall(
-  { secrets: [appConfig] },
+  { secrets: [appConfig], maxInstances: 10 },
   async (request) => {
-    const userQuery = request.data.query;
-    if (!userQuery) {
-      throw new HttpsError("invalid-argument", "The function must be called with a 'query' argument.");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in to use AI slot extraction.");
+    }
+
+    const userQuery = request.data?.query;
+    if (typeof userQuery !== "string" || userQuery.trim().length === 0) {
+      throw new HttpsError("invalid-argument", "A non-empty 'query' string is required.");
+    }
+    if (userQuery.length > 2000) {
+      throw new HttpsError("invalid-argument", "Query is too long (max 2000 characters).");
     }
 
     const cfg = appConfig.value() as unknown as AppConfig;
@@ -79,8 +86,9 @@ export const extractTimeSlots = onCall(
       if (!response.text) throw new Error("AI returned an empty response.");
       return JSON.parse(response.text);
     } catch (error: unknown) {
-      logger.error("AI Generation Error:", error);
-      throw new HttpsError("internal", error instanceof Error ? error.message : "Failed to parse time slots.");
+      if (error instanceof HttpsError) throw error;
+      console.error("AI Generation Error (extractTimeSlots):", error);
+      throw new HttpsError("internal", "We couldn't parse the AI response. Please try again.");
     }
   }
 );
@@ -89,11 +97,18 @@ export const extractTimeSlots = onCall(
  * Natural language fuzzy-slot extraction using Cerebras (primary) / Google Gemma (fallback).
  */
 export const extractFuzzySlots = onCall(
-  { secrets: [appConfig] },
+  { secrets: [appConfig], maxInstances: 10 },
   async (request) => {
-    const userQuery = request.data.query;
-    if (!userQuery) {
-      throw new HttpsError("invalid-argument", "The function must be called with a 'query' argument.");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in to use AI slot extraction.");
+    }
+
+    const userQuery = request.data?.query;
+    if (typeof userQuery !== "string" || userQuery.trim().length === 0) {
+      throw new HttpsError("invalid-argument", "A non-empty 'query' string is required.");
+    }
+    if (userQuery.length > 2000) {
+      throw new HttpsError("invalid-argument", "Query is too long (max 2000 characters).");
     }
 
     const cfg = appConfig.value() as unknown as AppConfig;
@@ -117,8 +132,9 @@ export const extractFuzzySlots = onCall(
       if (!response.text) throw new Error("AI returned an empty response.");
       return JSON.parse(response.text);
     } catch (error: unknown) {
-      logger.error("AI Generation Error:", error);
-      throw new HttpsError("internal", error instanceof Error ? error.message : "Failed to parse fuzzy slots.");
+      if (error instanceof HttpsError) throw error;
+      console.error("AI Generation Error (extractFuzzySlots):", error);
+      throw new HttpsError("internal", "We couldn't parse the AI response. Please try again.");
     }
   }
 );

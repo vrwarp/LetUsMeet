@@ -24,7 +24,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
 }) => {
   const isClickable = !!onCopy;
 
-  const baseStyles = "relative flex-1 min-w-[240px] flex items-center gap-4 transition-all group overflow-hidden h-[72px] md:h-[84px] py-3 px-5 rounded-[1.5rem] md:rounded-[2rem] border";
+  const baseStyles = "relative flex-1 min-w-0 sm:min-w-[240px] flex items-center gap-4 transition-all group overflow-hidden h-[72px] md:h-[84px] py-3 px-5 rounded-[1.5rem] md:rounded-[2rem] border";
   
   const themeStyles = theme === 'dark' 
     ? (isCopied 
@@ -39,8 +39,8 @@ const ActionCard: React.FC<ActionCardProps> = ({
     : "bg-brand-green-light/50 text-brand-green-dark";
 
   const labelStyles = theme === 'dark'
-    ? "text-white/60"
-    : "text-neutral-500";
+    ? "text-white/80"
+    : "text-neutral-600";
 
   const valueStyles = theme === 'dark'
     ? "text-white"
@@ -50,13 +50,13 @@ const ActionCard: React.FC<ActionCardProps> = ({
     <>
       {/* Original Content */}
       <div className={`flex items-center gap-4 transition-all duration-300 w-full ${isCopied ? 'opacity-0 scale-95 translate-y-2' : 'opacity-100 scale-100 translate-y-0'}`}>
-        <div className={`p-2.5 md:p-3 rounded-2xl group-hover:scale-110 transition-transform flex-shrink-0 ${iconBgStyles}`}>
+        <div className={`p-2.5 md:p-3 rounded-2xl group-hover:scale-110 transition-transform flex-shrink-0 ${iconBgStyles}`} aria-hidden="true">
           {icon}
         </div>
         <div className="flex flex-col justify-center min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1.5">
             <span className={`text-[11px] uppercase tracking-[0.15em] font-black leading-none ${labelStyles}`}>{label}</span>
-            {isClickable && <Copy className={`w-3.5 h-3.5 transition-colors ${theme === 'dark' ? 'text-white/40 group-hover:text-white' : 'text-neutral-300 group-hover:text-brand-green'}`} />}
+            {isClickable && <Copy className={`w-3.5 h-3.5 transition-colors ${theme === 'dark' ? 'text-white/40 group-hover:text-white' : 'text-neutral-300 group-hover:text-brand-green'}`} aria-hidden="true" />}
           </div>
           <span className={`text-base font-bold leading-tight break-words line-clamp-2 ${valueStyles}`}>{value}</span>
         </div>
@@ -64,7 +64,7 @@ const ActionCard: React.FC<ActionCardProps> = ({
 
       {/* Success Content Overlay */}
       <div className={`absolute inset-0 flex items-center justify-center gap-3 px-6 py-4 transition-all duration-500 ${isCopied ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
-        <div className={`p-2.5 rounded-2xl shadow-lg ${theme === 'dark' ? 'bg-brand-green text-white' : 'bg-white text-brand-green'}`}>
+        <div className={`p-2.5 rounded-2xl shadow-lg ${theme === 'dark' ? 'bg-brand-green text-white' : 'bg-white text-brand-green'}`} aria-hidden="true">
           <CheckCircle2 className="w-6 h-6 animate-in zoom-in duration-300" />
         </div>
         <span className="font-black text-lg tracking-tight">Copied!</span>

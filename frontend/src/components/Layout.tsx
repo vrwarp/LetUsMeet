@@ -1,13 +1,18 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, Suspense } from "react";
 import { Outlet, Link, useLocation, useSearchParams, useNavigate, useNavigation } from "react-router-dom";
 import { LogIn, LogOut, LayoutDashboard, PlusCircle, ChevronDown, ExternalLink, AlertTriangle, X, Trash2, Loader2, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
 import { analyzeMnemonicTypos } from "@/lib/recoveryCorrector";
-import logoImg from "@/assets/meat-lettuce-logo-transparent.webp?inline";
+import logoImg from "@/assets/meat-lettuce-logo-transparent.webp";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 import ScrollToTop from "./ScrollToTop";
 import DeviceEnrollmentGate from "./DeviceEnrollmentGate";
-import { 
+import PageLoader from "./PageLoader";
+import Modal from "./Modal";
+import { extractAdminTokenFromFragment, stripAdminTokenFromFragment } from "@/lib/pollService";
+import {
   getLocalPublicKey, 
   requestDeviceAuthorization, 
   approveDeviceAuthorization,
@@ -43,6 +48,8 @@ export default function Layout() {
   const [mnemonicInput, setMnemonicInput] = useState("");
   const [isRecovering, setIsRecovering] = useState(false);
   const { user, loading, keyMismatchError, signInWithGoogle, signOutUser, resetAccount, deleteAccount, recoverWithPhrase, pendingRequests } = useAuth();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
   const [isWaitingForAuth, setIsWaitingForAuth] = useState(false);
   const typoReport = useMemo(() => {
     return analyzeMnemonicTypos(mnemonicInput);
@@ -77,18 +84,23 @@ export default function Layout() {
   }, [navigation.state]);
 
   useEffect(() => {
-    const token = searchParams.get("adminToken");
+    // Prefer the fragment (current scheme); fall back to the query string so
+    // older organizer links (?adminToken=...) keep working.
+    const token = extractAdminTokenFromFragment(location.hash) || searchParams.get("adminToken");
     if (token) {
+      // Async capture: lift the ownership token out of the URL into state, then
+      // strip it from BOTH the fragment and the query so it isn't shared or logged.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAdminToken(token);
-      
+
       const cleanParams = new URLSearchParams(searchParams);
       cleanParams.delete("adminToken");
       const searchString = cleanParams.toString();
-      
+
       navigate({
         pathname: location.pathname,
         search: searchString ? `?${searchString}` : "",
-        hash: location.hash
+        hash: stripAdminTokenFromFragment(location.hash)
       }, { replace: true });
     }
   }, [searchParams, location.pathname, location.hash, navigate]);
@@ -128,7 +140,7 @@ export default function Layout() {
       await approveDeviceAuthorization(req);
     } catch (e) {
       console.error("Failed to approve device:", e);
-      alert("Failed to authorize device.");
+      toast({ variant: "error", message: "Failed to authorize device." });
     } finally {
       setApprovingId(null);
     }
@@ -144,9 +156,27 @@ export default function Layout() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  const showMismatchOverlay = !!keyMismatchError && !activeAdminToken && !isPublicPage;
+
+  // Close the profile dropdown on Escape and return focus to its trigger.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isMenuOpen]);
 
   // Close menu on navigation
   useEffect(() => {
+    // Close the profile dropdown whenever the route changes (navigation side effect).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMenuOpen(false);
   }, [location.pathname]);
 
@@ -167,8 +197,8 @@ export default function Layout() {
       await recoverWithPhrase(mnemonicInput.trim());
       setShowPhraseInput(false);
       setMnemonicInput("");
-    } catch (e: any) {
-      alert("Recovery failed: " + e.message);
+    } catch {
+      toast({ variant: "error", message: "We couldn't restore your account. Double-check your recovery phrase and try again." });
     } finally {
       setIsRecovering(false);
     }
@@ -176,11 +206,17 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-neutral-50 text-brand-charcoal font-sans flex flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[300] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-brand-green focus:text-white focus:font-bold focus:shadow-lg focus-ring"
+      >
+        Skip to main content
+      </a>
       <ScrollToTop />
       <header className="bg-white border-b border-neutral-200 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
-            <img src={logoImg} alt="" className="h-9 sm:h-10 w-auto transition-transform group-hover:scale-105" />
+            <img src={logoImg} alt="" width={273} height={229} className="h-9 sm:h-10 w-auto transition-transform group-hover:scale-105" />
             <span className="font-display font-bold text-base sm:text-2xl tracking-tight [font-variant:small-caps] block">
               <span className="text-brand-green-dark">Let</span><span className="text-brand-green-dark">Us</span><span className="text-brand-red">Meet</span>
             </span>
@@ -192,7 +228,7 @@ export default function Layout() {
                 to="/create"
                 data-testid="create-poll-btn"
                 aria-label="Create Poll"
-                className="flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
+                className="focus-ring flex items-center justify-center gap-2 text-sm font-bold bg-brand-green text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-green-dark transition-all shadow-md hover:shadow-lg active:scale-95"
               >
                 <PlusCircle size={18} />
                 <span className="hidden sm:inline">Create Poll</span>
@@ -212,17 +248,21 @@ export default function Layout() {
                     {user && !user.isAnonymous ? (
                       <div className="relative" ref={menuRef}>
                         <button
+                          ref={menuButtonRef}
                           onClick={() => setIsMenuOpen(!isMenuOpen)}
                           data-testid="user-profile-btn"
                           className="w-[66px] sm:w-[80px] h-[38px] sm:h-[46px] flex items-center pl-1.5 pr-2.5 sm:pl-2 sm:pr-3 gap-1.5 sm:gap-2 rounded-full hover:bg-neutral-100 transition-all border border-transparent hover:border-neutral-200 group"
                           aria-expanded={isMenuOpen}
                           aria-haspopup="true"
+                          aria-controls="user-profile-menu"
                         >
                           <div className="flex-shrink-0">
                             {user.photoURL ? (
                               <img
                                 src={user.photoURL}
                                 alt=""
+                                width={36}
+                                height={36}
                                 className="h-7 w-7 sm:h-9 sm:w-9 rounded-full ring-2 ring-brand-green/10 shadow-sm object-cover border border-white"
                               />
                             ) : (
@@ -231,11 +271,11 @@ export default function Layout() {
                               </div>
                             )}
                           </div>
-                          <ChevronDown size={16} className={`text-neutral-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                          <ChevronDown size={16} className={`text-neutral-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                         </button>
 
                         {isMenuOpen && (
-                          <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-neutral-100 py-2 z-30 animate-fade-in-up overflow-hidden">
+                          <div id="user-profile-menu" className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-neutral-100 py-2 z-30 animate-fade-in-up overflow-hidden">
                             <div className="px-4 py-3 border-b border-neutral-50 mb-1">
                               <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">Signed in as</p>
                               <p className="text-sm font-bold text-brand-charcoal truncate">{user.displayName || user.email}</p>
@@ -255,11 +295,17 @@ export default function Layout() {
                             
                             <button
                               onClick={async () => {
-                                if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
+                                if (await askConfirm({
+                                  title: "Delete your account?",
+                                  body: "This permanently erases your access to every poll you've created or joined. This can't be undone.",
+                                  confirmLabel: "Delete account",
+                                  variant: "danger",
+                                })) {
                                   try {
                                     await deleteAccount();
-                                  } catch (e: any) {
-                                    alert("Failed to delete account: " + e.message);
+                                  } catch (e) {
+                                    console.error("Failed to delete account:", e);
+                                    toast({ variant: "error", message: "We couldn't delete your account. Please try again." });
                                   }
                                 }
                               }}
@@ -287,8 +333,8 @@ export default function Layout() {
                           setAuthError(null);
                           try {
                             await signInWithGoogle();
-                          } catch (e: any) {
-                            setAuthError(e.message);
+                          } catch (e) {
+                            setAuthError(e instanceof Error ? e.message : String(e));
                           }
                         }}
                         data-testid="google-signin-btn"
@@ -308,19 +354,19 @@ export default function Layout() {
 
       {authError && (
         <div className="max-w-4xl mx-auto px-4 mt-4">
-          <div className="bg-red-50 border border-red-100 text-red-600 px-6 py-4 rounded-[2rem] font-medium flex items-start gap-4 shadow-lg shadow-red-100/50">
-            <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+          <div role="alert" className="bg-red-50 border border-red-100 text-red-600 px-6 py-4 rounded-[2rem] font-medium flex items-start gap-4 shadow-lg shadow-red-100/50">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <div className="flex-1">
               <p>{authError}</p>
             </div>
-            <button onClick={() => setAuthError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors">
-              <X size={20} />
+            <button onClick={() => setAuthError(null)} aria-label="Dismiss error" className="p-1 hover:bg-red-100 rounded-full transition-colors">
+              <X size={20} aria-hidden="true" />
             </button>
           </div>
         </div>
       )}
 
-      <main className="flex-1 w-full">
+      <main id="main-content" className="flex-1 w-full">
         {pendingRequests.length > 0 && location.pathname !== "/dashboard" && !isPublicPage && (
           <div className="max-w-5xl mx-auto px-4 mt-6 animate-fade-in-up" data-testid="pending-auth-request">
             {pendingRequests.map(req => (
@@ -331,19 +377,20 @@ export default function Layout() {
                 <div className="flex-1 text-center sm:text-left">
                   <h3 className="text-base font-bold text-brand-green-dark">New Device Authorization</h3>
                   <p className="text-brand-green-dark/70 text-xs sm:text-sm">
-                    "{(req as any).decryptedDeviceName || "Unknown Device"}" wants to access your polls.
+                    "{(req as PendingDevice & { decryptedDeviceName?: string }).decryptedDeviceName || "Unknown Device"}" wants to access your polls.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="bg-white/50 px-3 py-1.5 rounded-lg border border-brand-green/20 font-mono font-bold text-brand-green-dark tracking-wider">
                     <PendingCodeDisplay publicKey={req.publicKey} />
                   </div>
-                  <button 
+                  <button
                     onClick={() => handleReject(req)}
                     className="p-2 text-neutral-500 hover:text-brand-red transition-colors"
+                    aria-label="Reject device request"
                     title="Reject"
                   >
-                    <X size={20} />
+                    <X size={20} aria-hidden="true" />
                   </button>
                   <button 
                     onClick={() => handleApprove(req)}
@@ -360,18 +407,31 @@ export default function Layout() {
         )}
 
         {isPublicPage ? (
-          <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+          </Suspense>
         ) : (
           <DeviceEnrollmentGate>
-            <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+            <Suspense fallback={<PageLoader />}>
+              <Outlet context={{ activeAdminToken, isClaimed, setIsClaimed }} />
+            </Suspense>
           </DeviceEnrollmentGate>
         )}
       </main>
 
-      {keyMismatchError && !activeAdminToken && !isPublicPage && (
-        <div data-testid="mismatch-error" className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center">
-          {!showPhraseInput ? (
-            <div 
+      <Modal
+        open={showMismatchOverlay}
+        onClose={() => {}}
+        labelledBy="mismatch-dialog-title"
+        variant="bare"
+        size="fullscreen"
+        dismissable={false}
+        testId="mismatch-error"
+        backdropClassName="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md"
+        className="absolute inset-0 flex items-center justify-center p-4 sm:p-6 text-center"
+      >
+        {showMismatchOverlay && (!showPhraseInput ? (
+            <div
               className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
               style={{
                 backgroundColor: "#ffffff",
@@ -382,9 +442,12 @@ export default function Layout() {
               {/* Illustration Banner */}
               {keyMismatchError.startsWith("UNRECOGNIZED_DEVICE") && (
                 <div className="w-full relative aspect-[2.3] sm:aspect-[1.7] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
-                  <img 
-                    src={dataGardenImg} 
-                    alt="Data Garden Illustration" 
+                  <img
+                    src={dataGardenImg}
+                    alt="Data Garden Illustration"
+                    width={965}
+                    height={633}
+                    loading="lazy"
                     className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
                   />
                 </div>
@@ -394,26 +457,26 @@ export default function Layout() {
                 {keyMismatchError.startsWith("UNRECOGNIZED_DEVICE") ? (
                   <>
                     <span className="sr-only">Unrecognized Device</span>
-                    <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
-                      Unlock Your Data Garden
+                    <h2 id="mismatch-dialog-title" className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-tight">
+                      Unlock your polls on this device
                     </h2>
                     {!isWaitingForAuth && (
                       <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2.5 leading-relaxed max-w-sm">
-                        Your meeting garden is locked. Since it’s fully private, even we can’t unlock it for you! Let’s restore your keys using another device or your recovery phrase.
+                        This device isn't set up yet. Because your polls are fully private, even we can't unlock them — restore access from another device or your recovery phrase.
                       </p>
                     )}
                   </>
                 ) : (
                   <>
                     <span className="sr-only">Identity Key Mismatch</span>
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 text-brand-red rounded-2xl sm:rounded-3xl flex items-center justify-center mb-3 border border-red-100 shadow-sm shadow-red-50">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 text-brand-red rounded-2xl sm:rounded-3xl flex items-center justify-center mb-3 border border-red-100 shadow-sm shadow-red-50" aria-hidden="true">
                       <AlertTriangle size={28} />
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight">
-                      Identity Key Mismatch
+                    <h2 id="mismatch-dialog-title" className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight">
+                      This isn't the passkey we expected
                     </h2>
                     <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2.5 leading-relaxed max-w-sm">
-                      The passkey you just used is different from the one originally used to secure your account.
+                      You signed in with a different passkey than the one that set up this account. Restore access from another device or with your recovery phrase.
                     </p>
                   </>
                 )}
@@ -447,10 +510,10 @@ export default function Layout() {
                       onClick={handleRequestAuth}
                       disabled={isRecovering}
                       data-testid="request-auth-btn"
-                      className="w-full bg-brand-green text-white py-3 sm:py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/10 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-xs sm:text-sm"
+                      className="focus-ring w-full bg-brand-green text-white py-3 sm:py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/10 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer text-xs sm:text-sm"
                     >
                       {isRecovering ? <Loader2 className="animate-spin" size={16} /> : null}
-                      Authorize from Another Device
+                      Use another device
                     </button>
 
                     <button 
@@ -462,7 +525,7 @@ export default function Layout() {
 
                     <button 
                       onClick={signOutUser}
-                      className="w-full bg-white text-neutral-600 border border-neutral-250 py-2.5 rounded-full font-bold hover:bg-neutral-50 hover:text-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                      className="w-full bg-white text-neutral-600 border border-neutral-300 py-2.5 rounded-full font-bold hover:bg-neutral-50 hover:text-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
                     >
                       Sign Out & Try Again
                     </button>
@@ -470,9 +533,14 @@ export default function Layout() {
                 )}
 
                 <div className="pt-4 border-t border-neutral-100 mt-5 sm:mt-6 w-full flex flex-col items-center">
-                  <button 
-                    onClick={() => {
-                      if (confirm("WARNING: This will permanently delete ALL your encrypted polls and reset your account. This cannot be undone. Are you sure?")) {
+                  <button
+                    onClick={async () => {
+                      if (await askConfirm({
+                        title: "Reset your account?",
+                        body: "This permanently deletes ALL your encrypted polls and resets your account. This cannot be undone.",
+                        confirmLabel: "Reset account",
+                        variant: "danger",
+                      })) {
                         resetAccount();
                       }
                     }}
@@ -499,25 +567,29 @@ export default function Layout() {
             >
               {/* Illustration Banner */}
               <div className="w-full relative aspect-[2.3] sm:aspect-[1.7] flex items-center justify-center bg-white/40 border-b border-neutral-100 p-2 sm:p-4 overflow-hidden">
-                <img 
-                  src={dataGardenImg} 
-                  alt="Data Garden Illustration" 
+                <img
+                  src={dataGardenImg}
+                  alt="Data Garden Illustration"
+                  width={965}
+                  height={633}
+                  loading="lazy"
                   className="w-full h-full object-contain max-h-[100px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
                 />
               </div>
 
               <div className="p-5 sm:p-10 flex flex-col items-center">
-                <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight text-center">
+                <h2 id="mismatch-dialog-title" className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight leading-tight text-center">
                   Enter Recovery Phrase
                 </h2>
                 <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-2 leading-relaxed text-center px-2">
-                  Enter your 24-word recovery phrase to restore access to your encrypted polls. 
+                  Enter your 24-word recovery phrase to restore access to your encrypted polls.
                 </p>
 
                 <textarea
                   value={mnemonicInput}
                   onChange={(e) => setMnemonicInput(e.target.value)}
                   placeholder="word1 word2 word3..."
+                  aria-label="Recovery phrase"
                   className="w-full h-24 bg-neutral-50 border border-neutral-200 rounded-xl sm:rounded-2xl p-4 text-neutral-800 font-mono text-xs sm:text-sm focus:ring-2 focus:ring-brand-green/20 outline-none mt-4 mb-4"
                   disabled={isRecovering}
                 />
@@ -548,7 +620,7 @@ export default function Layout() {
                   <button 
                     onClick={handleRecover}
                     disabled={isRecovering || !typoReport.isValid}
-                    className="flex-[2] bg-brand-green text-white py-3 rounded-full font-bold hover:bg-brand-green-dark shadow-lg shadow-brand-green/10 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                    className="focus-ring flex-[2] bg-brand-green text-white py-3 rounded-full font-bold hover:bg-brand-green-dark shadow-lg shadow-brand-green/10 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
                   >
                     {isRecovering && <Loader2 className="w-4 h-4 animate-spin" />}
                     Recover Account
@@ -556,9 +628,8 @@ export default function Layout() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          ))}
+      </Modal>
       <footer className="border-t border-neutral-200 py-8 mt-auto w-full bg-neutral-50">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-neutral-600 font-medium">
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">

@@ -1,8 +1,16 @@
-import { render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { screen } from '@testing-library/react';
+import { renderWithProviders } from '@/test/renderWithProviders';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import DeviceEnrollmentGate from './DeviceEnrollmentGate';
 import { useAuth } from '@/hooks/useAuth';
+
+// The gate renders a react-router <Link> when shown, so a Router context is
+// required for the rendered tree.
+const render = (ui: ReactElement) =>
+  renderWithProviders(<MemoryRouter>{ui}</MemoryRouter>);
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(),
@@ -19,7 +27,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -37,7 +45,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -55,7 +63,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: true,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -73,7 +81,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -83,7 +91,7 @@ describe('DeviceEnrollmentGate', () => {
 
     expect(screen.getByTestId('child-element')).toBeInTheDocument();
     expect(screen.getByText('Secure your account')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set up secure access' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up my passkey' })).toBeInTheDocument();
   });
 
   it('displays error on enrollment NotAllowedError', async () => {
@@ -95,7 +103,7 @@ describe('DeviceEnrollmentGate', () => {
       loading: false,
       isDeviceRegistered: false,
       enrollDevice: enrollMock,
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>
@@ -103,10 +111,10 @@ describe('DeviceEnrollmentGate', () => {
       </DeviceEnrollmentGate>
     );
 
-    await user.click(screen.getByRole('button', { name: 'Set up secure access' }));
+    await user.click(screen.getByRole('button', { name: 'Set up my passkey' }));
 
     expect(enrollMock).toHaveBeenCalled();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Registration was canceled. We need a secure key to encrypt your polls.');
+    expect(await screen.findByRole('alert')).toHaveTextContent("Passkey setup was canceled. You'll need one to keep your polls encrypted — tap to try again.");
   });
 
   it('renders children if there is a key mismatch error', () => {
@@ -116,7 +124,7 @@ describe('DeviceEnrollmentGate', () => {
       isDeviceRegistered: false,
       keyMismatchError: 'UNRECOGNIZED_DEVICE: Device not authorized.',
       enrollDevice: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     render(
       <DeviceEnrollmentGate>

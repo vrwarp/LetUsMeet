@@ -10,8 +10,8 @@ describe('HomePage', () => {
         <HomePage />
       </MemoryRouter>
     );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Let everyone meet/i);
-    expect(screen.getByRole('link', { name: /Start a Poll/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Start a Poll/i })).toHaveAttribute('href', '/create');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Find a time that works for everyone/i);
+    expect(screen.getByRole('link', { name: /Create a poll/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Create a poll/i })).toHaveAttribute('href', '/create');
   });
 });

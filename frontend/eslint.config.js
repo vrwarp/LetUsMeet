@@ -19,4 +19,12 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Playwright's `use` fixture is mistaken for a React Hook by
+    // react-hooks/rules-of-hooks. Disable that rule for e2e tests.
+    files: ['e2e/**/*.ts'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+    },
+  },
 ])

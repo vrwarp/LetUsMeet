@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as pollService from '@/lib/pollService';
+import type { LedgerSession } from 'charproof';
 
 vi.mock('@/lib/pollService');
 
@@ -40,7 +41,7 @@ describe('DashboardPage performance', () => {
         }),
         exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
         getSignerPublicKey: vi.fn().mockReturnValue('pub'),
-      } as any;
+      } as unknown as LedgerSession;
     });
 
     const start = performance.now();
@@ -49,7 +50,7 @@ describe('DashboardPage performance', () => {
     // The loop from the dashboard code:
     for (const entry of keystoreEntries) {
       try {
-        const session = await pollService.getLedgerSession(entry.ledgerId as any);
+        const session = await pollService.getLedgerSession(entry.ledgerId);
         const genesis = await session.getGenesisEvent();
         if (genesis?.action?.type === "POLL_CREATED") {
           decryptedEntries.push({
@@ -100,7 +101,7 @@ describe('DashboardPage performance', () => {
         }),
         exportSessionKey: vi.fn().mockReturnValue('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE='),
         getSignerPublicKey: vi.fn().mockReturnValue('pub'),
-      } as any;
+      } as unknown as LedgerSession;
     });
 
     const start = performance.now();
@@ -109,7 +110,7 @@ describe('DashboardPage performance', () => {
     const decryptedEntriesList = await Promise.all(
       keystoreEntries.map(async (entry) => {
         try {
-          const session = await pollService.getLedgerSession(entry.ledgerId as any);
+          const session = await pollService.getLedgerSession(entry.ledgerId);
           const genesis = await session.getGenesisEvent();
           if (genesis?.action?.type === "POLL_CREATED") {
             return {

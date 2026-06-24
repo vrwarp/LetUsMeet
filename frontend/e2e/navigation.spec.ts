@@ -4,13 +4,13 @@ test.describe('Navigation Flows', () => {
   test('navigates through the entire app lifecycle smoothly', async ({ page }) => {
     // Start at Home
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Let everyone meet');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Find a time that works for everyone');
 
     // Home -> Create
     await page.locator('header').getByTestId('create-poll-btn').click();
     await waitForRouterIdle(page);
     await expect(page).toHaveURL(/\/create/);
-    await expect(page.getByRole('heading', { name: /Create a Meeting Poll/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Create a poll/i })).toBeVisible();
 
     // Create -> Poll (Requires form submission)
     await page.getByTestId('organizer-name-input').fill('Test Organizer');
@@ -19,7 +19,6 @@ test.describe('Navigation Flows', () => {
     await page.getByTestId('create-submit-btn').click();
 
     await page.waitForURL(/\/poll\/[^/]+(\?.*)?#key=.+/);
-    const pollUrl = page.url();
     await expect(page.getByTestId('poll-title')).toContainText('Nav Test Poll');
 
     // Let's vote
@@ -36,7 +35,7 @@ test.describe('Navigation Flows', () => {
 
   test('Direct URL access to /create works without going through home (G8)', async ({ page }) => {
     await page.goto('/create');
-    await expect(page.getByRole('heading', { name: /Create a Meeting Poll/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Create a poll/i })).toBeVisible();
   });
 
   test('Logo link in header navigates back to home (G9)', async ({ page }) => {
@@ -45,6 +44,6 @@ test.describe('Navigation Flows', () => {
     await page.getByRole('link', { name: /LetUsMeet/i }).first().click();
     await waitForRouterIdle(page);
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Let everyone meet');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Find a time that works for everyone');
   });
 });

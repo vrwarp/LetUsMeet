@@ -12,7 +12,7 @@ import { http, HttpResponse } from 'msw';
 export const handlers = [
   // createPoll
   http.post('*/createPoll', async ({ request }) => {
-    const { data } = (await request.json()) as any;
+    const { data } = (await request.json()) as { data: unknown };
     console.log('MSW: Intercepted createPoll', data);
     return HttpResponse.json({
       result: {
@@ -23,7 +23,7 @@ export const handlers = [
 
   // getPoll
   http.post('*/getPoll', async ({ request }) => {
-    const { data } = (await request.json()) as any;
+    const { data } = (await request.json()) as { data: { pollId?: string } };
     console.log('MSW: Intercepted getPoll', data);
     return HttpResponse.json({
       result: {
@@ -51,7 +51,7 @@ export const handlers = [
 
   // submitVote
   http.post('*/submitVote', async ({ request }) => {
-    const { data } = (await request.json()) as any;
+    const { data } = (await request.json()) as { data: unknown };
     console.log('MSW: Intercepted submitVote', data);
     return HttpResponse.json({
       result: {

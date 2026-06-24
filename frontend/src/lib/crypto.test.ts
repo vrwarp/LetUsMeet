@@ -178,7 +178,7 @@ describe('Crypto Primitives', () => {
         ["encrypt", "decrypt"]
       );
       expect(importedAmk.type).toBe('secret');
-      expect((importedAmk.algorithm as any).length).toBe(256);
+      expect((importedAmk.algorithm as AesKeyAlgorithm).length).toBe(256);
     });
 
     it('should fail to unwrap with wrong private key', async () => {

@@ -1,3 +1,4 @@
+import { memo, useMemo, useRef } from "react";
 import { Check, AlertCircle, X } from "lucide-react";
 import type { VoteValue, TimeSlot } from "../types/index";
 import { cycleVote } from "@/lib/voteUtils";
@@ -9,36 +10,90 @@ interface Props {
   disabled?: boolean;
 }
 
-export default function TimeSlotCard({ slot, value, onChange, disabled }: Props) {
-  const isExact = "startTime" in slot;
-  
-  let dateStr = "";
-  let timeRange = "";
-  let subtext = "";
+// The three selectable availability options, in roving-tabindex order.
+const OPTIONS: { value: Exclude<VoteValue, "BLANK">; label: string }[] = [
+  { value: "YES", label: "Yes" },
+  { value: "IF_NEED_BE", label: "If need be" },
+  { value: "NO", label: "No" },
+];
 
-  if (isExact) {
-    const start = new Date(slot.startTime);
-    const end = new Date(slot.endTime);
-    dateStr = start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    timeRange = `${start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} – ${end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
-  } else {
+function TimeSlotCard({ slot, value, onChange, disabled }: Props) {
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  // Date/time formatting only depends on the slot, so memoize it keyed on the
+  // slot — re-renders driven by `value`/`disabled` skip the Date parsing.
+  const { dateStr, timeRange, subtext } = useMemo(() => {
+    if ("startTime" in slot) {
+      const start = new Date(slot.startTime);
+      const end = new Date(slot.endTime);
+      return {
+        dateStr: start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+        timeRange: `${start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} – ${end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`,
+        subtext: "",
+      };
+    }
+
     const date = new Date(slot.date + "T00:00:00");
-    dateStr = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    timeRange = slot.label;
-    
+    let sub = "";
     if (slot.time) {
       // Format time (e.g., "18:00" -> "6:00 PM")
       const [hours, minutes] = slot.time.split(':');
       const h = parseInt(hours);
       const ampm = h >= 12 ? 'PM' : 'AM';
       const formattedHours = h % 12 || 12;
-      subtext = `~ ${formattedHours}:${minutes} ${ampm}`;
+      sub = `~ ${formattedHours}:${minutes} ${ampm}`;
     }
-  }
+    return {
+      dateStr: date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+      timeRange: slot.label,
+      subtext: sub,
+    };
+  }, [slot]);
 
-  const handleClick = () => {
+  // Tapping the card body (outside an option) cycles through the states,
+  // preserving the original interaction.
+  const handleCardClick = () => {
     if (disabled) return;
     onChange(cycleVote(value));
+  };
+
+  const selectOption = (next: VoteValue) => {
+    if (disabled) return;
+    onChange(next);
+  };
+
+  // Arrow-key navigation across the radio options (wrapping).
+  const handleOptionKeyDown = (
+    e: React.KeyboardEvent<HTMLDivElement>,
+    index: number
+  ) => {
+    if (disabled) return;
+    let nextIndex: number;
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        nextIndex = (index + 1) % OPTIONS.length;
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+        nextIndex = (index - 1 + OPTIONS.length) % OPTIONS.length;
+        break;
+      case " ":
+      case "Enter":
+        e.preventDefault();
+        e.stopPropagation();
+        selectOption(OPTIONS[index].value);
+        return;
+      default:
+        return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    const target = OPTIONS[nextIndex];
+    selectOption(target.value);
+    // Move focus to the newly selected radio.
+    const radios = groupRef.current?.querySelectorAll<HTMLElement>('[role="radio"]');
+    radios?.[nextIndex]?.focus();
   };
 
   const getStyles = () => {
@@ -61,7 +116,7 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       case "IF_NEED_BE": return "If need be";
       case "NO": return "No";
       case "BLANK":
-      default: return "";
+      default: return "No selection";
     }
   };
 
@@ -69,26 +124,59 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
     switch (value) {
       case "YES": return "text-brand-green-dark";
       case "IF_NEED_BE": return "text-amber-900";
-      case "NO": return "text-neutral-500";
+      case "NO": return "text-neutral-600";
       case "BLANK":
-      default: return "text-neutral-400";
+      default: return "text-neutral-600";
+    }
+  };
+
+  // Which option, if any, owns tabIndex 0 (roving tabindex). When nothing is
+  // selected (BLANK), the first option is focusable per the radiogroup pattern.
+  const selectedIndex = OPTIONS.findIndex((o) => o.value === value);
+  const rovingIndex = selectedIndex === -1 ? 0 : selectedIndex;
+
+  const optionIcon = (optValue: VoteValue) => {
+    switch (optValue) {
+      case "YES":
+        return <Check size={18} strokeWidth={4} aria-hidden="true" />;
+      case "IF_NEED_BE":
+        return <AlertCircle size={18} strokeWidth={3} aria-hidden="true" />;
+      case "NO":
+      default:
+        return <X size={18} strokeWidth={4} aria-hidden="true" />;
+    }
+  };
+
+  const optionStateClass = (optValue: VoteValue) => {
+    const isSelected = value === optValue;
+    switch (optValue) {
+      case "YES":
+        return isSelected
+          ? "text-brand-green scale-110"
+          : "text-neutral-600 hover:text-brand-green hover:scale-110";
+      case "IF_NEED_BE":
+        return isSelected
+          ? "text-amber-600 scale-110"
+          : "text-neutral-600 hover:text-amber-600 hover:scale-110";
+      case "NO":
+      default:
+        return isSelected
+          ? "text-neutral-700 scale-110"
+          : "text-neutral-600 hover:text-neutral-700 hover:scale-110";
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled}
+    <div
+      onClick={handleCardClick}
       data-testid="slot-card"
-      aria-label={`${dateStr}, ${timeRange}${subtext ? ` ${subtext}` : ''}. Current vote: ${value}. Click to change.`}
-      className={`relative flex flex-col items-center p-6 rounded-2xl border-2 transition-all cursor-pointer select-none min-h-[140px] justify-between shadow-md active:scale-95 ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`relative flex flex-col items-center p-6 rounded-2xl border-2 transition-all select-none min-h-[140px] justify-between shadow-md ${!disabled ? 'cursor-pointer active:scale-95' : ''} ${getStyles()} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       <div className="flex flex-col items-center justify-center gap-1">
         <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${
-          value === 'BLANK' ? 'text-neutral-500' :
-          value === 'NO' ? 'text-neutral-500' : 
-          value === 'IF_NEED_BE' ? 'text-amber-900' : 
+          value === 'BLANK' ? 'text-neutral-600' :
+          value === 'NO' ? 'text-neutral-600' :
+          value === 'IF_NEED_BE' ? 'text-amber-900' :
           'text-brand-green-dark'
         }`}>
           {dateStr}
@@ -99,8 +187,8 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
         {subtext && (
           <span className={`text-[10px] font-bold ${
             value === 'BLANK' ? 'text-neutral-600' :
-            value === 'NO' ? 'text-neutral-600' : 
-            value === 'IF_NEED_BE' ? 'text-amber-700' : 
+            value === 'NO' ? 'text-neutral-600' :
+            value === 'IF_NEED_BE' ? 'text-amber-700' :
             'text-brand-green-dark'
           }`}>
             {subtext}
@@ -109,57 +197,35 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-3 w-full bg-neutral-50/50 rounded-xl py-2.5 px-4 border border-neutral-100 shadow-inner">
-        <div className="flex items-center gap-4">
-          {/* YES Icon State */}
-          <div 
-            onClick={(e) => {
-              if (disabled) return;
-              e.stopPropagation();
-              onChange('YES');
-            }}
-            data-testid="icon-YES"
-            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
-              value === 'YES' 
-                ? 'text-brand-green scale-110' 
-                : 'text-neutral-400 hover:text-brand-green hover:scale-110'
-            }`}
-          >
-            <Check size={18} strokeWidth={4} aria-hidden="true" />
-          </div>
-
-          {/* IF_NEED_BE Icon State */}
-          <div 
-            onClick={(e) => {
-              if (disabled) return;
-              e.stopPropagation();
-              onChange('IF_NEED_BE');
-            }}
-            data-testid="icon-IF_NEED_BE"
-            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
-              value === 'IF_NEED_BE'
-                ? 'text-amber-600 scale-110'
-                : 'text-neutral-400 hover:text-amber-600 hover:scale-110'
-            }`}
-          >
-            <AlertCircle size={18} strokeWidth={3} aria-hidden="true" />
-          </div>
-
-          {/* NO Icon State */}
-          <div 
-            onClick={(e) => {
-              if (disabled) return;
-              e.stopPropagation();
-              onChange('NO');
-            }}
-            data-testid="icon-NO"
-            className={`p-2 -m-2 rounded-lg cursor-pointer transition-all duration-300 active:scale-90 ${
-              value === 'NO' 
-                ? 'text-neutral-700 scale-110' 
-                : 'text-neutral-400 hover:text-neutral-700 hover:scale-110'
-            }`}
-          >
-            <X size={18} strokeWidth={4} aria-hidden="true" />
-          </div>
+        <div
+          ref={groupRef}
+          role="radiogroup"
+          aria-label={`Availability for ${dateStr} ${timeRange}`}
+          className="flex items-center gap-4"
+        >
+          {OPTIONS.map((opt, index) => {
+            const isSelected = value === opt.value;
+            return (
+              <div
+                key={opt.value}
+                role="radio"
+                aria-checked={isSelected}
+                aria-label={opt.label}
+                aria-disabled={disabled || undefined}
+                tabIndex={disabled ? -1 : (index === rovingIndex ? 0 : -1)}
+                data-testid={`icon-${opt.value}`}
+                onClick={(e) => {
+                  if (disabled) return;
+                  e.stopPropagation();
+                  selectOption(opt.value);
+                }}
+                onKeyDown={(e) => handleOptionKeyDown(e, index)}
+                className={`focus-ring p-2 -m-2 rounded-lg transition-all duration-300 active:scale-90 ${!disabled ? 'cursor-pointer' : 'cursor-not-allowed'} ${optionStateClass(opt.value)}`}
+              >
+                {optionIcon(opt.value)}
+              </div>
+            );
+          })}
         </div>
 
         <div className="w-[1.5px] h-4 bg-neutral-200 mx-1" />
@@ -168,6 +234,10 @@ export default function TimeSlotCard({ slot, value, onChange, disabled }: Props)
           {getLabelText()}
         </span>
       </div>
-    </button>
+    </div>
   );
 }
+
+// Memoized: the parent (VotePollPage) passes a stable per-slot `onChange`, so a
+// card only re-renders when its own `slot`/`value`/`disabled` change.
+export default memo(TimeSlotCard);

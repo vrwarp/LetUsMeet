@@ -74,7 +74,7 @@ export async function clickSetupSecureAccess(page: Page) {
   console.log(`[clickSetupSecureAccess] Clicking "Set up secure acceess"`);
   try {
     await expect(page.getByRole('heading', { name: 'Secure your account' })).toBeVisible({ timeout: 10000 });
-    const setupBtn = page.getByRole('button', { name: 'Set up secure access' });
+    const setupBtn = page.getByRole('button', { name: 'Set up my passkey' });
     await expect(setupBtn).toBeVisible({ timeout: 5000 });
     await setupBtn.click();
     // Wait a moment for WebAuthn prompt to resolve (virtual authenticator handles it instantly, but still good to wait)

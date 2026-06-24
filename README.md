@@ -49,8 +49,8 @@ To secure the user keystore without relying on cloud-stored master passwords:
 ### 2. Asymmetric Recovery Phrase (AIRK Scheme)
 For multi-device synchronization and credential recovery:
 * **Key Generation**: A random **RSA-OAEP 2048-bit key pair** (the Asymmetric Identity Recovery Key, or AIRK) is generated on the client. A 24-word BIP39 mnemonic recovery phrase is created.
-* **Protector Derivation**: The client derives an AES-GCM 256-bit key from the recovery phrase using **PBKDF2** (100,000 iterations, SHA-256, and a static salt).
-* **Sealing**: The RSA Private Key (exported in PKCS#8 format) is encrypted using the derived protector key. The RSA Public Key is saved as plaintext inside the user’s `recoveryMethods` document in Firestore, alongside the encrypted private key payload.
+* **Protector Derivation**: The client derives an AES-GCM 256-bit key from the recovery phrase using **PBKDF2-SHA256** with a fresh random per-record salt and the OWASP-recommended work factor (currently **600,000 iterations**, exported as `PBKDF2_ITERATIONS` in `charproof`). The salt and iteration count are persisted alongside each record so the protector can be re-derived. Legacy recovery records created before random salts were introduced are still readable via a backward-compatibility path (constant salt `LetUsMeet-Recovery-Salt-v1`, 100,000 iterations).
+* **Sealing**: The RSA Private Key (exported in PKCS#8 format) is encrypted using the derived protector key. The RSA Public Key is stored as plaintext inside the `recoveryMethods` map of the user’s `account_keys/default` document in Firestore, alongside the encrypted private key payload.
 * **AMK Encryption**: The active **Account Master Key (AMK)** is encrypted using the RSA Public Key and saved under the recovery keyring.
 * **Recovery**: Upon entering the 24-word phrase, the client reconstructs the protector key, decrypts the RSA Private Key, and unwraps the AMK to restore access to the keystore.
 
@@ -88,9 +88,9 @@ The application enforces strict data isolation using Firestore Security Rules (`
 
 LetUsMeet offers a natural language parser to extract scheduling blocks from queries like *"next Tuesday after 2pm, except Friday"*:
 * **Cloud Functions Routing**: Handled by Firebase v2 Callable Functions (`extractTimeSlots` and `extractFuzzySlots`).
-* **AI Provider Hierarchy**: Built on a dual-provider router:
+* **AI Provider Hierarchy**: Built on a dual-provider router (`functions/src/ai/router.ts`). The provider names and model identifiers are read from the `LETUSMEET_CONFIG` secret; the in-code defaults are:
   * **Primary**: Cerebras API utilizing `gpt-oss-120b`.
-  * **Fallback**: Google Gemini API utilizing `gemma-4-26b-a4b-it` when Cerebras is unresponsive.
+  * **Fallback**: Google Gemini API utilizing `gemma-4-26b-a4b-it` when Cerebras fails (the router retries the primary once, then falls back).
 * **Structured Output Validation**: Prompts enforce date math calculations relative to the current UTC timestamp and require the model to output a strict JSON schema containing a step-by-step logic field (`reasoning`) and the normalized slot array (`time_slots`).
 
 ---
@@ -118,10 +118,12 @@ LetUsMeet offers a natural language parser to extract scheduling blocks from que
    ```bash
    npm install
    ```
-2. Build local packages (including the shared zero-knowledge library):
+2. Build the workspaces (`frontend` then `functions`):
    ```bash
    npm run build
    ```
+   The zero-knowledge library is the published `charproof` npm package and is
+   installed by `npm install`, not built from this repo.
 
 ### Running Locally
 Run the concurrent dev environment (starts Vite and the Firebase Emulators Suite for Auth, Firestore, Functions, Hosting, and Pub/Sub):
@@ -139,9 +141,10 @@ To clear saved emulator data:
 npm run clear-persistent
 ```
 
-**Local Ports**:
-* **Frontend Application**: [http://localhost:5273](http://localhost:5273)
-* **Firebase Emulator UI**: [http://localhost:4000](http://localhost:4000)
+**Local Ports** (see `frontend/vite.config.ts` and `firebase.json`):
+* **Frontend Application (Vite dev server)**: [http://127.0.0.1:5273](http://127.0.0.1:5273) — the dev script runs `vite --host 127.0.0.1`, so use the `127.0.0.1` host.
+* **Firebase Emulator UI**: [http://127.0.0.1:4000](http://127.0.0.1:4000)
+* Other emulators: Auth `9099`, Firestore `8081`, Functions `5001`, Hosting `5270`, Pub/Sub `8085`.
 
 ---
 
@@ -149,16 +152,26 @@ npm run clear-persistent
 
 The codebase implements isolated unit testing and end-to-end (E2E) integration testing.
 
+Always invoke tests through the `npm test` / `npm run test:*` scripts (see `.agents/rules/testing.md`); do not call `vitest`/`playwright` directly.
+
 ```bash
-# Full sequence: Build zero-knowledge module, run Vitest unit tests, build frontend, and run Playwright E2E tests
+# Full sequence: build the frontend, run Vitest unit tests, then run the
+# Chromium + Firefox Playwright E2E suites (see test:e2e in package.json).
 npm test
 
-# Run Vitest unit tests only
+# Build the frontend and run Vitest unit tests only (no E2E)
 npm run test:unit
 
-# Run local Playwright E2E tests
+# Generate unit-test coverage
+npm run test:coverage
+
+# Run the Playwright E2E suite against locally-running emulators (no Docker)
 npm run test:e2e:local
 ```
+
+> The zero-knowledge crypto lives in the published `charproof` npm package, so it
+> is installed (not built) by `npm install`; only `frontend/` and `functions/`
+> are built locally.
 
 ### Containerized E2E Tests (Playwright inside Docker)
 To avoid environmental drift in browser rendering and OS-level dependencies, E2E tests run within isolated Docker containers:

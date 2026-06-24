@@ -108,6 +108,8 @@ export function useAuth() {
 
   useEffect(() => {
     if (!user || user.isAnonymous) {
+      // Async subscription guard: no device requests for signed-out/anon users; reset list.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingRequests([]);
       return;
     }
@@ -121,21 +123,17 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
 
-      if (result.user) {
-        // 1. Update user record
-        await setDoc(doc(db, "users", result.user.uid), {
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
+    if (result.user) {
+      // 1. Update user record
+      await setDoc(doc(db, "users", result.user.uid), {
+        uid: result.user.uid,
+        email: result.user.email,
+        displayName: result.user.displayName,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
 
-      }
-    } catch (error) {
-      throw error;
     }
   };
 
@@ -177,11 +175,11 @@ export function useAuth() {
       await getActiveAmk();
       setIsDeviceRegistered(true);
       setKeyMismatchError(null);
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof DOMException && e.name === 'NotAllowedError') {
         // Keep keyMismatchError null for canceled enrollment prompts
       } else {
-        setKeyMismatchError(e.message || "UNRECOGNIZED_DEVICE");
+        setKeyMismatchError((e instanceof Error ? e.message : "") || "UNRECOGNIZED_DEVICE");
       }
       throw e;
     }

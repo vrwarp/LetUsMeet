@@ -3,9 +3,13 @@ import { clearEmulators } from './emulator-helper';
 import { setupWebAuthn, clearWebAuthn } from './webauthn-helper';
 import { waitForRouterIdle } from './navigation-helper';
 
+// `__gotoWrapped` is a client-added marker we stash on the Page to make the
+// goto-wrapping idempotent; Playwright's Page type has no slot for it.
+type WrappablePage = Page & { __gotoWrapped?: boolean };
+
 export function wrapPageGoto(page: Page) {
-  if ((page as any).__gotoWrapped) return;
-  (page as any).__gotoWrapped = true;
+  if ((page as WrappablePage).__gotoWrapped) return;
+  (page as WrappablePage).__gotoWrapped = true;
 
   const originalGoto = page.goto.bind(page);
   page.goto = async (url, options) => {
@@ -13,7 +17,7 @@ export function wrapPageGoto(page: Page) {
     try {
       await waitForRouterIdle(page, 5000);
       await page.waitForTimeout(500);
-    } catch (e) {
+    } catch {
       // Safe fallback in case the page doesn't run the React Router app
     }
     return response;

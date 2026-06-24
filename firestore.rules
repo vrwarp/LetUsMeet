@@ -42,7 +42,11 @@ service cloud.firestore {
         
         // Append-only invariant
         allow create: if request.resource.data.keys().hasAll(['eventId', 'createdAt', 'encryptedData', 'iv'])
-          && request.resource.data.createdAt == request.time;
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.encryptedData is string
+          && request.resource.data.encryptedData.size() < 100000
+          && request.resource.data.iv is string
+          && request.resource.data.iv.size() < 256;
         
         allow update, delete: if false;
       }

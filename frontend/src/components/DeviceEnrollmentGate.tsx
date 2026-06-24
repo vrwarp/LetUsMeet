@@ -1,6 +1,10 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import Modal from "@/components/Modal";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
 import dataGardenImg from "@/assets/data-garden-compressed.webp";
 
 interface DeviceEnrollmentGateProps {
@@ -9,6 +13,8 @@ interface DeviceEnrollmentGateProps {
 
 export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateProps) {
   const { user, isDeviceRegistered, loading, enrollDevice, keyMismatchError, deleteAccount } = useAuth();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
   const [enrollmentState, setEnrollmentState] = useState<'idle' | 'prompting' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -24,9 +30,9 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
     } catch (err) {
       setEnrollmentState('error');
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setErrorMessage('Registration was canceled. We need a secure key to encrypt your polls.');
+        setErrorMessage("Passkey setup was canceled. You'll need one to keep your polls encrypted — tap to try again.");
       } else {
-        setErrorMessage('Something went wrong communicating with your device. Please try again.');
+        setErrorMessage("We couldn't reach your device's security features. Please try again.");
       }
     }
   };
@@ -35,9 +41,18 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
     <>
       {children}
 
-      {shouldShowGate && (
-        <div className="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 text-center animate-fade-in">
-          <div 
+      <Modal
+        open={!!shouldShowGate}
+        onClose={() => {}}
+        variant="bare"
+        size="fullscreen"
+        dismissable={false}
+        role={null}
+        ariaModal={false}
+        backdropClassName="fixed inset-0 z-[200] bg-neutral-900/40 backdrop-blur-md animate-fade-in"
+        className="absolute inset-0 flex items-center justify-center p-4 sm:p-6 text-center"
+      >
+          <div
             className="max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-neutral-100/80 text-brand-charcoal animate-fade-in-up flex flex-col relative mx-4 sm:mx-0"
             style={{
               backgroundColor: "#ffffff",
@@ -47,9 +62,12 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
           >
             {/* Illustration Banner */}
             <div className="w-full relative aspect-[2.3] sm:aspect-[1.8] flex items-end justify-center bg-white/40 border-b border-neutral-100 px-4 pt-4 pb-0 overflow-hidden">
-              <img 
-                src={dataGardenImg} 
-                alt="Secure Account Illustration" 
+              <img
+                src={dataGardenImg}
+                alt="Secure Account Illustration"
+                width={965}
+                height={633}
+                loading="lazy"
                 className="w-full h-full object-contain max-h-[120px] sm:max-h-[190px] drop-shadow-[0_8px_16px_rgba(36,102,39,0.06)]"
               />
             </div>
@@ -60,8 +78,15 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               </h2>
 
               <p className="text-neutral-500 text-xs sm:text-sm font-medium mt-3 sm:mt-4 leading-relaxed max-w-sm">
-                Using <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-green hover:text-brand-green-dark underline font-bold transition-colors">zero-knowledge encryption</a>, your data is locked in a digital vault away from everyone—even LetUsMeet. To generate your private passkey, this device must be registered using your built-in security features (like Touch ID or Face ID).
+                Your polls are encrypted so only you and your group can read them — not even we can. Set up a passkey with this device's Touch ID, Face ID, or screen lock to keep them safe.
               </p>
+
+              <Link
+                to="/privacy"
+                className="text-xs text-neutral-400 hover:text-neutral-600 font-medium underline decoration-dotted transition-colors mt-3"
+              >
+                Learn how your data stays private
+              </Link>
 
               {errorMessage && (
                 <div role="alert" className="w-full bg-red-50 text-brand-red text-xs sm:text-sm font-semibold py-3 px-4 rounded-xl mt-4 border border-red-100">
@@ -73,7 +98,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
                 <button
                   onClick={handleEnroll}
                   disabled={enrollmentState === 'prompting'}
-                  className="w-full bg-brand-green text-white py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/20 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  className="focus-ring w-full bg-brand-green text-white py-3.5 rounded-full font-bold shadow-lg shadow-brand-green/20 hover:bg-brand-green-dark hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer text-sm"
                 >
                   {enrollmentState === 'prompting' ? (
                     <>
@@ -81,7 +106,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
                       Waiting for device...
                     </>
                   ) : (
-                    "Set up secure access"
+                    "Set up my passkey"
                   )}
                 </button>
               </div>
@@ -89,11 +114,17 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               <div className="flex justify-center mt-5 w-full">
                 <button
                   onClick={async () => {
-                    if (confirm("CRITICAL WARNING: This will permanently delete your account and all your access keys. You will lose access to all your encrypted polls. This cannot be undone. Are you sure?")) {
+                    if (await askConfirm({
+                      title: "Delete your account?",
+                      body: "This permanently deletes your account and all your access keys. You'll lose access to all your encrypted polls. This can't be undone.",
+                      confirmLabel: "Delete account",
+                      variant: "danger",
+                    })) {
                       try {
                         await deleteAccount();
-                      } catch (e: any) {
-                        setErrorMessage("Failed to delete account: " + e.message);
+                      } catch (e) {
+                        console.error("Failed to delete account:", e);
+                        toast({ variant: "error", message: "We couldn't delete your account. Please try again." });
                       }
                     }
                   }}
@@ -104,8 +135,7 @@ export default function DeviceEnrollmentGate({ children }: DeviceEnrollmentGateP
               </div>
             </div>
           </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 }

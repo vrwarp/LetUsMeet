@@ -1,8 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithProviders } from '@/test/renderWithProviders';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ResultsPage from './ResultsPage';
 import * as pollService from '@/lib/pollService';
+import type { PollState } from '@/types';
+import type { LedgerSession } from 'charproof';
 
 describe('ResultsPage', () => {
   beforeEach(() => {
@@ -10,7 +13,7 @@ describe('ResultsPage', () => {
   });
 
   const renderPage = (pollId = 'mock-poll-id-123') => {
-    return render(
+    return renderWithProviders(
       <MemoryRouter initialEntries={[`/poll/${pollId}/results#key=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=`]}>
         <Routes>
           <Route path="/poll/:pollId/results" element={<ResultsPage />} />
@@ -31,7 +34,7 @@ describe('ResultsPage', () => {
         },
         votes: new Map(),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 
@@ -65,7 +68,7 @@ describe('ResultsPage', () => {
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     
@@ -100,7 +103,7 @@ describe('ResultsPage', () => {
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     
@@ -118,7 +121,7 @@ describe('ResultsPage', () => {
         metadata: { title: 'Empty Results', timeSlots: [{ id: 't1' }], schedulingMode: 'EXACT' },
         votes: new Map(),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
     
@@ -126,31 +129,65 @@ describe('ResultsPage', () => {
     expect(await screen.findByText(/No responses yet/i)).toBeInTheDocument();
   });
 
-  it('shows Leading badge on best slot', async () => {
+  it('shows Leading badge on best slot once there are enough responses', async () => {
     const votes = new Map();
-    votes.set('pub1', { 
+    votes.set('pub1', {
       responseId: 'r1',
-      participantName: 'Alice', 
+      participantName: 'Alice',
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+    votes.set('pub2', {
+      responseId: 'r2',
+      participantName: 'Bob',
       selections: { t1: 'YES' },
       clientTimestamp: Date.now()
     });
 
     vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
-      cb({ 
+      cb({
         pollId: 'p1',
-        metadata: { 
-          title: 'Leading Poll', 
+        metadata: {
+          title: 'Leading Poll',
           schedulingMode: 'EXACT',
           timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
         },
         votes,
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
-    
+
     renderPage();
-    expect(await screen.findByText(/Leading/i)).toBeInTheDocument();
+    expect(await screen.findByText('LEADING TIME')).toBeInTheDocument();
+  });
+
+  it('shows a soft "Not enough responses yet" state with fewer than 2 responses', async () => {
+    const votes = new Map();
+    votes.set('pub1', {
+      responseId: 'r1',
+      participantName: 'Alice',
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Sparse Poll',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: false
+      } as unknown as PollState, 'Synced');
+      return () => {};
+    });
+
+    renderPage();
+    expect(await screen.findByText('Not enough responses yet')).toBeInTheDocument();
+    expect(screen.queryByText('LEADING TIME')).not.toBeInTheDocument();
   });
 
   it('safely constructs mailto link when emailing participants', async () => {
@@ -167,14 +204,14 @@ describe('ResultsPage', () => {
         adminPublicKey: 'mock-pub-key',
         votes: new Map([['pub1', { participantName: 'Alice', email: 'alice@example.com', selections: { t1: 'YES' }, clientTimestamp: Date.now(), responseId: 'r1' }]]),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 
     const mockSession = {
       getSignerPublicKey: () => 'mock-pub-key'
     };
-    (pollService as any).getLedgerSession = vi.fn().mockResolvedValue(mockSession);
+    vi.mocked(pollService.getLedgerSession).mockResolvedValue(mockSession as unknown as LedgerSession);
 
     // Ensure we render the page FIRST so react can create its DOM elements natively
     renderPage();
@@ -224,6 +261,98 @@ describe('ResultsPage', () => {
     removeSpy.mockRestore();
   });
 
+  it('skips finalize when the dialog is cancelled and runs it when confirmed', async () => {
+    vi.mocked(pollService.subscribeToLedger).mockImplementation((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Finalize Poll',
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        adminPublicKey: 'mock-pub-key',
+        votes: new Map([['pub1', { participantName: 'Alice', selections: { t1: 'YES' }, clientTimestamp: Date.now(), responseId: 'r1' }]]),
+        isFinalized: false
+      } as unknown as PollState, 'Synced');
+      return () => {};
+    });
+
+    const appendEvent = vi.fn().mockResolvedValue(undefined);
+    const mockSession = {
+      getSignerPublicKey: () => 'mock-pub-key',
+      appendEvent
+    };
+    vi.mocked(pollService.getLedgerSession).mockResolvedValue(mockSession as unknown as LedgerSession);
+
+    renderPage();
+
+    // The admin-only "Confirm" finalize button should be present.
+    const finalizeBtn = await screen.findByRole('button', { name: /^Confirm$/i });
+    expect(finalizeBtn).toBeInTheDocument();
+
+    // Clicking it opens the new alertdialog instead of a native browser prompt.
+    finalizeBtn.click();
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(/close voting for everyone/i);
+
+    // Cancel: finalize must NOT be dispatched and the dialog closes.
+    screen.getByRole('button', { name: /^Cancel$/i }).click();
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    expect(appendEvent).not.toHaveBeenCalled();
+
+    // Re-open and confirm: finalize IS dispatched.
+    (await screen.findByRole('button', { name: /^Confirm$/i })).click();
+    await screen.findByRole('alertdialog');
+    screen.getByRole('button', { name: /Confirm time/i }).click();
+
+    await waitFor(() => {
+      expect(appendEvent).toHaveBeenCalled();
+    });
+    expect(appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'POLL_FINALIZED', payload: { finalizedSlotId: 't1' } })
+    );
+  });
+
+  it('renders a graceful fallback (no crash) when the finalized slot id is no longer in timeSlots', async () => {
+    const votes = new Map();
+    votes.set('pub1', {
+      responseId: 'r1',
+      participantName: 'Alice',
+      selections: { t1: 'YES' },
+      clientTimestamp: Date.now()
+    });
+
+    vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
+      cb({
+        pollId: 'p1',
+        metadata: {
+          title: 'Orphaned Finalize Poll',
+          organizerName: 'Organizer',
+          schedulingMode: 'EXACT',
+          // The finalized slot ('removed-slot') is NOT present here — it was
+          // edited out after finalize. The header lookup must not crash.
+          timeSlots: [{ id: 't1', startTime: '2026-01-01T10:00:00Z', endTime: '2026-01-01T11:00:00Z' }]
+        },
+        votes,
+        isFinalized: true,
+        finalizedSlotId: 'removed-slot'
+      } as unknown as PollState, 'Synced');
+      return () => {};
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Orphaned Finalize Poll')).toBeInTheDocument();
+    // Graceful fallback instead of a white screen.
+    expect(
+      screen.getByText(/The confirmed time is no longer available/i)
+    ).toBeInTheDocument();
+  });
+
   it('opens a dialog/modal when clicking share, allowing user to copy results or poll link', async () => {
     vi.mocked(pollService.subscribeToLedger).mockImplementationOnce((_session, cb) => {
       cb({
@@ -236,7 +365,7 @@ describe('ResultsPage', () => {
         },
         votes: new Map(),
         isFinalized: false
-      } as any, 'Synced');
+      } as unknown as PollState, 'Synced');
       return () => {};
     });
 

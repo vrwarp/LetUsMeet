@@ -3,6 +3,7 @@ import React from "react";
 interface CompactActionCardProps {
   icon: React.ReactNode;
   label?: string;
+  ariaLabel?: string;
   onAction: () => void;
   isSuccess?: boolean;
   theme?: 'dark' | 'light';
@@ -10,11 +11,12 @@ interface CompactActionCardProps {
   "data-testid"?: string;
 }
 
-const CompactActionCard: React.FC<CompactActionCardProps> = ({ 
-  icon, 
+const CompactActionCard: React.FC<CompactActionCardProps> = ({
+  icon,
   label,
-  onAction, 
-  isSuccess, 
+  ariaLabel,
+  onAction,
+  isSuccess,
   theme = 'dark',
   className = "",
   "data-testid": dataTestId
@@ -34,14 +36,16 @@ const CompactActionCard: React.FC<CompactActionCardProps> = ({
     : "bg-white shadow-sm group-hover:shadow-md";
 
   return (
-    <button 
+    <button
       onClick={onAction}
       data-testid={dataTestId}
+      aria-label={ariaLabel || label}
+      title={ariaLabel || label}
       className={`${baseStyles} ${themeStyles} ${className}`}
     >
       {/* Original Content */}
       <div className={`transition-all duration-300 flex items-center justify-center gap-3 md:gap-0 ${isSuccess ? 'opacity-0 scale-75 translate-y-2' : 'opacity-100 scale-100 translate-y-0'}`}>
-        <div className={`p-3 rounded-2xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${iconBgStyles}`}>
+        <div className={`p-3 rounded-2xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${iconBgStyles}`} aria-hidden="true">
           {icon}
         </div>
         {label && (

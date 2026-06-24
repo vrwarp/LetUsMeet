@@ -1,35 +1,47 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle } from "lucide-react";
-import { 
-  extractKeyFromFragment, 
-  subscribeToLedger, 
+import { Loader2, Share2, MapPin, User as UserIcon, CalendarIcon, Plus, History, ChevronDown, Lock, AlertTriangle, Edit3 } from "lucide-react";
+import {
+  extractKeyFromFragment,
+  subscribeToLedger,
   getShareableUrl,
-  getLedgerSession
+  getLedgerSession,
+  friendlyStatus
 } from "@/lib/pollService";
 import type { LedgerSession } from "charproof";
 import { useAuth } from "@/hooks/useAuth";
-import type { PollState, VoteValue, VoteData, PollAction } from "../types";
+import type { PollState, VoteValue, VoteData, PollAction, ExactTimeSlot, FuzzyTimeSlot } from "../types";
 import TimeSlotCard from "@/components/TimeSlotCard";
+import PageLoader from "@/components/PageLoader";
 import ActionCard from "@/components/ActionCard";
 import CompactActionCard from "@/components/CompactActionCard";
 import ClaimBanner from "@/components/ClaimBanner";
+import Button from "@/components/Button";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useToast } from "@/components/toast/toastContext";
+import { useConfirm } from "@/components/confirm/confirmContext";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export default function VotePollPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { user, loading } = useAuth();
   const [isReady, setIsReady] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const askConfirm = useConfirm();
 
   useEffect(() => {
+    // Mount gate: enable interactive controls only after hydration to avoid click-before-ready.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
-  
+
   const [pollState, setPollState] = useState<PollState | null>(null);
-  const [syncStatus, setSyncStatus] = useState("Initializing...");
+  const [syncStatus, setSyncStatus] = useState("Loading this poll…");
   const [session, setSession] = useState<LedgerSession | null>(null);
   const [connectionError, setConnectionError] = useState(false);
-  
+  const [retryKey, setRetryKey] = useState(0);
+
   const [selections, setSelections] = useState<Record<string, VoteValue>>({});
   const [participantName, setParticipantName] = useState("");
   const [participantEmail, setParticipantEmail] = useState("");
@@ -46,25 +58,49 @@ export default function VotePollPage() {
 
   useEffect(() => {
     if (contentRef.current) {
+      // Layout measurement: reads DOM size after render.
       setContentHeight(contentRef.current.scrollHeight);
     }
   }, [pollState?.metadata]);
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(getShareableUrl());
-    setShowCopied(true);
-    setTimeout(() => setShowCopied(false), 3000);
+  const handleShare = async () => {
+    const shareUrl = getShareableUrl();
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ url: shareUrl });
+        return;
+      } catch {
+        // User dismissed the share sheet or it failed — fall through to clipboard copy.
+      }
+    }
+    const ok = await copyToClipboard(shareUrl);
+    if (ok) {
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 3000);
+    } else {
+      toast({ variant: "error", message: "We couldn't copy the link. Try copying it manually." });
+    }
   };
 
-  const handleCopyLocation = () => {
+  const handleCopyLocation = async () => {
     if (pollState?.metadata?.location) {
-      navigator.clipboard.writeText(pollState.metadata.location);
-      setShowLocationCopied(true);
-      setTimeout(() => setShowLocationCopied(false), 3000);
+      const ok = await copyToClipboard(pollState.metadata.location);
+      if (ok) {
+        setShowLocationCopied(true);
+        setTimeout(() => setShowLocationCopied(false), 3000);
+      } else {
+        toast({ variant: "error", message: "We couldn't copy the location. Try copying it manually." });
+      }
     }
   };
   const [error, setError] = useState<string | null>(null);
   const [editingResponseId, setEditingResponseId] = useState<string>(crypto.randomUUID());
+
+  useDocumentTitle(
+    pollState?.metadata?.title
+      ? `${pollState.metadata.title} — Vote — LetUsMeet`
+      : "Vote on a poll — LetUsMeet"
+  );
 
   // 1. Initialize Crypto and Subscribe
   useEffect(() => {
@@ -74,10 +110,15 @@ export default function VotePollPage() {
 
     const b64Key = extractKeyFromFragment();
     if (!b64Key) {
-      setInitError("This poll requires a secret key in the URL fragment (#key=...). Please check the link.");
+      // Async init: load/error state is set from this init path; cannot derive in render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInitError("This link is missing the part that unlocks the poll. Ask the organizer to resend the full link.");
       setIsLoading(false);
       return;
     }
+
+    setInitError(null);
+    setIsLoading(true);
 
     const init = async () => {
       try {
@@ -107,28 +148,56 @@ export default function VotePollPage() {
         );
 
         return unsubscribe;
-      } catch (err: any) {
+      } catch (err) {
         console.error("Initialization failed", err);
         if (mounted) {
-          setInitError("Failed to initialize cryptographic session.");
+          setInitError("We couldn't securely open this poll. Refresh the page to try again.");
           setIsLoading(false);
         }
       }
     };
 
     const unsubPromise = init();
-    return () => { 
+    return () => {
       mounted = false;
-      unsubPromise.then(unsub => unsub?.()); 
+      unsubPromise.then(unsub => unsub?.());
     };
-  }, [pollId, user?.uid, loading]);
+  }, [pollId, user?.uid, loading, retryKey]);
 
-  // 2. Derive User Votes
-  const userVotes = (pollState && session) ? Array.from(pollState.votes.entries())
-    .filter(([key]) => key.startsWith(session.getSignerPublicKey() + ":"))
-    .map(([, vote]) => vote)
-    .sort((a, b) => b.clientTimestamp - a.clientTimestamp)
-    : [];
+  // 2. Derive User Votes (memoized so it's a stable, honest dependency for the
+  // auto-init effect below; recomputes only when the votes map or session changes).
+  const userVotes = useMemo(
+    () => (pollState && session)
+      ? Array.from(pollState.votes.entries())
+        .filter(([key]) => key.startsWith(session.getSignerPublicKey() + ":"))
+        .map(([, vote]) => vote)
+        .sort((a, b) => b.clientTimestamp - a.clientTimestamp)
+      : [],
+    [pollState, session]
+  );
+
+  // Stable vote handler (functional setState — no deps) so the per-slot
+  // callbacks below stay referentially stable.
+  const handleVoteChange = useCallback((slotId: string, value: VoteValue) => {
+    setSelections(prev => ({ ...prev, [slotId]: value }));
+  }, []);
+
+  // One stable, slot-bound `(val) => handleVoteChange(slotId, val)` per slot,
+  // keyed by the slot ids. Memoized so each memoized TimeSlotCard receives the
+  // SAME `onChange` reference across renders (an inline arrow would be a fresh
+  // function every render and defeat React.memo).
+  const slotIdsKey = pollState?.metadata?.timeSlots?.map(s => s.id).join("|") ?? "";
+  const slotChangeHandlers = useMemo(() => {
+    const map = new Map<string, (value: VoteValue) => void>();
+    for (const id of slotIdsKey ? slotIdsKey.split("|") : []) {
+      map.set(id, (value: VoteValue) => handleVoteChange(id, value));
+    }
+    return map;
+    // slotIdsKey encodes the slot ids; handleVoteChange is stable.
+  }, [slotIdsKey, handleVoteChange]);
+
+  // Detect organizer: signer matches the poll's admin public key (same check Results uses).
+  const isAdmin = !!(session && pollState?.adminPublicKey && session.getSignerPublicKey() === pollState.adminPublicKey);
 
   // Auto-initialize form with first vote if not already editing something specific
   const hasInitializedRef = useRef(false);
@@ -143,6 +212,9 @@ export default function VotePollPage() {
     if (savedDraftStr) {
       try {
         const draft = JSON.parse(savedDraftStr);
+        // One-shot init (guarded by hasInitializedRef): seed the form from the saved
+        // draft / latest vote. Set from async-resolved data; cannot derive in render.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelections(draft.selections || {});
         setParticipantName(draft.participantName || "");
         setParticipantEmail(draft.participantEmail || "");
@@ -165,7 +237,7 @@ export default function VotePollPage() {
     }
 
     hasInitializedRef.current = true;
-  }, [userVotes.length, pollState?.metadata, user?.displayName, user?.email, pollId, loading, participantName]);
+  }, [userVotes, pollState?.metadata, user?.displayName, user?.email, pollId, loading, participantName]);
 
   useEffect(() => {
     if (hasInitializedRef.current && pollId) {
@@ -197,10 +269,6 @@ export default function VotePollPage() {
     setSelections(vote.selections);
   };
 
-  const handleVoteChange = (slotId: string, value: VoteValue) => {
-    setSelections(prev => ({ ...prev, [slotId]: value }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!participantName.trim()) {
@@ -209,7 +277,7 @@ export default function VotePollPage() {
     }
     
     if (!session || !pollId) {
-      setError("Cryptographic keys not ready.");
+      setError("Still getting things ready — give it a second and try again.");
       return;
     }
 
@@ -217,7 +285,7 @@ export default function VotePollPage() {
     setError(null);
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setError("You are currently offline. Please check your internet connection and try again.");
+      setError("You're offline. Reconnect and we'll save your response.");
       setIsSubmitting(false);
       return;
     }
@@ -233,12 +301,13 @@ export default function VotePollPage() {
 
       const action: PollAction = { type: "VOTE_UPSERT", payload: voteData };
       await session.appendEvent(action);
-      
+
       localStorage.removeItem(`draft_${pollId}`);
+      toast({ variant: "success", message: "Response saved — you can edit anytime." });
       navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Vote submission failed:", err);
-      setError(err.message || "Failed to submit encrypted vote.");
+      setError((err instanceof Error ? err.message : "") || "We couldn't save your response. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -246,15 +315,21 @@ export default function VotePollPage() {
 
   const handleRetract = async () => {
     if (!session || !pollId) return;
-    if (!confirm("Are you sure you want to retract your vote?")) return;
+    if (!(await askConfirm({
+      title: "Retract your response?",
+      body: "This removes your response from this poll. You can submit a new one anytime.",
+      confirmLabel: "Retract",
+      variant: "danger",
+    }))) return;
 
     setIsSubmitting(true);
     try {
       const action: PollAction = { type: "VOTE_RETRACTED", payload: { responseId: editingResponseId } };
       await session.appendEvent(action);
       localStorage.removeItem(`draft_${pollId}`);
+      toast({ variant: "success", message: "Your response was retracted." });
       navigate(`/poll/${pollId}/results${window.location.search}${window.location.hash}`);
-    } catch (err: any) {
+    } catch {
       setError("Failed to retract vote.");
     } finally {
       setIsSubmitting(false);
@@ -263,20 +338,34 @@ export default function VotePollPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4" data-testid="loader">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin" />
-        <p className="text-neutral-600 font-medium">{syncStatus}</p>
-      </div>
+      <PageLoader
+        testId="loader"
+        heading="Loading poll"
+        message={friendlyStatus(syncStatus)}
+      />
     );
   }
 
   if (initError || !pollState || !pollState.metadata) {
+    const isMissingKey = initError?.startsWith("This link is missing");
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h2>
-        <p className="text-neutral-600 text-lg mb-8">{initError || "This poll is encrypted. You need the secret key to view it."}</p>
-        <Link to="/" className="btn-primary-green inline-block">Return to Home</Link>
+        <Lock className="w-16 h-16 text-neutral-300 mx-auto mb-6" aria-hidden="true" />
+        <h1 className="text-2xl font-bold text-neutral-800 mb-4">Privacy Protected</h1>
+        <p className="text-neutral-600 text-lg mb-8">{initError || "This poll is private. Open it using the full link the organizer shared with you."}</p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {initError && !isMissingKey && (
+            <button
+              type="button"
+              onClick={() => setRetryKey((k) => k + 1)}
+              className="btn-primary-green inline-flex items-center gap-2"
+            >
+              <History className="w-5 h-5 -scale-x-100" aria-hidden="true" />
+              Retry
+            </button>
+          )}
+          <Link to="/" className={initError && !isMissingKey ? "px-6 py-3 rounded-xl font-bold border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors inline-block" : "btn-primary-green inline-block"}>Return to Home</Link>
+        </div>
       </div>
     );
   }
@@ -284,18 +373,18 @@ export default function VotePollPage() {
   const { metadata } = pollState;
   const sortedSlots = [...metadata.timeSlots].sort((a, b) => {
     if (metadata.schedulingMode === "EXACT") {
-      return new Date((a as any).startTime).getTime() - new Date((b as any).startTime).getTime();
+      return new Date((a as ExactTimeSlot).startTime).getTime() - new Date((b as ExactTimeSlot).startTime).getTime();
     }
-    return (a as any).date.localeCompare((b as any).date);
+    return (a as FuzzyTimeSlot).date.localeCompare((b as FuzzyTimeSlot).date);
   });
 
   if (pollState.isFinalized) {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
         <div className="bg-amber-50 rounded-3xl p-10 border border-amber-100">
-          <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h2>
-          <p className="text-neutral-600 mb-6">This poll has been finalized and is no longer accepting votes.</p>
+          <CalendarIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" aria-hidden="true" />
+          <h1 className="text-2xl font-bold text-neutral-800 mb-2">Poll Finalized</h1>
+          <p className="text-neutral-600 mb-6">The organizer has confirmed a time, so responses are now closed.</p>
           <Link to={`/poll/${pollId}/results${window.location.search}${window.location.hash}`} className="inline-block bg-brand-green text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-green-dark transition-colors">
             View Final Results
           </Link>
@@ -307,10 +396,10 @@ export default function VotePollPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
       {connectionError && (
-        <div data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div role="status" aria-live="polite" data-testid="connection-warning" className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl font-bold flex items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="text-amber-500 animate-pulse" size={20} />
-            <span>Connection sluggish or offline. Trying to reconnect automatically...</span>
+            <AlertTriangle className="text-amber-500 animate-pulse" size={20} aria-hidden="true" />
+            <span>Trouble connecting. We'll keep trying to reconnect...</span>
           </div>
           <button
             type="button"
@@ -378,7 +467,7 @@ export default function VotePollPage() {
                               {isDescriptionExpanded ? 'Show Less' : 'Show More'}
                             </span>
                             <div className={`transition-transform duration-500 ${isDescriptionExpanded ? 'rotate-180' : ''}`}>
-                              <ChevronDown size={14} className="text-neutral-600 group-hover/btn:text-brand-green-dark" />
+                              <ChevronDown size={14} className="text-neutral-600 group-hover/btn:text-brand-green-dark" aria-hidden="true" />
                             </div>
                           </button>
                         </div>
@@ -419,13 +508,27 @@ export default function VotePollPage() {
                 data-testid="view-results-link"
                 className="group flex-1 md:flex-initial flex items-center justify-center gap-3 bg-brand-green text-white hover:bg-brand-green-dark transition-all rounded-[1.5rem] md:rounded-[2rem] px-10 py-4 min-h-[72px] md:min-h-[84px] font-black text-xl active:scale-95 shadow-xl shadow-brand-green/20"
               >
-                <History className="w-7 h-7 group-hover:rotate-12 transition-transform" />
+                <History className="w-7 h-7 group-hover:rotate-12 transition-transform" aria-hidden="true" />
                 <span>Results</span>
               </Link>
 
+              {/* Edit Poll Button (organizer only) */}
+              {isAdmin && (
+                <Link
+                  to={`/poll/${pollId}/edit${window.location.search}${window.location.hash}`}
+                  data-testid="edit-poll-link"
+                  title="Edit poll"
+                  className="group flex items-center justify-center gap-2 px-6 md:px-0 md:w-[84px] h-[72px] md:h-[84px] rounded-[1.5rem] md:rounded-[2rem] border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red transition-all active:scale-95 shadow-xl"
+                >
+                  <Edit3 className="w-6 h-6 group-hover:scale-110 transition-transform flex-shrink-0" aria-hidden="true" />
+                  <span className="text-sm font-bold md:hidden">Edit poll</span>
+                </Link>
+              )}
+
               {/* Share Button */}
-              <CompactActionCard 
+              <CompactActionCard
                 icon={<Share2 className="w-6 h-6" />}
+                ariaLabel="Copy link to share"
                 onAction={handleShare}
                 isSuccess={showCopied}
                 theme="light"
@@ -442,7 +545,7 @@ export default function VotePollPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex-shrink-0 flex items-center justify-center text-white shadow-lg shadow-indigo-200 mt-1">
-                <History className="w-5 h-5" />
+                <History className="w-5 h-5" aria-hidden="true" />
               </div>
               <div className="flex-1">
                 <h2 className="font-bold text-neutral-800 text-base leading-snug">
@@ -463,7 +566,7 @@ export default function VotePollPage() {
                 onClick={handleNewResponse}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 whitespace-nowrap"
               >
-                <Plus size={16} />
+                <Plus size={16} aria-hidden="true" />
                 Submit New Response
               </button>
             </div>
@@ -499,13 +602,14 @@ export default function VotePollPage() {
             <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-green-light/50 text-brand-green-dark text-sm">1</span>
             Your Availability
           </h2>
+          <p className="text-sm text-neutral-500 -mt-4 mb-8">Tap a time to cycle through Yes → If need be → No.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {sortedSlots.map(slot => (
               <TimeSlotCard
                 key={slot.id}
                 slot={slot}
                 value={selections[slot.id] || "BLANK"}
-                onChange={(val) => handleVoteChange(slot.id, val)}
+                onChange={slotChangeHandlers.get(slot.id)!}
                 disabled={!isReady}
               />
             ))}
@@ -514,8 +618,8 @@ export default function VotePollPage() {
 
         <section className="bg-white rounded-3xl p-8 border border-neutral-100 shadow-xl shadow-indigo-100/20">
           <h2 className="text-2xl font-bold text-neutral-800 mb-8 flex items-center gap-3">
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 text-sm">2</span>
-            Basic Information
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-green-light/50 text-brand-green-dark text-sm">2</span>
+            Your details
           </h2>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -548,28 +652,31 @@ export default function VotePollPage() {
                   className="w-full"
                   disabled={!isReady}
                 />
+                <p className="text-xs text-neutral-500">Optional — lets the organizer email you when a time is confirmed.</p>
               </div>
             </div>
-            <p className="text-xs text-neutral-500 italic">This name will be encrypted and visible only to participants with the link.</p>
+            <p className="text-xs text-neutral-500 italic">Your name is encrypted and only visible to people you share the link with.</p>
           </div>
         </section>
         
         {error && (
-          <div data-testid="error-message" className="p-4 bg-red-50 text-red-600 rounded-2xl font-bold flex items-center gap-2">
-            <AlertTriangle size={20} />
+          <div role="alert" data-testid="error-message" className="p-4 bg-red-50 text-red-600 rounded-2xl font-bold flex items-center gap-2">
+            <AlertTriangle size={20} aria-hidden="true" />
             {error}
           </div>
         )}
 
         <div className="flex flex-col md:flex-row gap-4">
-          <button
+          <Button
             type="submit"
+            size="lg"
+            aria-busy={isSubmitting}
             disabled={!isReady || isSubmitting || !participantName.trim()}
             data-testid="vote-submit-btn"
-            className="flex-1 bg-brand-green text-white !py-6 !text-2xl font-black rounded-3xl hover:bg-brand-green-dark shadow-xl transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 shadow-xl disabled:cursor-not-allowed"
           >
-            {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Vote"}
-          </button>
+            {isSubmitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : "Send my response"}
+          </Button>
           
           {userVotes.some(v => v.responseId === editingResponseId) && (
             <button

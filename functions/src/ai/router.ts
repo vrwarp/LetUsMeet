@@ -24,7 +24,7 @@ export function createAIRouter(config: AIRouterConfig) {
         JSON.parse(response.text);
       } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
-        throw new Error(`AI returned invalid JSON: ${error.message}. Response was: "${response.text}"`, { cause: err });
+        throw new Error(`AI returned invalid JSON: ${error.message}. Response was: "${String(response.text).slice(0, 200)}"`, { cause: err });
       }
     }
 

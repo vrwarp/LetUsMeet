@@ -3,6 +3,12 @@ import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { connectFirestoreEmulator, initializeFirestore, getFirestore } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
+declare global {
+  interface Window {
+    firebaseAuth?: import("firebase/auth").Auth;
+  }
+}
+
 const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-letusmeet",
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "demo-app-id-placeholder",
@@ -52,7 +58,7 @@ try {
         experimentalForceLongPolling: useEmulator,
       };
   dbInstance = initializeFirestore(app, firestoreSettings);
-} catch (e) {
+} catch {
   dbInstance = getFirestore(app);
 }
 
@@ -85,5 +91,5 @@ if (useEmulator) {
 }
 
 if (typeof window !== 'undefined') {
-  (window as any).firebaseAuth = auth;
+  window.firebaseAuth = auth;
 }
