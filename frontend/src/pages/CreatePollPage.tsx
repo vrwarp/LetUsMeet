@@ -677,7 +677,7 @@ export default function CreatePollPage() {
               )}
               <div className="relative z-10 flex flex-col gap-1">
                 <span className={`font-bold text-lg ${schedulingMode === "EXACT" ? "text-brand-green-dark" : "text-neutral-700"}`}>Exact Times</span>
-                <span className="text-sm text-neutral-600 leading-snug">Pick specific start and end times (e.g. 2:00–3:00 PM).</span>
+                <span className="text-sm text-neutral-500 leading-snug">Schedule by the minute.</span>
               </div>
             </button>
             <button
@@ -706,7 +706,7 @@ export default function CreatePollPage() {
               )}
               <div className="relative z-10 flex flex-col gap-1">
                 <span className={`font-bold text-lg ${schedulingMode === "FUZZY" ? "text-brand-green-dark" : "text-neutral-700"}`}>Flexible Windows</span>
-                <span className="text-sm text-neutral-600 leading-snug">Offer flexible blocks like mornings or evenings, no exact time needed.</span>
+                <span className="text-sm text-neutral-500 leading-snug">Schedule by the block.</span>
               </div>
             </button>
           </div>
