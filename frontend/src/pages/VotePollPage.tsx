@@ -493,12 +493,14 @@ export default function VotePollPage() {
                 />
               )}
 
-              {/* Organizer Card */}
-              <ActionCard 
+              {/* Organizer Card — full width on mobile so the name gets its own
+                  line instead of being squeezed beside the Results button. */}
+              <ActionCard
                 icon={<UserIcon className="w-5 h-5" />}
                 label="Organizer"
                 value={metadata.organizerName || "Organizer"}
                 theme="light"
+                className="basis-full md:basis-0"
                 data-testid="poll-organizer"
               />
 

@@ -91,8 +91,11 @@ Run from the repo root unless noted. Node 22 (`.nvmrc`, all `engines`).
 | E2E (Docker, per browser) | `npm run test:e2e:chromium` / `:firefox` / `:webkit` |
 | Full test pipeline | `npm test` (unit, then Chromium + Firefox E2E) |
 
-Dev URLs: frontend **http://127.0.0.1:5273** (dev script runs
-`vite --host 127.0.0.1`), Emulator UI **http://127.0.0.1:4000**.
+Dev URLs: frontend **http://localhost:5273** (dev script runs
+`vite --host localhost`), Emulator UI **http://localhost:4000**. Use the
+`localhost` host, not `127.0.0.1` — WebAuthn/passkey enrollment rejects bare
+IP addresses as an invalid relying-party domain, so poll creation fails on the
+IP host.
 
 ## Testing conventions
 
