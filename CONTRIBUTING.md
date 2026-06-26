@@ -45,9 +45,11 @@ npm run dev-persistent
 npm run clear-persistent
 ```
 
-- Frontend dev server: **http://127.0.0.1:5273** (the dev script runs
-  `vite --host 127.0.0.1`).
-- Emulator UI: **http://127.0.0.1:4000**.
+- Frontend dev server: **http://localhost:5273** (the dev script runs
+  `vite --host localhost`). Use `localhost`, not `127.0.0.1` — WebAuthn
+  passkey enrollment rejects bare IPs as an invalid relying-party domain, so
+  poll creation fails on the IP host.
+- Emulator UI: **http://localhost:4000**.
 
 ## Build, lint, test
 

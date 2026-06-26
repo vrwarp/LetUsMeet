@@ -142,8 +142,8 @@ npm run clear-persistent
 ```
 
 **Local Ports** (see `frontend/vite.config.ts` and `firebase.json`):
-* **Frontend Application (Vite dev server)**: [http://127.0.0.1:5273](http://127.0.0.1:5273) — the dev script runs `vite --host 127.0.0.1`, so use the `127.0.0.1` host.
-* **Firebase Emulator UI**: [http://127.0.0.1:4000](http://127.0.0.1:4000)
+* **Frontend Application (Vite dev server)**: [http://localhost:5273](http://localhost:5273) — the dev script runs `vite --host localhost`. Use the `localhost` host, **not** `127.0.0.1`: WebAuthn/passkey enrollment rejects bare IP addresses as an invalid relying-party domain, so poll creation fails on the IP host.
+* **Firebase Emulator UI**: [http://localhost:4000](http://localhost:4000)
 * Other emulators: Auth `9099`, Firestore `8081`, Functions `5001`, Hosting `5270`, Pub/Sub `8085`.
 
 ---

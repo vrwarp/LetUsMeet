@@ -951,7 +951,7 @@ const unsubscribe = subscribeToUserKeystore(async (keystoreEntries) => {
                   }
                 `}>
                   <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
-                  <span className="text-[10px] font-black uppercase tracking-widest leading-none mt-0.5 md:mt-1">Your Keys</span>
+                  <span className="text-[10px] font-black uppercase tracking-wide leading-tight mt-0.5 md:mt-1">Your Keys</span>
                   <span className="text-[10px] opacity-85 leading-none mt-0.5 font-semibold hidden md:inline">
                     {recoveryStatus.isSealed ? 'Protected' : 'Action needed'}
                   </span>

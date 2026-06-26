@@ -545,7 +545,7 @@ export default function ResultsPage() {
             {/* Confirmed Date / Top Choice Box - Featured on Results Page */}
             {bestSlotId && (
               (!pollState.isFinalized && voteArray.length < 2) ? (
-                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full lg:ml-auto">
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:w-auto sm:min-w-[320px] sm:max-w-md lg:ml-auto">
                   <div className="w-16 h-16 bg-neutral-100 rounded-2xl flex items-center justify-center text-neutral-500" aria-hidden="true">
                     <CalendarCheck className="w-8 h-8" />
                   </div>
@@ -559,7 +559,7 @@ export default function ResultsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:min-w-[320px] max-w-full transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
+                <div className="bg-white text-brand-charcoal p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 w-full sm:w-auto sm:min-w-[320px] sm:max-w-md transform hover:scale-[1.01] transition-transform duration-500 lg:ml-auto">
                   <div className="w-16 h-16 bg-brand-green rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-green/20" aria-hidden="true">
                     <CalendarCheck className="w-8 h-8" />
                   </div>

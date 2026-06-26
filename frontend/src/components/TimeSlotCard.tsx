@@ -230,7 +230,9 @@ function TimeSlotCard({ slot, value, onChange, disabled }: Props) {
 
         <div className="w-[1.5px] h-4 bg-neutral-200 mx-1" />
 
-        <span className={`text-xs font-black uppercase tracking-wide min-w-[70px] text-left ${getLabelColor()}`}>
+        {/* Fixed width sized to the widest label ("No selection") so the icons
+            and the divider stay put when the selection changes. */}
+        <span className={`text-xs font-black uppercase tracking-wide w-[104px] shrink-0 text-left ${getLabelColor()}`}>
           {getLabelText()}
         </span>
       </div>
