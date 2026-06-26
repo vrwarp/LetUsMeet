@@ -4,7 +4,7 @@ test.describe('Navigation Flows', () => {
   test('navigates through the entire app lifecycle smoothly', async ({ page }) => {
     // Start at Home
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Find a time that works for everyone');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Let everyone meet');
 
     // Home -> Create
     await page.locator('header').getByTestId('create-poll-btn').click();
@@ -44,6 +44,6 @@ test.describe('Navigation Flows', () => {
     await page.getByRole('link', { name: /LetUsMeet/i }).first().click();
     await waitForRouterIdle(page);
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Find a time that works for everyone');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Let everyone meet');
   });
 });
