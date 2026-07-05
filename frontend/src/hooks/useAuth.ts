@@ -10,6 +10,7 @@ import {
   getActiveAmk, loadDeviceKeysFromIndexedDB, hasAccountKeys
 } from "charproof";
 import { resetKeystore } from "@/lib/pollService";
+import { friendlySignInError } from "@/lib/browserEnv";
 import type { PendingDevice } from "@/types";
 
 let isSigningIn = false;
@@ -123,7 +124,17 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
+    let result;
+    try {
+      result = await signInWithPopup(auth, provider);
+    } catch (error) {
+      // Map raw Firebase/Google errors (popup-blocked, disallowed_useragent in
+      // embedded web views, network failures) to actionable copy. A null message
+      // means the user simply dismissed the popup — swallow it silently.
+      const message = friendlySignInError(error);
+      if (message === null) return;
+      throw new Error(message, { cause: error });
+    }
 
     if (result.user) {
       // 1. Update user record
