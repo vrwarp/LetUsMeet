@@ -85,3 +85,67 @@ describe('ConfirmProvider / useConfirm', () => {
     document.body.removeAttribute('data-confirm-result');
   });
 });
+
+/** Harness that opens the dialog with the cancel button emphasised. */
+function EmphasisHarness() {
+  const askConfirm = useConfirm();
+  return (
+    <button
+      onClick={async () => {
+        const result = await askConfirm({
+          title: 'Sign-in may not work in this app',
+          confirmLabel: 'Try anyway',
+          cancelLabel: 'Cancel',
+          variant: 'warning',
+          emphasizeCancel: true,
+        });
+        document.body.setAttribute('data-confirm-result', String(result));
+      }}
+    >
+      open
+    </button>
+  );
+}
+
+describe('ConfirmProvider emphasizeCancel', () => {
+  async function openEmphasisDialog() {
+    const user = userEvent.setup();
+    render(
+      <ConfirmProvider>
+        <EmphasisHarness />
+      </ConfirmProvider>
+    );
+    await user.click(screen.getByRole('button', { name: 'open' }));
+    await screen.findByRole('alertdialog');
+    return user;
+  }
+
+  it('gives the cancel button primary emphasis and de-emphasises confirm', async () => {
+    await openEmphasisDialog();
+
+    // brand-green is the primary variant's marker; secondary is white/bordered.
+    expect(screen.getByTestId('confirm-dialog-cancel').className).toContain('bg-brand-green');
+    expect(screen.getByTestId('confirm-dialog-confirm').className).toContain('bg-white');
+    document.body.removeAttribute('data-confirm-result');
+  });
+
+  it('keeps the emphasised (cancel) button in the trailing/right slot', async () => {
+    await openEmphasisDialog();
+
+    const buttons = screen.getAllByRole('button').filter((b) => b.dataset.testid?.startsWith('confirm-dialog-'));
+    // Try anyway (secondary) renders first, Cancel (primary) last.
+    expect(buttons[0]).toHaveAttribute('data-testid', 'confirm-dialog-confirm');
+    expect(buttons[1]).toHaveAttribute('data-testid', 'confirm-dialog-cancel');
+    document.body.removeAttribute('data-confirm-result');
+  });
+
+  it('still resolves true for "Try anyway" and false on dismissal', async () => {
+    const user = await openEmphasisDialog();
+
+    await user.click(screen.getByRole('button', { name: 'Try anyway' }));
+    await waitFor(() =>
+      expect(document.body.getAttribute('data-confirm-result')).toBe('true')
+    );
+    document.body.removeAttribute('data-confirm-result');
+  });
+});

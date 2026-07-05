@@ -138,6 +138,9 @@ export function useAuth() {
         confirmLabel: "Try anyway",
         cancelLabel: "Cancel",
         variant: "warning",
+        // Emphasise "Cancel" (open in a real browser is the safer path); leave
+        // "Try anyway" as the de-emphasised escape hatch. Dismissing still aborts.
+        emphasizeCancel: true,
       });
       if (!proceed) return;
     }
