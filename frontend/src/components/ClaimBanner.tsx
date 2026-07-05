@@ -11,7 +11,6 @@ import {
 import { loadFromKeystore } from "charproof";
 import { useToast } from "@/components/toast/toastContext";
 import { copyToClipboard } from "@/lib/clipboard";
-import { isEmbeddedBrowser } from "@/lib/browserEnv";
 
 interface LayoutContext {
   activeAdminToken: string | null;
@@ -155,12 +154,6 @@ export default function ClaimBanner() {
           <p className="text-[10px] text-neutral-600 font-medium leading-normal">
             Requires Google sign-in to sync securely across all your devices.
           </p>
-          {isEmbeddedBrowser() && (
-            <p className="text-[10px] text-brand-red font-semibold leading-normal inline-flex items-start gap-1">
-              <ShieldAlert size={12} className="flex-shrink-0 mt-0.5" />
-              <span>Sign-in may not work in in-app browsers. If it doesn't, open this page in Safari or Chrome — or copy the private organizer link instead.</span>
-            </p>
-          )}
         </div>
 
         {/* Secondary Action: Copy private organizer link */}
