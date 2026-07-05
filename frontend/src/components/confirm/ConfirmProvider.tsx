@@ -68,6 +68,33 @@ export default function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const portalTarget = typeof document !== "undefined" ? document.body : null;
   const variant: ConfirmVariant = pending?.variant ?? "warning";
+  const primaryVariant = variant === "danger" ? "danger" : "primary";
+  const emphasizeCancel = pending?.emphasizeCancel ?? false;
+
+  const cancelButton = (
+    <Button
+      key="cancel"
+      variant={emphasizeCancel ? primaryVariant : "secondary"}
+      data-testid="confirm-dialog-cancel"
+      onClick={() => close(false)}
+    >
+      {pending?.cancelLabel ?? "Cancel"}
+    </Button>
+  );
+  const confirmButton = (
+    <Button
+      key="confirm"
+      variant={emphasizeCancel ? "secondary" : primaryVariant}
+      data-testid="confirm-dialog-confirm"
+      onClick={() => close(true)}
+    >
+      {pending?.confirmLabel ?? "Confirm"}
+    </Button>
+  );
+  // Keep the emphasized (primary) button in the trailing / right-hand slot.
+  const actionButtons = emphasizeCancel
+    ? [confirmButton, cancelButton]
+    : [cancelButton, confirmButton];
 
   return (
     <ConfirmContext.Provider value={confirm}>
@@ -115,16 +142,7 @@ export default function ConfirmProvider({ children }: { children: ReactNode }) {
                   </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-3">
-                  <Button variant="secondary" data-testid="confirm-dialog-cancel" onClick={() => close(false)}>
-                    {pending.cancelLabel ?? "Cancel"}
-                  </Button>
-                  <Button
-                    variant={variant === "danger" ? "danger" : "primary"}
-                    data-testid="confirm-dialog-confirm"
-                    onClick={() => close(true)}
-                  >
-                    {pending.confirmLabel ?? "Confirm"}
-                  </Button>
+                  {actionButtons}
                 </div>
               </div>
             </div>

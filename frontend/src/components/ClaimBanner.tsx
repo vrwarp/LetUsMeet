@@ -90,11 +90,17 @@ export default function ClaimBanner() {
       
       const symKeyString = extractKeyFromFragment();
       if (!symKeyString) return;
-      
+
       await getLedgerSession(pollId, { shareableKey: symKeyString, ownershipToken: activeAdminToken });
       setIsClaimed(true);
     } catch (error) {
       console.error("Error during claim process:", error);
+      // Surface sign-in / claim failures the user would otherwise never see —
+      // e.g. a blocked popup on iOS, or Google's block inside in-app browsers.
+      toast({
+        variant: "error",
+        message: error instanceof Error ? error.message : "We couldn't add this poll to your dashboard. Please try again.",
+      });
     } finally {
       setIsClaiming(false);
     }

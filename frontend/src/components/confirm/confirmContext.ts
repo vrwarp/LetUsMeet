@@ -8,6 +8,14 @@ export interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: ConfirmVariant;
+  /**
+   * Give the cancel button primary emphasis and de-emphasize the confirm button
+   * to secondary. Use when dismissing is the recommended choice (e.g. a "try
+   * anyway" escape hatch). Resolution semantics are unchanged — confirm still
+   * resolves true and cancel/escape/backdrop still resolve false — so the safe
+   * path stays tied to dismissal.
+   */
+  emphasizeCancel?: boolean;
 }
 
 export type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;

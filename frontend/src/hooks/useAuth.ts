@@ -10,6 +10,8 @@ import {
   getActiveAmk, loadDeviceKeysFromIndexedDB, hasAccountKeys
 } from "charproof";
 import { resetKeystore } from "@/lib/pollService";
+import { friendlySignInError, isEmbeddedBrowser } from "@/lib/browserEnv";
+import { useConfirm } from "@/components/confirm/confirmContext";
 import type { PendingDevice } from "@/types";
 
 let isSigningIn = false;
@@ -21,6 +23,7 @@ export function useAuth() {
   const [keyMismatchError, setKeyMismatchError] = useState<string | null>(null);
   const [pendingRequests, setPendingRequests] = useState<PendingDevice[]>([]);
   const [isDeviceRegistered, setIsDeviceRegistered] = useState(false);
+  const askConfirm = useConfirm();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -122,8 +125,38 @@ export function useAuth() {
   }, [user]);
 
   const signInWithGoogle = async () => {
+    // In-app browsers (Instagram, Messenger, LINE, …) almost always get blocked
+    // by Google's OAuth endpoint, and the WebAuthn passkey enrollment behind our
+    // keystore can't run there either. Detection is heuristic, so instead of
+    // hiding sign-in we show an interstitial that explains the risk and lets the
+    // user proceed. The "Try anyway" click is itself the user gesture that opens
+    // the popup below, so activation is preserved for the false-positive case.
+    if (isEmbeddedBrowser()) {
+      const proceed = await askConfirm({
+        title: "Sign-in may not work in this app",
+        body: "It looks like you opened this inside another app (like Instagram or Messenger), where Google sign-in is usually blocked. For the best experience, open this page in Safari or Chrome — or try anyway.",
+        confirmLabel: "Try anyway",
+        cancelLabel: "Cancel",
+        variant: "warning",
+        // Emphasise "Cancel" (open in a real browser is the safer path); leave
+        // "Try anyway" as the de-emphasised escape hatch. Dismissing still aborts.
+        emphasizeCancel: true,
+      });
+      if (!proceed) return;
+    }
+
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
+    let result;
+    try {
+      result = await signInWithPopup(auth, provider);
+    } catch (error) {
+      // Map raw Firebase/Google errors (popup-blocked, disallowed_useragent in
+      // embedded web views, network failures) to actionable copy. A null message
+      // means the user simply dismissed the popup — swallow it silently.
+      const message = friendlySignInError(error);
+      if (message === null) return;
+      throw new Error(message, { cause: error });
+    }
 
     if (result.user) {
       // 1. Update user record

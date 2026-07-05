@@ -1,7 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { useAuth } from './useAuth';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 
 // Mock firebase/auth
 vi.mock('firebase/auth', () => ({
@@ -11,6 +11,18 @@ vi.mock('firebase/auth', () => ({
   signInWithPopup: vi.fn(),
   signOut: vi.fn(),
 }));
+
+// Mock the confirm dialog. useAuth now calls useConfirm() to show an in-app
+// browser interstitial before Google sign-in; `mockConfirm` lets tests drive
+// whether the user picks "Try anyway" (resolve true) or "Cancel" (false).
+const { mockConfirm } = vi.hoisted(() => ({ mockConfirm: vi.fn() }));
+vi.mock('@/components/confirm/confirmContext', () => ({
+  useConfirm: () => mockConfirm,
+}));
+
+const NORMAL_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1';
+const INSTAGRAM_UA = 'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Instagram 300.0.0.0';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -136,5 +148,56 @@ describe('useAuth hook', () => {
     unmount();
 
     expect(unsubscribeMock).toHaveBeenCalled();
+  });
+});
+
+describe('signInWithGoogle in-app browser interstitial', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Don't drive auth state in these tests — just register and return.
+    (onAuthStateChanged as unknown as Mock).mockImplementation(() => vi.fn());
+    (signInWithPopup as unknown as Mock).mockResolvedValue({ user: { uid: 'g-1', email: 'a@b.c', displayName: 'A' } });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('skips the interstitial and signs in directly in a normal browser', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(NORMAL_UA);
+
+    const { result } = renderHook(() => useAuth());
+    await act(async () => {
+      await result.current.signInWithGoogle();
+    });
+
+    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(signInWithPopup).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the interstitial and aborts when the user declines in an in-app browser', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(INSTAGRAM_UA);
+    mockConfirm.mockResolvedValue(false);
+
+    const { result } = renderHook(() => useAuth());
+    await act(async () => {
+      await result.current.signInWithGoogle();
+    });
+
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+    expect(signInWithPopup).not.toHaveBeenCalled();
+  });
+
+  it('proceeds with sign-in when the user chooses "Try anyway"', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(INSTAGRAM_UA);
+    mockConfirm.mockResolvedValue(true);
+
+    const { result } = renderHook(() => useAuth());
+    await act(async () => {
+      await result.current.signInWithGoogle();
+    });
+
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+    expect(signInWithPopup).toHaveBeenCalledTimes(1);
   });
 });
