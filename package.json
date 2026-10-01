@@ -28,6 +28,7 @@
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "npm run build --prefix frontend && npm run test:unit --prefix frontend",
     "test:coverage": "npm run test:coverage --prefix frontend",
+    "test:rules": "firebase emulators:exec --project demo-letusmeet --only firestore \"vitest run --config rules-tests/vitest.config.ts\"",
     "test:e2e": "npm run test:e2e:chromium && npm run test:e2e:firefox",
     "test:e2e:chromium": "mkdir -p frontend/playwright-report/chromium frontend/test-results/chromium && docker build -t letusmeet-e2e -f Dockerfile.e2e . && docker run --rm -e CI -e VITE_FIREBASE_PROJECT_ID -e VITE_FIREBASE_APP_ID -e VITE_FIREBASE_API_KEY -v ~/.cache/firebase/emulators:/root/.cache/firebase/emulators -v $(pwd)/frontend/playwright-report/chromium:/app/frontend/playwright-report -v $(pwd)/frontend/test-results/chromium:/app/frontend/test-results letusmeet-e2e npx firebase emulators:exec --only auth,firestore,functions,hosting,pubsub \"npm run test:e2e --prefix frontend -- --project=chromium\"",
     "test:e2e:chromium-mobile": "mkdir -p frontend/playwright-report/chromium-mobile frontend/test-results/chromium-mobile && docker build -t letusmeet-e2e -f Dockerfile.e2e . && docker run --rm -e CI -e VITE_FIREBASE_PROJECT_ID -e VITE_FIREBASE_APP_ID -e VITE_FIREBASE_API_KEY -v ~/.cache/firebase/emulators:/root/.cache/firebase/emulators -v $(pwd)/frontend/playwright-report/chromium-mobile:/app/frontend/playwright-report -v $(pwd)/frontend/test-results/chromium-mobile:/app/frontend/test-results letusmeet-e2e npx firebase emulators:exec --only auth,firestore,functions,hosting,pubsub \"npm run test:e2e --prefix frontend -- --project=chromium-mobile\"",
@@ -38,6 +39,7 @@
     "deploy": "npm run build && npx firebase deploy --project letusmeet-6f4e1 --only hosting,firestore,auth,functions"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@xstate/test": "^0.5.1",
     "concurrently": "^9.1.0",
     "fast-check": "^4.8.0",
