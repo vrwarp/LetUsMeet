@@ -55,9 +55,9 @@ Root `package.json` defines two workspaces: `frontend` and `functions`.
     auth user delete).
   - `refreshChaffPool` — scheduled (every 15 min) traffic-analysis chaff pool.
   - `src/ai/` — provider abstraction: `router.ts` (primary + 1-retry +
-    fallback), `cerebrasProvider.ts` (default model `gpt-oss-120b`),
-    `geminiProvider.ts` (default model `gemma-4-26b-a4b-it`). Model/provider
-    names are configurable via the `LETUSMEET_CONFIG` secret.
+    fallback) and `geminiProvider.ts` (defaults: `gemini-3.5-flash-lite`
+    primary, `gemma-4-26b-a4b-it` fallback). Model names are configurable via
+    the `LETUSMEET_CONFIG` secret.
   - `src/prompts/` — system prompts and JSON schemas for structured output.
 - **Crypto / zero-knowledge** lives in the external **`charproof`** package
   (`frontend/package.json` dependency). It implements WebAuthn PRF derivation,

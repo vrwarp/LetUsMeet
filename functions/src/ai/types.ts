@@ -3,7 +3,7 @@ export interface AIGenerateRequest {
   userMessage: string;
   /** If true, expect JSON output */
   jsonMode: boolean;
-  /** JSON Schema for strict structured output (used by Cerebras) */
+  /** JSON Schema for strict structured output */
   jsonSchema?: {
     name: string;
     schema: Record<string, unknown>;
@@ -12,10 +12,10 @@ export interface AIGenerateRequest {
 
 export interface AIGenerateResponse {
   text: string;
-  provider: "gemini" | "cerebras";
+  provider: string;
 }
 
 export interface AIProvider {
-  name: "gemini" | "cerebras";
+  name: string;
   generate(request: AIGenerateRequest): Promise<AIGenerateResponse>;
 }

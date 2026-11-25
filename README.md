@@ -22,15 +22,14 @@ graph TD
         ChaffPool[Chaffing Pool Document]
     end
 
-    subgraph External ["External AI Providers"]
-        Cerebras[Cerebras API]
-        Gemini[Gemini API]
+    subgraph External ["External AI Provider"]
+        Gemini[Google Gemini API]
     end
 
     UI <-->|Auth Tokens| Auth
     Crypto <-->|Encrypted Ledger Events & Keystore| Firestore
     UI <-->|Natural Language Queries| CF
-    CF <-->|Cerebras Primary / Gemini Fallback| External
+    CF <-->|Gemini Primary / Gemma Fallback| External
     Firestore -->|onSchedule Update| ChaffPool
 ```
 
@@ -88,9 +87,9 @@ The application enforces strict data isolation using Firestore Security Rules (`
 
 LetUsMeet offers a natural language parser to extract scheduling blocks from queries like *"next Tuesday after 2pm, except Friday"*:
 * **Cloud Functions Routing**: Handled by Firebase v2 Callable Functions (`extractTimeSlots` and `extractFuzzySlots`).
-* **AI Provider Hierarchy**: Built on a dual-provider router (`functions/src/ai/router.ts`). The provider names and model identifiers are read from the `LETUSMEET_CONFIG` secret; the in-code defaults are:
-  * **Primary**: Cerebras API utilizing `gpt-oss-120b`.
-  * **Fallback**: Google Gemini API utilizing `gemma-4-26b-a4b-it` when Cerebras fails (the router retries the primary once, then falls back).
+* **AI Model Hierarchy**: Built on a dual-model router (`functions/src/ai/router.ts`) backed by the Google Gemini API. Model identifiers are configurable via the `LETUSMEET_CONFIG` secret; the in-code defaults are:
+  * **Primary**: `gemini-3.5-flash-lite`.
+  * **Fallback**: `gemma-4-26b-a4b-it` when the primary fails (the router retries the primary once, then falls back).
 * **Structured Output Validation**: Prompts enforce date math calculations relative to the current UTC timestamp and require the model to output a strict JSON schema containing a step-by-step logic field (`reasoning`) and the normalized slot array (`time_slots`).
 
 ---
@@ -205,5 +204,4 @@ This system leverages several open-source technologies, specifications, and cryp
 
 ### 3. Backend & Infrastructure Components
 * **Firebase Platform**: Provides Anonymous & Google Authentication, real-time Cloud Firestore, Cloud Functions, and the Local Emulator Suite.
-* **Cerebras Inference API**: High-throughput natural language completion engine (`gpt-oss-120b`).
-* **Google Gemini API**: Native language tokenizer and processing engine (`gemma-4-26b-a4b-it`).
+* **Google Gemini API**: Natural language slot extraction engine (`gemini-3.5-flash-lite` primary, `gemma-4-26b-a4b-it` fallback).

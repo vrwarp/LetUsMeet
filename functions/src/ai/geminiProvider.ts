@@ -5,12 +5,13 @@ export function createGeminiProvider(apiKey: string, model: string): AIProvider 
   const ai = new GoogleGenAI({ apiKey });
 
   return {
-    name: "gemini",
+    name: model,
     async generate(req: AIGenerateRequest): Promise<AIGenerateResponse> {
       const config = {
         thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
         systemInstruction: [{ text: req.systemPrompt }],
-        ...(req.jsonMode && { responseMimeType: "application/json" }),
+        ...((req.jsonMode || req.jsonSchema) && { responseMimeType: "application/json" }),
+        ...(req.jsonSchema && { responseJsonSchema: req.jsonSchema.schema }),
       };
 
       const response = await ai.models.generateContent({
@@ -21,7 +22,7 @@ export function createGeminiProvider(apiKey: string, model: string): AIProvider 
 
       return {
         text: (response.text || "").replace(/```json/g, "").replace(/```/g, "").trim(),
-        provider: "gemini",
+        provider: model,
       };
     },
   };
