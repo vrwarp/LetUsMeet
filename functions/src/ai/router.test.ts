@@ -5,15 +5,15 @@ import { AIProvider } from "./types";
 describe("AIRouter Retry and Fallback Logic", () => {
   it("should successfully return response from primary provider if it succeeds on first try", async () => {
     const primaryMock: AIProvider = {
-      name: "cerebras",
+      name: "gemini-3.5-flash-lite",
       generate: vi.fn().mockResolvedValue({
         text: JSON.stringify({ reasoning: "ok", time_slots: [] }),
-        provider: "cerebras",
+        provider: "gemini-3.5-flash-lite",
       }),
     };
 
     const fallbackMock: AIProvider = {
-      name: "gemini",
+      name: "gemma-4-26b-a4b-it",
       generate: vi.fn(),
     };
 
@@ -30,7 +30,7 @@ describe("AIRouter Retry and Fallback Logic", () => {
     });
 
     expect(response.text).toBe("{\"reasoning\":\"ok\",\"time_slots\":[]}");
-    expect(response.provider).toBe("cerebras");
+    expect(response.provider).toBe("gemini-3.5-flash-lite");
     expect(primaryMock.generate).toHaveBeenCalledTimes(1);
     expect(fallbackMock.generate).not.toHaveBeenCalled();
   });
@@ -38,7 +38,7 @@ describe("AIRouter Retry and Fallback Logic", () => {
   it("should retry primary provider if it fails, and succeed if retry succeeds", async () => {
     let callCount = 0;
     const primaryMock: AIProvider = {
-      name: "cerebras",
+      name: "gemini-3.5-flash-lite",
       generate: vi.fn().mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
@@ -46,13 +46,13 @@ describe("AIRouter Retry and Fallback Logic", () => {
         }
         return {
           text: JSON.stringify({ reasoning: "retry ok" }),
-          provider: "cerebras",
+          provider: "gemini-3.5-flash-lite",
         };
       }),
     };
 
     const fallbackMock: AIProvider = {
-      name: "gemini",
+      name: "gemma-4-26b-a4b-it",
       generate: vi.fn(),
     };
 
@@ -75,15 +75,15 @@ describe("AIRouter Retry and Fallback Logic", () => {
 
   it("should fall back to fallback provider if primary fails all attempts", async () => {
     const primaryMock: AIProvider = {
-      name: "cerebras",
+      name: "gemini-3.5-flash-lite",
       generate: vi.fn().mockRejectedValue(new Error("Permanent outage")),
     };
 
     const fallbackMock: AIProvider = {
-      name: "gemini",
+      name: "gemma-4-26b-a4b-it",
       generate: vi.fn().mockResolvedValue({
         text: JSON.stringify({ reasoning: "fallback ok" }),
-        provider: "gemini",
+        provider: "gemma-4-26b-a4b-it",
       }),
     };
 
@@ -100,25 +100,25 @@ describe("AIRouter Retry and Fallback Logic", () => {
     });
 
     expect(response.text).toBe("{\"reasoning\":\"fallback ok\"}");
-    expect(response.provider).toBe("gemini");
+    expect(response.provider).toBe("gemma-4-26b-a4b-it");
     expect(primaryMock.generate).toHaveBeenCalledTimes(2);
     expect(fallbackMock.generate).toHaveBeenCalledTimes(1);
   });
 
   it("should treat empty response as failure and trigger fallback", async () => {
     const primaryMock: AIProvider = {
-      name: "cerebras",
+      name: "gemini-3.5-flash-lite",
       generate: vi.fn().mockResolvedValue({
         text: "",
-        provider: "cerebras",
+        provider: "gemini-3.5-flash-lite",
       }),
     };
 
     const fallbackMock: AIProvider = {
-      name: "gemini",
+      name: "gemma-4-26b-a4b-it",
       generate: vi.fn().mockResolvedValue({
         text: JSON.stringify({ reasoning: "empty fallback ok" }),
-        provider: "gemini",
+        provider: "gemma-4-26b-a4b-it",
       }),
     };
 
@@ -135,25 +135,25 @@ describe("AIRouter Retry and Fallback Logic", () => {
     });
 
     expect(response.text).toBe("{\"reasoning\":\"empty fallback ok\"}");
-    expect(response.provider).toBe("gemini");
+    expect(response.provider).toBe("gemma-4-26b-a4b-it");
     expect(primaryMock.generate).toHaveBeenCalledTimes(1);
     expect(fallbackMock.generate).toHaveBeenCalledTimes(1);
   });
 
   it("should treat invalid JSON in jsonMode as failure and trigger fallback", async () => {
     const primaryMock: AIProvider = {
-      name: "cerebras",
+      name: "gemini-3.5-flash-lite",
       generate: vi.fn().mockResolvedValue({
         text: "Not JSON at all",
-        provider: "cerebras",
+        provider: "gemini-3.5-flash-lite",
       }),
     };
 
     const fallbackMock: AIProvider = {
-      name: "gemini",
+      name: "gemma-4-26b-a4b-it",
       generate: vi.fn().mockResolvedValue({
         text: JSON.stringify({ reasoning: "json fallback ok" }),
-        provider: "gemini",
+        provider: "gemma-4-26b-a4b-it",
       }),
     };
 
@@ -170,19 +170,19 @@ describe("AIRouter Retry and Fallback Logic", () => {
     });
 
     expect(response.text).toBe("{\"reasoning\":\"json fallback ok\"}");
-    expect(response.provider).toBe("gemini");
+    expect(response.provider).toBe("gemma-4-26b-a4b-it");
     expect(primaryMock.generate).toHaveBeenCalledTimes(1);
     expect(fallbackMock.generate).toHaveBeenCalledTimes(1);
   });
 
   it("should throw consolidated error if all attempts on both providers fail", async () => {
     const primaryMock: AIProvider = {
-      name: "cerebras",
+      name: "gemini-3.5-flash-lite",
       generate: vi.fn().mockRejectedValue(new Error("Primary dead")),
     };
 
     const fallbackMock: AIProvider = {
-      name: "gemini",
+      name: "gemma-4-26b-a4b-it",
       generate: vi.fn().mockRejectedValue(new Error("Fallback dead")),
     };
 

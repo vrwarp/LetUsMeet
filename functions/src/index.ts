@@ -6,12 +6,13 @@ import { getTimeSlotsPrompt } from "./prompts/timeSlots";
 import { getFuzzySlotsPrompt } from "./prompts/fuzzySlots";
 import { TIME_SLOTS_SCHEMA, FUZZY_SLOTS_SCHEMA } from "./prompts/schemas";
 import { createAIRouter } from "./ai/router";
-import { createCerebrasProvider } from "./ai/cerebrasProvider";
 import { createGeminiProvider } from "./ai/geminiProvider";
-import { AIProvider } from "./ai/types";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
+
+const DEFAULT_PRIMARY_MODEL = "gemini-3.5-flash-lite";
+const DEFAULT_FALLBACK_MODEL = "gemma-4-26b-a4b-it";
 
 // Declare a structured JSON secret to hold all app-wide configuration values.
 // This helps stay within the Cloud Secret Manager free tier.
@@ -21,34 +22,34 @@ const appConfig = defineJsonSecret("LETUSMEET_CONFIG");
 
 interface AppConfig {
   geminiApiKey?: string;
-  cerebrasApiKey?: string;
   ai?: {
-    primary?: string;
-    fallback?: string;
-    cerebrasModel?: string;
+    primaryModel?: string;
+    fallbackModel?: string | null;
+    /** Legacy alias kept for backwards compatibility with existing secrets */
     geminiModel?: string;
   };
 }
 
-// Helper to create the right provider from config
-function resolveProvider(cfg: AppConfig, name: string): AIProvider {
-  switch (name) {
-  case "cerebras":
-    return createCerebrasProvider(
-      cfg.cerebrasApiKey || "",
-      cfg.ai?.cerebrasModel || "gpt-oss-120b"
-    );
-  case "gemini":
-  default:
-    return createGeminiProvider(
-      cfg.geminiApiKey || "",
-      cfg.ai?.geminiModel || "gemma-4-26b-a4b-it"
-    );
-  }
+// Create a Gemini router using a primary model with an optional fallback model
+function createGeminiRouter(cfg: AppConfig) {
+  const apiKey = cfg.geminiApiKey || "";
+  const primaryModel = cfg.ai?.primaryModel || DEFAULT_PRIMARY_MODEL;
+  const fallbackModel =
+    cfg.ai?.fallbackModel !== undefined
+      ? cfg.ai.fallbackModel
+      : cfg.ai?.geminiModel || DEFAULT_FALLBACK_MODEL;
+
+  return createAIRouter({
+    primary: createGeminiProvider(apiKey, primaryModel),
+    fallback:
+      fallbackModel && fallbackModel !== primaryModel
+        ? createGeminiProvider(apiKey, fallbackModel)
+        : null,
+  });
 }
 
 /**
- * Natural language time-slot extraction using Cerebras (primary) / Google Gemma (fallback).
+ * Natural language time-slot extraction using Gemini (primary) / Gemma (fallback).
  */
 export const extractTimeSlots = onCall(
   { secrets: [appConfig], maxInstances: 10 },
@@ -66,10 +67,7 @@ export const extractTimeSlots = onCall(
     }
 
     const cfg = appConfig.value() as unknown as AppConfig;
-    const router = createAIRouter({
-      primary: resolveProvider(cfg, cfg.ai?.primary || "cerebras"),
-      fallback: cfg.ai?.fallback ? resolveProvider(cfg, cfg.ai.fallback) : null,
-    });
+    const router = createGeminiRouter(cfg);
 
     const now = new Date();
     const currentDate = now.toISOString().split("T")[0];
@@ -94,7 +92,7 @@ export const extractTimeSlots = onCall(
 );
 
 /**
- * Natural language fuzzy-slot extraction using Cerebras (primary) / Google Gemma (fallback).
+ * Natural language fuzzy-slot extraction using Gemini (primary) / Gemma (fallback).
  */
 export const extractFuzzySlots = onCall(
   { secrets: [appConfig], maxInstances: 10 },
@@ -112,10 +110,7 @@ export const extractFuzzySlots = onCall(
     }
 
     const cfg = appConfig.value() as unknown as AppConfig;
-    const router = createAIRouter({
-      primary: resolveProvider(cfg, cfg.ai?.primary || "cerebras"),
-      fallback: cfg.ai?.fallback ? resolveProvider(cfg, cfg.ai.fallback) : null,
-    });
+    const router = createGeminiRouter(cfg);
 
     const now = new Date();
     const currentDate = now.toISOString().split("T")[0];

@@ -8,14 +8,14 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "vitest run"
   },
   "engines": {
     "node": "22"
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@cerebras/cerebras_cloud_sdk": "^1.64.1",
     "@google/genai": "^2.0.1",
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.0.0"
